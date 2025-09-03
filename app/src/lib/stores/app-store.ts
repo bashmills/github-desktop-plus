@@ -6064,17 +6064,22 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   public async _editGlobalGitConfig() {
     await getGlobalConfigPath()
-      .then(p => this._openInExternalEditor(p))
+      .then(p => this._openInExternalEditor(null, p))
       .catch(e => log.error('Could not open global Git config for editing', e))
   }
 
   /** Open a path to a repository or file using the user's configured editor */
-  public async _openInExternalEditor(fullPath: string): Promise<void> {
+  public async _openInExternalEditor(
+    repository: Repository | null,
+    fullPath: string
+  ): Promise<void> {
     const { selectedExternalEditor, useCustomEditor, customEditor } =
       this.getState()
 
     try {
-      if (useCustomEditor && customEditor) {
+      if (repository?.customEditorOverride) {
+        // Launch the custom editor override if one exists
+      } else if (useCustomEditor && customEditor) {
         await launchCustomExternalEditor(fullPath, customEditor)
       } else {
         const match = await findEditorOrDefault(selectedExternalEditor)
