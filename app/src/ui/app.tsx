@@ -19,12 +19,7 @@ import { FetchType } from '../models/fetch'
 import { shouldRenderApplicationMenu } from './lib/features'
 import { matchExistingRepository } from '../lib/repository-matching'
 import { getVersion, getName } from './lib/app-proxy'
-import {
-  getOS,
-  isOSNoLongerSupportedByElectron,
-  isMacOSAndNoLongerSupportedByElectron,
-  isWindowsAndNoLongerSupportedByElectron,
-} from '../lib/get-os'
+import { getOS, isOSNoLongerSupportedByElectron } from '../lib/get-os'
 import { MenuEvent, isTestMenuEvent } from '../main-process/menu'
 import {
   Repository,
@@ -629,25 +624,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     inBackground: boolean,
     skipGuidCheck: boolean = false
   ) {
-    if (__LINUX__ || __RELEASE_CHANNEL__ === 'development') {
-      return
-    }
-
-    if (isWindowsAndNoLongerSupportedByElectron()) {
-      log.error(
-        `Can't check for updates on Windows 8.1 or older. Next available update only supports Windows 10 and later`
-      )
-      return
-    }
-
-    if (isMacOSAndNoLongerSupportedByElectron()) {
-      log.error(
-        `Can't check for updates on macOS 10.15 or older. Next available update only supports macOS 11.0 and later`
-      )
-      return
-    }
-
-    updateStore.checkForUpdates(inBackground, skipGuidCheck)
+    // Disable autoupdates so that the app doesn't revert to the desktop/desktop upstream whenever there is an update.
   }
 
   private updateBranchWithContributionTargetBranch() {
@@ -1766,11 +1743,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             applicationName={getName()}
             applicationVersion={version}
             applicationArchitecture={process.arch}
-            onCheckForNonStaggeredUpdates={this.onCheckForNonStaggeredUpdates}
             onShowAcknowledgements={this.showAcknowledgements}
             onShowTermsAndConditions={this.showTermsAndConditions}
             updateState={this.state.updateState}
-            onQuitAndInstall={this.onQuitAndInstall}
           />
         )
       case PopupType.PublishRepository:
@@ -2799,9 +2774,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.openShell(path, true)
   }
 
-  private onCheckForNonStaggeredUpdates = () =>
-    this.checkForUpdates(false, true)
-
   private showAcknowledgements = () => {
     this.props.dispatcher.showPopup({ type: PopupType.Acknowledgements })
   }
@@ -2809,8 +2781,6 @@ export class App extends React.Component<IAppProps, IAppState> {
   private showTermsAndConditions = () => {
     this.props.dispatcher.showPopup({ type: PopupType.TermsAndConditions })
   }
-
-  private onQuitAndInstall = () => updateStore.quitAndInstallUpdate()
 
   private renderPopups() {
     const popupContent = this.allPopupContent()

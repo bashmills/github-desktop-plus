@@ -1,7 +1,6 @@
 import * as React from 'react'
 
 import { Row } from '../lib/row'
-import { Button } from '../lib/button'
 import {
   Dialog,
   DialogError,
@@ -46,14 +45,10 @@ interface IAboutProps {
    */
   readonly applicationArchitecture: string
 
-  /** A function to call to kick off a non-staggered update check. */
-  readonly onCheckForNonStaggeredUpdates: () => void
-
   readonly onShowAcknowledgements: () => void
 
   /** A function to call when the user wants to see Terms and Conditions. */
   readonly onShowTermsAndConditions: () => void
-  readonly onQuitAndInstall: () => void
 
   readonly updateState: IUpdateState
 
@@ -96,71 +91,13 @@ export class About extends React.Component<IAboutProps> {
   }
 
   private renderUpdateButton() {
-    if (!this.canCheckForUpdates) {
-      return null
-    }
-
-    if (__LINUX__) {
-      const linuxReleaseLink = (
-        <LinkButton uri={LinuxReleasesUri}>View Releases</LinkButton>
-      )
-      return (
-        <Row>
-          <p className="no-padding">{linuxReleaseLink}</p>
-        </Row>
-      )
-    }
-
-    if (__LINUX__) {
-      const linuxReleaseLink = (
-        <LinkButton uri={LinuxReleasesUri}>View Releases</LinkButton>
-      )
-      return (
-        <Row>
-          <p className="no-padding">{linuxReleaseLink}</p>
-        </Row>
-      )
-    }
-
-    const updateStatus = this.props.updateState.status
-
-    switch (updateStatus) {
-      case UpdateStatus.UpdateReady:
-        return (
-          <Row>
-            <Button onClick={this.props.onQuitAndInstall}>
-              Quit and Install Update
-            </Button>
-          </Row>
-        )
-      case UpdateStatus.UpdateNotAvailable:
-      case UpdateStatus.CheckingForUpdates:
-      case UpdateStatus.UpdateAvailable:
-      case UpdateStatus.UpdateNotChecked:
-        const disabled =
-          ![
-            UpdateStatus.UpdateNotChecked,
-            UpdateStatus.UpdateNotAvailable,
-          ].includes(updateStatus) || isOSNoLongerSupportedByElectron()
-
-        const buttonTitle = 'Check for Updates'
-
-        return (
-          <Row>
-            <Button
-              disabled={disabled}
-              onClick={this.props.onCheckForNonStaggeredUpdates}
-            >
-              {buttonTitle}
-            </Button>
-          </Row>
-        )
-      default:
-        return assertNever(
-          updateStatus,
-          `Unknown update status ${updateStatus}`
-        )
-    }
+    return (
+      <Row>
+        <p className="no-padding">
+          <LinkButton uri={LinuxReleasesUri}>View Releases</LinkButton>
+        </p>
+      </Row>
+    )
   }
 
   private renderUpdateDetails() {
