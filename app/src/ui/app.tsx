@@ -1953,7 +1953,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         }
 
         const currentBranch = tip.branch
-        const hasAssociatedStash = changesState.stashEntry !== null
+        const hasAssociatedStash = changesState.stashEntries.length > 0
 
         return (
           <StashAndSwitchBranch
@@ -2098,14 +2098,14 @@ export class App extends React.Component<IAppProps, IAppState> {
         const existingStash =
           selectedState !== null &&
           selectedState.type === SelectionType.Repository
-            ? selectedState.state.changesState.stashEntry
-            : null
+            ? selectedState.state.changesState.stashEntries.length > 0
+            : false
 
         return (
           <LocalChangesOverwrittenDialog
             repository={popup.repository}
             dispatcher={this.props.dispatcher}
-            hasExistingStash={existingStash !== null}
+            hasExistingStash={existingStash}
             retryAction={popup.retryAction}
             onDismissed={onPopupDismissedFn}
             files={popup.files}
