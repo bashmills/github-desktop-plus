@@ -755,8 +755,7 @@ export class CommitList extends React.Component<
   ): IMenuItem[] {
     const isLocal = this.isLocalCommit(commit.sha)
 
-    const canBeUndone =
-      this.props.canUndoCommits === true && isLocal && row === 0
+    const canBeUndone = this.props.canUndoCommits === true && row === 0
     const canBeAmended = this.props.canAmendCommits === true && row === 0
     // The user can reset to any commit up to the first non-local one (included).
     // They cannot reset to the most recent commit... because they're already
