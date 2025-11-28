@@ -78,11 +78,12 @@ export function generateBranchContextMenuItems(
 }
 
 function getViewBranchLabel(repoType: RepoType): string {
+  const branch = __DARWIN__ ? 'Branch' : 'branch'
   switch (repoType) {
     case 'github':
-      return 'View Branch on GitHub'
+      return `View ${branch} on GitHub`
     case 'bitbucket':
-      return 'View Branch on Bitbucket'
+      return `View ${branch} on Bitbucket`
     default:
       return assertNever(repoType, `Unknown repo type: ${repoType}`)
   }
