@@ -9,6 +9,7 @@ interface IBranchContextMenuConfig {
   isLocal: boolean
   repoType: RepoType | undefined
   onRenameBranch?: (branchName: string) => void
+  onViewBranchOnGitHub?: () => void
   onViewPullRequestOnGitHub?: () => void
   onMakeDefaultBranch?: (branchName: string) => void
   onDeleteBranch?: (branchName: string) => void
@@ -23,6 +24,7 @@ export function generateBranchContextMenuItems(
     isLocal,
     repoType,
     onRenameBranch,
+    onViewBranchOnGitHub,
     onViewPullRequestOnGitHub,
     onMakeDefaultBranch,
     onDeleteBranch,
@@ -41,6 +43,13 @@ export function generateBranchContextMenuItems(
     label: __DARWIN__ ? 'Copy Branch Name' : 'Copy branch name',
     action: () => clipboard.writeText(name),
   })
+
+  if (onViewBranchOnGitHub !== undefined && repoType !== undefined) {
+    items.push({
+      label: getViewBranchLabel(repoType),
+      action: () => onViewBranchOnGitHub(),
+    })
+  }
 
   if (onViewPullRequestOnGitHub !== undefined && repoType !== undefined) {
     items.push({
@@ -66,6 +75,17 @@ export function generateBranchContextMenuItems(
   }
 
   return items
+}
+
+function getViewBranchLabel(repoType: RepoType): string {
+  switch (repoType) {
+    case 'github':
+      return 'View Branch on GitHub'
+    case 'bitbucket':
+      return 'View Branch on Bitbucket'
+    default:
+      return assertNever(repoType, `Unknown repo type: ${repoType}`)
+  }
 }
 
 function getViewPullRequestLabel(repoType: RepoType): string {

@@ -2,7 +2,10 @@ import * as React from 'react'
 import { Dispatcher } from '../dispatcher'
 import * as octicons from '../octicons/octicons.generated'
 import { OcticonSymbol, syncClockwise } from '../octicons'
-import { Repository } from '../../models/repository'
+import {
+  isRepositoryWithGitHubRepository,
+  Repository,
+} from '../../models/repository'
 import { Resizable } from '../resizable'
 import { TipState } from '../../models/tip'
 import { ToolbarDropdown, DropdownState } from './dropdown'
@@ -313,6 +316,11 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       isLocal: type === BranchType.Local,
       repoType: this.props.repository.gitHubRepository?.type,
       onRenameBranch: this.onRenameBranch,
+      onViewBranchOnGitHub:
+        isRepositoryWithGitHubRepository(this.props.repository) &&
+        tip.branch.upstreamRemoteName
+          ? this.onViewBranchOnGitHub
+          : undefined,
       onViewPullRequestOnGitHub: this.props.currentPullRequest
         ? this.onViewPullRequestOnGithub
         : undefined,
@@ -344,6 +352,29 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       repository: this.props.repository,
       branch,
     })
+  }
+
+  private onViewBranchOnGitHub = () => {
+    const tip = this.props.repositoryState.branchesState.tip
+    const gitHubRepository = this.props.repository.gitHubRepository
+
+    if (tip.kind !== TipState.Valid) {
+      return
+    }
+
+    if (!gitHubRepository?.htmlURL || !tip.branch.upstreamWithoutRemote) {
+      return
+    }
+
+    const encodedBranchName = encodeURIComponent(
+      tip.branch.upstreamWithoutRemote
+    )
+    const url =
+      gitHubRepository.type === 'bitbucket'
+        ? `${gitHubRepository.htmlURL}/src/${encodedBranchName}`
+        : `${gitHubRepository.htmlURL}/tree/${encodedBranchName}`
+
+    this.props.dispatcher.openInBrowser(url)
   }
 
   private onViewPullRequestOnGithub = () => {
