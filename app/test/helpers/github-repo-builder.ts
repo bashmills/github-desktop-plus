@@ -24,7 +24,6 @@ interface IGitHubRepoFixtureOptions {
    * clone url and html url from this, even if its ''.
    */
   endpoint?: string
-  accountname?: string
 }
 
 /**
@@ -40,7 +39,6 @@ export function gitHubRepoFixture({
   parent,
   endpoint,
   isPrivate,
-  accountname,
 }: IGitHubRepoFixtureOptions): GitHubRepository {
   const htmlUrl = `${
     endpoint !== undefined ? endpoint : 'https://github.com'
@@ -51,8 +49,7 @@ export function gitHubRepoFixture({
       owner,
       endpoint !== undefined ? endpoint : getDotComAPIEndpoint(),
       id_counter++,
-      undefined,
-      accountname
+      undefined
     ),
     id_counter++,
     isPrivate !== undefined ? isPrivate : null,

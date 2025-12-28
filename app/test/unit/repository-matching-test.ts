@@ -196,7 +196,6 @@ describe('repository-matching', () => {
     const repository = gitHubRepoFixture({
       name: 'desktop',
       owner: 'shiftkey',
-      accountname: '',
       isPrivate: false,
     })
 
@@ -209,7 +208,6 @@ describe('repository-matching', () => {
         login: 'shiftkey',
         id: 1234,
         endpoint: 'https://api.github.com/',
-        accountname: '',
       },
       isPrivate: false,
       htmlURL: 'https://github.com/shiftkey/desktop',

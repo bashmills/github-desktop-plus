@@ -49,11 +49,10 @@ export class InvalidatedToken extends React.Component<IInvalidatedTokenProps> {
 
     if (isEnterpriseAccount(account)) {
       dispatcher.showEnterpriseSignInDialog(
-        this.props.account.accountname || '',
         getHTMLURL(this.props.account.endpoint)
       )
     } else {
-      dispatcher.showDotComSignInDialog(this.props.account.accountname || '')
+      dispatcher.showDotComSignInDialog()
     }
   }
 }

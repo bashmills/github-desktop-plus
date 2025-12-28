@@ -1,4 +1,5 @@
 import { getDotComAPIEndpoint, getHTMLURL, IAPIEmail } from '../lib/api'
+import { enableMultipleLoginAccounts } from '../lib/feature-flag'
 
 /**
  * Returns a value indicating whether two account instances
@@ -9,7 +10,11 @@ import { getDotComAPIEndpoint, getHTMLURL, IAPIEmail } from '../lib/api'
  * and a particular account.
  */
 export function accountEquals(x: Account, y: Account) {
-  return x.endpoint === y.endpoint && x.id === y.id
+  return (
+    x.endpoint === y.endpoint &&
+    x.id === y.id &&
+    (enableMultipleLoginAccounts() || x.login === y.login)
+  )
 }
 
 /**
@@ -38,7 +43,6 @@ export class Account {
   /**
    * Create an instance of an account
    *
-   * @param accountname The user defined account name for this account
    * @param login The login name for this account
    * @param endpoint The server for this account - GitHub or a GitHub Enterprise instance
    * @param token The access token used to perform operations on behalf of this account
@@ -60,7 +64,6 @@ export class Account {
     public readonly id: number,
     public readonly name: string,
     public readonly plan?: string,
-    public readonly accountname?: string,
     public readonly copilotEndpoint?: string,
     public readonly isCopilotDesktopEnabled?: boolean,
     public readonly features?: ReadonlyArray<string>
@@ -76,7 +79,6 @@ export class Account {
       this.id,
       this.name,
       this.plan,
-      this.accountname,
       this.copilotEndpoint,
       this.isCopilotDesktopEnabled,
       this.features

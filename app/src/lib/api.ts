@@ -2224,8 +2224,7 @@ export async function deleteToken(account: Account) {
 /** Fetch the user authenticated by the token. */
 export async function fetchUser(
   endpoint: string,
-  token: string,
-  accountname?: string
+  token: string
 ): Promise<Account> {
   const api = new API(endpoint, token)
   try {
@@ -2245,7 +2244,6 @@ export async function fetchUser(
       user.id,
       user.name || user.login,
       user.plan?.name,
-      accountname,
       copilotInfo?.copilotEndpoint,
       copilotInfo?.isCopilotDesktopEnabled,
       features

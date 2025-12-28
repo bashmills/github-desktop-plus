@@ -62,12 +62,11 @@ export class WorkflowPushRejectedDialog extends React.Component<
   private onSignIn = async () => {
     this.setState({ loading: true })
 
-    const accountname = ''
     const { repository, dispatcher } = this.props
     const { endpoint } = repository.gitHubRepository
 
     const result = await new Promise<SignInResult>(async resolve => {
-      dispatcher.beginBrowserBasedSignIn(accountname, endpoint, resolve)
+      dispatcher.beginBrowserBasedSignIn(endpoint, resolve)
     })
 
     if (result.kind === 'success') {

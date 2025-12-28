@@ -77,10 +77,7 @@ class TrampolineUIHelper {
     })
   }
 
-  public promptForGitHubSignIn(
-    endpoint: string,
-    accountname: string
-  ): Promise<Account | undefined> {
+  public promptForGitHubSignIn(endpoint: string): Promise<Account | undefined> {
     return new Promise<Account | undefined>(async resolve => {
       const cb = (result: SignInResult) => {
         resolve(result.kind === 'success' ? result.account : undefined)
@@ -89,9 +86,9 @@ class TrampolineUIHelper {
 
       const { hostname, origin } = new URL(endpoint)
       if (hostname === 'github.com') {
-        this.dispatcher.beginDotComSignIn(accountname, cb)
+        this.dispatcher.beginDotComSignIn(cb)
       } else {
-        this.dispatcher.beginEnterpriseSignIn(endpoint, accountname, cb)
+        this.dispatcher.beginEnterpriseSignIn(cb)
         await this.dispatcher.setSignInEndpoint(origin)
       }
 

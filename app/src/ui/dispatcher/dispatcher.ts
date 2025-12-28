@@ -1515,11 +1515,9 @@ export class Dispatcher {
    * to the enterprise instance.
    */
   public beginEnterpriseSignIn(
-    endpoint: string,
-    accountname: string,
     resultCallback?: (result: SignInResult) => void
   ) {
-    this.appStore._beginEnterpriseSignIn(endpoint, accountname, resultCallback)
+    this.appStore._beginEnterpriseSignIn(resultCallback)
   }
 
   /**
@@ -1539,34 +1537,22 @@ export class Dispatcher {
     return this.appStore._setSignInEndpoint(url)
   }
 
-  public setSignInAccountName(accountname: string): Promise<void> {
-    return this.appStore._setSignInAccountName(accountname)
-  }
-
-  public beginDotComSignIn(
-    accountname: string,
-    resultCallback: (result: SignInResult) => void
-  ) {
-    this.appStore._beginDotComSignIn(accountname, resultCallback)
+  public beginDotComSignIn(resultCallback: (result: SignInResult) => void) {
+    this.appStore._beginDotComSignIn(resultCallback)
   }
 
   public beginBrowserBasedSignIn(
     endpoint: string,
-    accountname: string,
     resultCallback?: (result: SignInResult) => void
   ) {
     if (
       endpoint === getDotComAPIEndpoint() ||
       new URL(endpoint).hostname === 'github.com'
     ) {
-      this.appStore._beginDotComSignIn(accountname, resultCallback)
+      this.appStore._beginDotComSignIn(resultCallback)
       this.requestBrowserAuthentication()
     } else {
-      this.appStore._beginEnterpriseSignIn(
-        endpoint,
-        accountname,
-        resultCallback
-      )
+      this.appStore._beginEnterpriseSignIn(resultCallback)
       this.appStore
         ._setSignInEndpoint(endpoint)
         .then(() => this.requestBrowserAuthentication())
@@ -1599,10 +1585,9 @@ export class Dispatcher {
    * this promise will never complete.
    */
   public requestBrowserAuthenticationToDotcom(
-    accountname: string,
     resultCallback?: (result: SignInResult) => void
   ) {
-    this.appStore._beginDotComSignIn(accountname, resultCallback)
+    this.appStore._beginDotComSignIn(resultCallback)
     this.requestBrowserAuthentication()
   }
 
@@ -1611,10 +1596,9 @@ export class Dispatcher {
    * GitHub.com.
    */
   public async showDotComSignInDialog(
-    accountname: string,
     resultCallback?: (result: SignInResult) => void
   ): Promise<void> {
-    this.appStore._beginDotComSignIn(accountname, resultCallback)
+    this.appStore._beginDotComSignIn(resultCallback)
 
     // if (username !== undefined) {
     //   this.appStore._setSignInEndpoint(username)
@@ -1629,11 +1613,10 @@ export class Dispatcher {
    * Optionally, you can provide an endpoint URL.
    */
   public async showEnterpriseSignInDialog(
-    endpoint: string,
-    accountname: string,
+    endpoint?: string,
     resultCallback?: (result: SignInResult) => void
   ): Promise<void> {
-    this.appStore._beginEnterpriseSignIn(endpoint, accountname, resultCallback)
+    this.appStore._beginEnterpriseSignIn(resultCallback)
 
     if (endpoint !== undefined) {
       this.appStore._setSignInEndpoint(endpoint)

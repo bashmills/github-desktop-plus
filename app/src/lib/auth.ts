@@ -1,13 +1,10 @@
 import { Account } from '../models/account'
-import { enableMultipleNamedAccounts } from './feature-flag'
+import { enableMultipleLoginAccounts } from './feature-flag'
 
 /** Get the auth key for the user. */
 export function getKeyForAccount(account: Account): string {
-  if (enableMultipleNamedAccounts()) {
-    return getKeyForEndpointAndAccountName(
-      account.endpoint,
-      account.accountname
-    )
+  if (enableMultipleLoginAccounts()) {
+    return getKeyForEndpointAndLogin(account.endpoint, account.login)
   } else {
     return getKeyForEndpoint(account.endpoint)
   }
@@ -21,11 +18,11 @@ export function getKeyForEndpoint(endpoint: string): string {
 }
 
 /** Get the auth key for the endpoint. */
-export function getKeyForEndpointAndAccountName(
+export function getKeyForEndpointAndLogin(
   endpoint: string,
-  accountname: string | undefined
+  login: string | undefined
 ): string {
   const appName = __DEV__ ? 'GitHub Desktop Dev' : 'GitHub'
 
-  return `${appName} - ${endpoint} - ${accountname}`
+  return `${appName} - ${endpoint} - ${login}`
 }

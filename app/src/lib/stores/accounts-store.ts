@@ -6,7 +6,7 @@ import { fatalError } from '../fatal-error'
 import { TypedBaseStore } from './base-store'
 import { isGHE } from '../endpoint-capabilities'
 import { compare, compareDescending } from '../compare'
-import { enableMultipleNamedAccounts } from '../feature-flag'
+import { enableMultipleLoginAccounts } from '../feature-flag'
 
 // Ensure that GitHub.com accounts appear first followed by Enterprise
 // accounts, sorted by the order in which they were added.
@@ -61,7 +61,6 @@ interface IAccount {
   readonly id: number
   readonly name: string
   readonly plan?: string
-  readonly accountname?: string
 }
 
 /** The store for logged in accounts. */
@@ -97,7 +96,7 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
   public async addAccount(account: Account): Promise<Account | null> {
     await this.loadingPromise
 
-    const multipleNamedAccounts = enableMultipleNamedAccounts()
+    const multipleLoginAccounts = enableMultipleLoginAccounts()
 
     try {
       const key = getKeyForAccount(account)
@@ -120,14 +119,14 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
     const accountsByEndpoint = this.accounts.reduce(
       (map, x) =>
         map.set(
-          multipleNamedAccounts ? x.endpoint + ':' + x.accountname : x.endpoint,
+          multipleLoginAccounts ? x.endpoint + ':' + x.login : x.endpoint,
           x
         ),
       new Map<string, Account>()
     )
     accountsByEndpoint.set(
-      multipleNamedAccounts
-        ? account.endpoint + ':' + account.accountname
+      multipleLoginAccounts
+        ? account.endpoint + ':' + account.login
         : account.endpoint,
       account
     )
@@ -189,7 +188,7 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
       a =>
         !(
           a.endpoint === account.endpoint &&
-          a.accountname === account.accountname &&
+          a.login === account.login &&
           a.id === account.id
         )
     )
@@ -243,8 +242,7 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
         account.avatarURL,
         account.id,
         account.name,
-        account.plan,
-        account.accountname
+        account.plan
       )
 
       const key = getKeyForAccount(accountWithoutToken)
@@ -284,5 +282,5 @@ async function updatedAccount(account: Account): Promise<Account> {
     )
   }
 
-  return fetchUser(account.endpoint, account.token, account.accountname)
+  return fetchUser(account.endpoint, account.token)
 }

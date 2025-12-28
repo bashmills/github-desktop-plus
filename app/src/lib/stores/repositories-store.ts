@@ -119,8 +119,7 @@ export class RepositoriesStore extends TypedBaseStore<
         dbOwner.login,
         dbOwner.endpoint,
         dbOwner.id!,
-        dbOwner.type,
-        dbOwner.accountname
+        dbOwner.type
       )
     }
 
@@ -394,7 +393,6 @@ export class RepositoriesStore extends TypedBaseStore<
   private async putOwner(
     endpoint: string,
     login: string,
-    accountname?: string,
     ownerType?: GitHubAccountType
   ): Promise<Owner> {
     const key = getOwnerKey(endpoint, login)
@@ -425,13 +423,7 @@ export class RepositoriesStore extends TypedBaseStore<
       id = forceUnwrap('Missing owner id', existingOwner.id)
     }
 
-    return new Owner(
-      login,
-      endpoint,
-      id,
-      ownerType ?? existingOwner?.type,
-      accountname
-    )
+    return new Owner(login, endpoint, id, ownerType ?? existingOwner?.type)
   }
 
   public async upsertGitHubRepositoryFromMatch(
@@ -443,11 +435,7 @@ export class RepositoriesStore extends TypedBaseStore<
       this.db.owners,
       async () => {
         const { account } = match
-        const owner = await this.putOwner(
-          account.endpoint,
-          match.owner,
-          account.accountname
-        )
+        const owner = await this.putOwner(account.endpoint, match.owner)
         const existingRepo = await this.db.gitHubRepositories
           .where('[ownerID+name]')
           .equals([owner.id, match.name])

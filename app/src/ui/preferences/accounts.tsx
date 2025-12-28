@@ -130,15 +130,6 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
                 </div>
                 <div className="endpoint">{getHTMLURL(account.endpoint)}</div>
               </>
-            ) : enableMultipleDotComAccounts() && isDotComAccount(account) ? (
-              <>
-                <div className="account-title">
-                  {account.name === account.login
-                    ? `@${account.login}`
-                    : `@${account.login} (${account.name})`}
-                </div>
-                <div className="endpoint">{account.accountname}</div>
-              </>
             ) : (
               <>
                 <div className="name">{account.name}</div>
