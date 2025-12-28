@@ -81,7 +81,6 @@ export interface ISignInState {
  */
 export interface IExistingAccountWarning extends ISignInState {
   readonly kind: SignInStep.ExistingAccountWarning
-  readonly enterprise: boolean
   /**
    * The URL to the host which we're currently authenticating
    * against. This will be either https://api.github.com when
@@ -102,7 +101,6 @@ export interface IExistingAccountWarning extends ISignInState {
  */
 export interface IEndpointEntryState extends ISignInState {
   readonly kind: SignInStep.EndpointEntry
-  readonly enterprise: boolean
   readonly existingAccount?: Account
   readonly resultCallback: (result: SignInResult) => void
 }
@@ -116,7 +114,6 @@ export interface IEndpointEntryState extends ISignInState {
  */
 export interface IAuthenticationState extends ISignInState {
   readonly kind: SignInStep.Authentication
-  readonly enterprise: boolean
 
   /**
    * The URL to the host which we're currently authenticating
@@ -145,7 +142,6 @@ export interface IAuthenticationState extends ISignInState {
  */
 export interface ISuccessState {
   readonly kind: SignInStep.Success
-  readonly enterprise: boolean
   readonly resultCallback: (result: SignInResult) => void
 }
 
@@ -247,7 +243,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         existingAccount,
         error: null,
         loading: false,
-        enterprise: false,
         resultCallback: resultCallback ?? noop,
       })
     } else {
@@ -256,7 +251,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         endpoint,
         error: null,
         loading: false,
-        enterprise: false,
         resultCallback: resultCallback ?? noop,
       })
     }
@@ -294,7 +288,7 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
     const csrfToken = uuid()
 
     new Promise<Account>((resolve, reject) => {
-      const { endpoint, resultCallback, enterprise } = currentState
+      const { endpoint, resultCallback } = currentState
       log.info('[SignInStore] initializing OAuth flow')
       this.setState({
         kind: SignInStep.Authentication,
@@ -302,7 +296,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         resultCallback,
         error: null,
         loading: true,
-        enterprise,
         oauthState: {
           state: csrfToken,
           endpoint,
@@ -323,7 +316,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         this.emitAuthenticate(account)
         this.setState({
           kind: SignInStep.Success,
-          enterprise: this.state.enterprise,
           resultCallback: this.state.resultCallback,
         })
       })
@@ -386,7 +378,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       kind: SignInStep.EndpointEntry,
       error: null,
       loading: false,
-      enterprise: true,
       resultCallback: resultCallback ?? noop,
     })
   }
@@ -460,7 +451,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         existingAccount,
         error: null,
         loading: false,
-        enterprise: endpoint === getDotComAPIEndpoint(),
         resultCallback: currentState.resultCallback,
       })
     } else {
@@ -469,7 +459,6 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         endpoint,
         error: null,
         loading: false,
-        enterprise: endpoint === getDotComAPIEndpoint(),
         resultCallback: currentState.resultCallback,
       })
     }
