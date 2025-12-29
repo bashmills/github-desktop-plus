@@ -14,7 +14,7 @@ import { Avatar } from '../lib/avatar'
 import { CallToAction } from '../lib/call-to-action'
 import {
   enableMultipleEnterpriseAccounts,
-  enableMultipleDotComAccounts,
+  enableMultipleLoginAccounts,
 } from '../../lib/feature-flag'
 import { getHTMLURL } from '../../lib/api'
 
@@ -36,7 +36,7 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
     return (
       <DialogContent className="accounts-tab">
         <h2>GitHub.com</h2>
-        {enableMultipleDotComAccounts()
+        {enableMultipleLoginAccounts()
           ? this.renderMultipleDotComAccounts()
           : this.renderSingleDotComAccount()}
 

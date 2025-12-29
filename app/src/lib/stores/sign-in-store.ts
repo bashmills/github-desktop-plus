@@ -21,7 +21,7 @@ import { IOAuthAction } from '../parse-app-url'
 import { shell } from '../app-shell'
 import noop from 'lodash/noop'
 import { AccountsStore } from './accounts-store'
-import { enableMultipleDotComAccounts } from '../feature-flag'
+import { enableMultipleLoginAccounts } from '../feature-flag'
 
 /**
  * An enumeration of the possible steps that the sign in
@@ -235,7 +235,7 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
 
     const existingAccount = this.accounts.find(isDotComAccount)
 
-    if (existingAccount && !enableMultipleDotComAccounts()) {
+    if (existingAccount && !enableMultipleLoginAccounts()) {
       this.setState({
         kind: SignInStep.ExistingAccountWarning,
         endpoint,

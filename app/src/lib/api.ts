@@ -25,10 +25,7 @@ import {
 import { HttpStatusCode } from './http-status-code'
 import { CopilotError } from './copilot-error'
 import { BypassReasonType } from '../ui/secret-scanning/bypass-push-protection-dialog'
-import {
-  enableMultipleEnterpriseAccounts,
-  enableMultipleLoginAccounts,
-} from './feature-flag'
+import { enableMultipleLoginAccounts } from './feature-flag'
 
 const envEndpoint = process.env['DESKTOP_GITHUB_DOTCOM_API_ENDPOINT']
 const envHTMLURL = process.env['DESKTOP_GITHUB_DOTCOM_HTML_URL']
@@ -2357,7 +2354,7 @@ export function getAccountForEndpointLogin(
     accounts.find(
       a =>
         a.endpoint === endpoint &&
-        (enableMultipleLoginAccounts() || a.login === login)
+        (!enableMultipleLoginAccounts() || a.login === login)
     ) || null
   )
 }
@@ -2371,7 +2368,7 @@ export function getAccountForEndpointToken(
     accounts.find(
       a =>
         a.endpoint === endpoint &&
-        (enableMultipleLoginAccounts() || a.token === token)
+        (!enableMultipleLoginAccounts() || a.token === token)
     ) || null
   )
 }

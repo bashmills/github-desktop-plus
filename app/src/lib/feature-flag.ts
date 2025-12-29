@@ -105,7 +105,6 @@ export const enableResizingToolbarButtons = () => true
 
 export const enableFilteredChangesList = () => true
 export const enableMultipleEnterpriseAccounts = () => true
-export const enableMultipleDotComAccounts = () => true
 export const enableMultipleLoginAccounts = () => true
 
 export const enableCommitMessageGeneration = (account: Account) => {
