@@ -15,6 +15,6 @@ export function getAccountForRepository(
   return getAccountForEndpointLogin(
     accounts,
     gitHubRepository.endpoint,
-    gitHubRepository.owner.login
+    repository.login
   )
 }

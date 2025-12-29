@@ -98,7 +98,6 @@ import {
 import {
   API,
   deleteToken,
-  getAccountForEndpoint,
   getEndpointForRepository,
   IAPIComment,
   IAPICreatePushProtectionBypassResponse,
@@ -819,7 +818,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     refreshToken: string,
     tokenExpiresAt: number
   ) => {
-    const account = getAccountForEndpoint(this.accounts, endpoint)
+    const account = getAccountForEndpointToken(this.accounts, endpoint, token)
     if (account === null) {
       return
     }
@@ -1319,7 +1318,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       const account = getAccountForEndpointLogin(
         this.accounts,
         gitHubRepo.endpoint,
-        gitHubRepo.owner.login
+        gitHubRepo.login
       )
 
       if (account === null) {
@@ -2220,7 +2219,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const user = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (!user) {
       return
@@ -2245,7 +2244,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (!account) {
       return
@@ -2276,7 +2275,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   public async fetchPullRequest(repoUrl: string, pr: string) {
     const endpoint = getEndpointForRepository(repoUrl)
-    const account = getAccountForEndpoint(this.accounts, endpoint)
+    const remoteUrl = parseRemote(repoUrl)
+
+    if (!remoteUrl) {
+      return null
+    }
+    const account = getAccountForEndpointLogin(
+      this.accounts,
+      endpoint,
+      remoteUrl.owner
+    )
 
     if (account) {
       const api = API.fromAccount(account)
@@ -4596,7 +4604,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.gitHubRepository.endpoint,
-      repository.gitHubRepository.owner.login
+      repository.login
     )
 
     if (account === null) {
@@ -5306,12 +5314,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public _clone(
     url: string,
     path: string,
-    options: { branch?: string; defaultBranch?: string } = {}
+    options: { branch?: string; defaultBranch?: string } = {},
+    login?: string
   ): {
     promise: Promise<boolean>
     repository: CloningRepository
   } {
-    const promise = this.cloningRepositoriesStore.clone(url, path, options)
+    const promise = this.cloningRepositoriesStore.clone(
+      url,
+      path,
+      options,
+      login
+    )
     const repository = this.cloningRepositoriesStore.repositories.find(
       r => r.url === url && r.path === path
     )!
@@ -6791,8 +6805,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
   }
 
-  public async _cloneAgain(url: string, path: string): Promise<void> {
-    const { promise, repository } = this._clone(url, path)
+  public async _cloneAgain(
+    url: string,
+    path: string,
+    login?: string
+  ): Promise<void> {
+    const { promise, repository } = this._clone(url, path, {}, login)
     await this._selectRepository(repository)
     const success = await promise
     if (!success) {
@@ -8845,7 +8863,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     const { endpoint, name, owner } = repository.gitHubRepository
 
-    const account = getAccountForEndpoint(this.accounts, endpoint)
+    const account = getAccountForEndpointLogin(
+      this.accounts,
+      endpoint,
+      owner.login
+    )
 
     if (account === null) {
       log.error(

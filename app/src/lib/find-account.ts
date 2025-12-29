@@ -38,7 +38,8 @@ async function canAccessRepositoryUsingAPI(
 export async function findAccountForRemoteURL(
   urlOrRepositoryAlias: string,
   accounts: ReadonlyArray<Account>,
-  canAccessRepository: RepositoryLookupFunc = canAccessRepositoryUsingAPI
+  canAccessRepository: RepositoryLookupFunc = canAccessRepositoryUsingAPI,
+  login?: string
 ): Promise<Account | null> {
   const allAccounts = [...accounts, Account.anonymous()]
 
@@ -58,7 +59,10 @@ export async function findAccountForRemoteURL(
       allAccounts.find(a => {
         const htmlURL = getHTMLURL(a.endpoint)
         const parsedEndpoint = URL.parse(htmlURL)
-        return parsedURL.hostname === parsedEndpoint.hostname
+        return (
+          parsedURL.hostname === parsedEndpoint.hostname &&
+          (!login || login === '' || a.login === login)
+        )
       }) || null
 
     // If we find an account whose hostname matches the URL to be cloned, it's

@@ -728,26 +728,35 @@ export class CloneRepository extends React.Component<
    * if possible.
    */
   private async resolveCloneInfo(): Promise<IAPIRepositoryCloneInfo | null> {
-    const { url, lastParsedIdentifier } = this.getSelectedTabState()
+    const { url, lastParsedIdentifier, selectedAccount } =
+      this.getSelectedTabState()
 
+    const login = selectedAccount ? selectedAccount.login : undefined
     if (url.endsWith('.wiki.git')) {
-      return { url }
+      return { url, login }
     }
 
-    const account = await findAccountForRemoteURL(url, this.props.accounts)
+    const account = await findAccountForRemoteURL(
+      url,
+      this.props.accounts,
+      undefined,
+      login
+    )
     if (lastParsedIdentifier !== null && account !== null) {
       const api = API.fromAccount(account)
       const { owner, name } = lastParsedIdentifier
       // Respect the user's preference if they provided an SSH URL
       const protocol = parseRemote(url)?.protocol
 
-      return api.fetchRepositoryCloneInfo(owner, name, protocol).catch(err => {
-        log.error(`Failed to look up repository clone info for '${url}'`, err)
-        return { url }
-      })
+      return api
+        .fetchRepositoryCloneInfo(owner, name, protocol, login)
+        .catch(err => {
+          log.error(`Failed to look up repository clone info for '${url}'`, err)
+          return { url, login }
+        })
     }
 
-    return { url }
+    return { url, login }
   }
 
   private onItemClicked = (repository: IAPIRepository, source: ClickSource) => {
@@ -762,7 +771,9 @@ export class CloneRepository extends React.Component<
     this.setState({ loading: true })
 
     const cloneInfo = await this.resolveCloneInfo()
-    const { path } = this.getSelectedTabState()
+    const { path, selectedAccount } = this.getSelectedTabState()
+
+    const login = selectedAccount ? selectedAccount.login : undefined
 
     if (path == null) {
       const error = new Error(`Directory could not be created at this path.`)
@@ -784,7 +795,7 @@ export class CloneRepository extends React.Component<
 
     this.props.dispatcher.closeFoldout(FoldoutType.Repository)
     try {
-      this.cloneImpl(url.trim(), path, defaultBranch)
+      this.cloneImpl(url.trim(), path, login, defaultBranch)
     } catch (e) {
       log.error(`CloneRepository: clone failed to complete to ${path}`, e)
       this.setState({ loading: false })
@@ -792,8 +803,13 @@ export class CloneRepository extends React.Component<
     }
   }
 
-  private cloneImpl(url: string, path: string, defaultBranch?: string) {
-    this.props.dispatcher.clone(url, path, { defaultBranch })
+  private cloneImpl(
+    url: string,
+    path: string,
+    login?: string,
+    defaultBranch?: string
+  ) {
+    this.props.dispatcher.clone(url, path, { defaultBranch }, login)
     this.props.onDismissed()
 
     setDefaultDir(Path.resolve(path, '..'))

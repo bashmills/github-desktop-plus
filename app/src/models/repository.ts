@@ -46,6 +46,8 @@ export class Repository {
    */
   public hash: string
 
+  public login?: string
+
   /**
    * The URL of the default remote of the repository.
    */

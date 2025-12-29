@@ -191,6 +191,7 @@ export interface IAPIRepository {
   readonly ssh_url: string
   readonly html_url: string
   readonly name: string
+  readonly login?: string
   readonly owner: IAPIIdentity
   readonly private: boolean | null // null if unknown
   readonly fork: boolean
@@ -238,6 +239,7 @@ export interface IAPIRepositoryCloneInfo {
   /** Canonical clone URL of the repository. */
   readonly url: string
 
+  readonly login?: string
   /**
    * Default branch of the repository, if any. This is usually either retrieved
    * from the API for GitHub repositories, or undefined for other repositories.
@@ -285,6 +287,7 @@ export interface IBitbucketAPIRepository
   readonly parent?: IBitbucketAPIRepository
   readonly has_issues: boolean
   readonly updated_on: string
+  readonly login?: string
   readonly mainbranch: {
     readonly name: string
   }
@@ -308,6 +311,7 @@ function toIAPIRepository(repo: IBitbucketAPIRepository): IAPIRepository {
       `git@bitbucket.org:${repo.full_name}.git`,
     html_url: repo.links.html.href,
     name: repo.name,
+    login: repo.login,
     owner: toIAPIIdentity(repo.owner),
     private: repo.is_private,
     fork: false,
@@ -1077,6 +1081,7 @@ function toIAPIEmailFromGitLab(
 export interface IGitLabAPIRepository {
   readonly id: number
   readonly name: string
+  readonly login: string
   readonly path: string
   readonly path_with_namespace: string
   readonly web_url: string
@@ -1104,6 +1109,7 @@ function toIAPIRepositoryFromGitLab(
     ssh_url: repo.ssh_url_to_repo,
     html_url: repo.web_url,
     name: repo.path,
+    login: repo.login,
     owner: {
       id: repo.owner?.id ?? 0,
       login: ownerLogin,
@@ -1643,7 +1649,8 @@ export class API {
   public async fetchRepositoryCloneInfo(
     owner: string,
     name: string,
-    protocol: GitProtocol | undefined
+    protocol: GitProtocol | undefined,
+    login?: string
   ): Promise<IAPIRepositoryCloneInfo | null> {
     const response = await this.ghRequest('GET', `repos/${owner}/${name}`, {
       // Make sure we don't run into cache issues when fetching the repositories,
@@ -1658,6 +1665,7 @@ export class API {
     const repo = await parsedResponse<IAPIRepository>(response)
     return {
       url: protocol === 'ssh' ? repo.ssh_url : repo.clone_url,
+      login,
       defaultBranch: repo.default_branch,
     }
   }
@@ -3668,13 +3676,16 @@ export function getAccountForEndpoint(
 export function getAccountForEndpointLogin(
   accounts: ReadonlyArray<Account>,
   endpoint: string,
-  login: string
+  login?: string
 ): Account | null {
   return (
     accounts.find(
       a =>
         a.endpoint === endpoint &&
-        (!enableMultipleLoginAccounts() || a.login === login)
+        (!enableMultipleLoginAccounts() ||
+          !login ||
+          login === '' ||
+          a.login === login)
     ) || null
   )
 }

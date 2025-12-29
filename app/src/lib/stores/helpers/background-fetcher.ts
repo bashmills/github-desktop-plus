@@ -122,7 +122,7 @@ export class BackgroundFetcher {
     const account = getAccountForEndpointLogin(
       await this.accountsStore.getAll(),
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
 
     let interval = DefaultFetchInterval

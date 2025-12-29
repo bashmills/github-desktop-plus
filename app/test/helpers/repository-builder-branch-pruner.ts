@@ -75,6 +75,7 @@ export async function setupRepository(
       ssh_url: 'string',
       html_url: 'string',
       name: 'string',
+      login: 'string',
       owner: {
         id: 0,
         html_url: '',

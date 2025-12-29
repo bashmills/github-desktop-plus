@@ -126,6 +126,7 @@ export class RepositoriesStore extends TypedBaseStore<
 
     const isBitbucket = repo.htmlURL && this.isBitbucketUrl(repo.htmlURL)
     const isGitLab = repo.htmlURL && this.isGitLabUrl(repo.htmlURL)
+    const login = repo.login
     const repoType = isBitbucket ? 'bitbucket' : isGitLab ? 'gitlab' : 'github'
     const ghRepo = new GitHubRepository(
       repo.name,
@@ -138,7 +139,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.issuesEnabled,
       repo.isArchived,
       repo.permissions,
-      parent
+      parent,
+      login
     )
 
     // Dexie gets confused if we return a non-promise value (e.g. if this function
@@ -520,6 +522,7 @@ export class RepositoriesStore extends TypedBaseStore<
           lastPruneDate: null,
           name: match.name,
           ownerID: owner.id,
+          login: account.login,
           parentID: null,
           private: null,
         }
@@ -623,6 +626,7 @@ export class RepositoriesStore extends TypedBaseStore<
       ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
       ownerID: owner.id,
       name: gitHubRepository.name,
+      login: gitHubRepository.login,
       private: gitHubRepository.private ?? existingRepo?.private ?? null,
       htmlURL: gitHubRepository.html_url,
       cloneURL: (gitHubRepository.clone_url || existingRepo?.cloneURL) ?? null,

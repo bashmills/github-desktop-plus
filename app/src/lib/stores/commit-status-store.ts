@@ -543,7 +543,7 @@ export class CommitStatusStore {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (account === null) {
       return false
@@ -561,7 +561,7 @@ export class CommitStatusStore {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (account === null) {
       return false
@@ -579,7 +579,7 @@ export class CommitStatusStore {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (account === null) {
       return false
@@ -597,7 +597,7 @@ export class CommitStatusStore {
     const account = getAccountForEndpointLogin(
       this.accounts,
       repository.endpoint,
-      repository.owner.login
+      repository.login
     )
     if (account === null) {
       return null
