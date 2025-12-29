@@ -33,8 +33,10 @@ import { doMergeCommitsExistAfterCommit } from '../../lib/git'
 import { KeyboardInsertionData } from '../lib/list'
 import { Account } from '../../models/account'
 import { Emoji } from '../../lib/emoji'
+import { syncClockwise } from '../octicons'
 
 interface ICompareSidebarProps {
+  readonly isCompareView: boolean
   readonly repository: Repository
   readonly isLocalRepository: boolean
   readonly compareState: ICompareState
@@ -72,10 +74,12 @@ interface ICompareSidebarState {
 
   /** Data to be reordered via keyboard */
   readonly keyboardReorderData?: KeyboardInsertionData
+
+  readonly isSearching: boolean
 }
 
 /** If we're within this many rows from the bottom, load the next history batch. */
-const CloseToBottomThreshold = 10
+const CloseToBottomThreshold = 30
 
 export class CompareSidebar extends React.Component<
   ICompareSidebarProps,
@@ -91,7 +95,7 @@ export class CompareSidebar extends React.Component<
   public constructor(props: ICompareSidebarProps) {
     super(props)
 
-    this.state = { focusedBranch: null }
+    this.state = { focusedBranch: null, isSearching: false }
   }
 
   public componentWillReceiveProps(nextProps: ICompareSidebarProps) {
@@ -159,11 +163,38 @@ export class CompareSidebar extends React.Component<
   }
 
   public render() {
+    return this.props.isCompareView
+      ? this.renderCompareView()
+      : this.renderHistoryView()
+  }
+
+  private renderHistoryView() {
+    const { commitSearchQuery } = this.props.compareState
+    return (
+      <div id="compare-view" role="tabpanel" aria-labelledby="compare-tab">
+        <div className="commit-search-form">
+          <FancyTextBox
+            ariaLabel="Commit filter"
+            type="search"
+            symbol={this.state.isSearching ? syncClockwise : octicons.search}
+            symbolClassName={this.state.isSearching ? 'spin' : undefined}
+            placeholder={__DARWIN__ ? 'Search Commits' : 'Search commits'}
+            value={commitSearchQuery}
+            onValueChanged={this.onCommitSearchQueryChanged}
+          />
+        </div>
+
+        {this.renderCommitList()}
+      </div>
+    )
+  }
+
+  private renderCompareView() {
     const { branches, filterText, showBranchList } = this.props.compareState
     const placeholderText = getPlaceholderText(this.props.compareState)
 
     return (
-      <div id="compare-view" role="tabpanel" aria-labelledby="history-tab">
+      <div id="compare-view" role="tabpanel" aria-labelledby="compare-tab">
         <div className="compare-form">
           <FancyTextBox
             ariaLabel="Branch filter"
@@ -204,22 +235,23 @@ export class CompareSidebar extends React.Component<
     this.resultCount = resultCount
   }
 
-  private viewHistoryForBranch = () => {
-    this.props.dispatcher.executeCompare(this.props.repository, {
-      kind: HistoryTabMode.History,
-    })
-
+  private viewBranchList = () => {
     this.props.dispatcher.updateCompareForm(this.props.repository, {
-      showBranchList: false,
+      showBranchList: true,
     })
   }
 
   private renderCommitList() {
-    const { formState, commitSHAs } = this.props.compareState
+    const {
+      formState,
+      filteredHistoryCommitSHAs,
+      compareCommitSHAs,
+      commitSearchQuery,
+    } = this.props.compareState
 
     let emptyListMessage: string | JSX.Element
     if (formState.kind === HistoryTabMode.History) {
-      emptyListMessage = 'No history'
+      emptyListMessage = commitSearchQuery ? 'No results found' : 'No history'
     } else {
       const currentlyComparedBranchName = formState.comparisonBranch.name
 
@@ -240,10 +272,15 @@ export class CompareSidebar extends React.Component<
     return (
       <CommitList
         ref={this.commitListRef}
-        gitHubRepository={this.props.repository.gitHubRepository}
+        dispatcher={this.props.dispatcher}
+        repository={this.props.repository}
         isLocalRepository={this.props.isLocalRepository}
         commitLookup={this.props.commitLookup}
-        commitSHAs={commitSHAs}
+        commitSHAs={
+          this.props.isCompareView
+            ? compareCommitSHAs
+            : filteredHistoryCommitSHAs
+        }
         selectedSHAs={this.props.selectedCommitShas}
         shasToHighlight={this.props.shasToHighlight}
         localCommitSHAs={this.props.localCommitSHAs}
@@ -372,6 +409,7 @@ export class CompareSidebar extends React.Component<
         renderBranch={this.renderCompareBranchListItem}
         getBranchAriaLabel={this.getBranchAriaLabel}
         onFilterListResultsChanged={this.filterListResultsChanged}
+        noBranchesMessage={getNoBranchesMessage(this.props.compareState)}
       />
     )
   }
@@ -458,7 +496,7 @@ export class CompareSidebar extends React.Component<
       const branch = this.state.focusedBranch
 
       if (branch === null) {
-        this.viewHistoryForBranch()
+        this.viewBranchList()
       } else {
         this.props.dispatcher.executeCompare(this.props.repository, {
           kind: HistoryTabMode.Compare,
@@ -468,6 +506,7 @@ export class CompareSidebar extends React.Component<
 
         this.props.dispatcher.updateCompareForm(this.props.repository, {
           filterText: branch.name,
+          showBranchList: false,
         })
       }
 
@@ -513,15 +552,14 @@ export class CompareSidebar extends React.Component<
 
   private onScroll = (start: number, end: number) => {
     const compareState = this.props.compareState
-    const formState = compareState.formState
 
-    if (formState.kind === HistoryTabMode.Compare) {
+    if (this.props.isCompareView) {
       // as the app is currently comparing the current branch to some other
       // branch, everything needed should be loaded
       return
     }
 
-    const commits = compareState.commitSHAs
+    const commits = compareState.filteredHistoryCommitSHAs
     if (commits.length - end <= CloseToBottomThreshold) {
       if (this.loadingMoreCommitsPromise != null) {
         // as this callback fires for any scroll event we need to guard
@@ -552,6 +590,15 @@ export class CompareSidebar extends React.Component<
     })
   }
 
+  private onCommitSearchQueryChanged = async (text: string) => {
+    this.setState({ isSearching: true })
+    await this.props.dispatcher.setCommitSearchQuery(
+      this.props.repository,
+      text
+    )
+    this.setState({ isSearching: false })
+  }
+
   private clearFilterState = () => {
     this.setState({
       focusedBranch: null,
@@ -560,8 +607,6 @@ export class CompareSidebar extends React.Component<
     this.props.dispatcher.updateCompareForm(this.props.repository, {
       filterText: '',
     })
-
-    this.viewHistoryForBranch()
   }
 
   private onBranchItemClicked = (branch: Branch) => {
@@ -649,13 +694,13 @@ export class CompareSidebar extends React.Component<
   }
 
   private onKeyboardReorder = (toReorder: ReadonlyArray<Commit>) => {
-    const { commitSHAs } = this.props.compareState
+    const { allHistoryCommitSHAs } = this.props.compareState
 
     this.setState({
       keyboardReorderData: {
         type: DragType.Commit,
         commits: toReorder,
-        itemIndices: toReorder.map(c => commitSHAs.indexOf(c.sha)),
+        itemIndices: toReorder.map(c => allHistoryCommitSHAs.indexOf(c.sha)),
       },
     })
   }
@@ -725,14 +770,21 @@ export class CompareSidebar extends React.Component<
 }
 
 function getPlaceholderText(state: ICompareState) {
-  const { branches, formState } = state
+  const { branches } = state
 
   if (!branches.some(b => !b.isDesktopForkRemoteBranch)) {
     return __DARWIN__ ? 'No Branches to Compare' : 'No branches to compare'
-  } else if (formState.kind === HistoryTabMode.History) {
+  } else {
     return __DARWIN__
       ? 'Select Branch to Compare…'
       : 'Select branch to compare…'
+  }
+}
+
+function getNoBranchesMessage(state: ICompareState) {
+  const { branches } = state
+  if (!branches.some(b => !b.isDesktopForkRemoteBranch)) {
+    return 'Create a new branch to start comparing commits.'
   } else {
     return undefined
   }

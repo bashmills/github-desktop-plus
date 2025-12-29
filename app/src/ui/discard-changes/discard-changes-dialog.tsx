@@ -20,6 +20,7 @@ interface IDiscardChangesProps {
    * changes
    */
   readonly discardingAllChanges: boolean
+  readonly permanentlyDelete: boolean
   readonly showDiscardChangesSetting: boolean
   readonly onDismissed: () => void
   readonly onConfirmDiscardChangesChanged: (optOut: boolean) => void
@@ -57,7 +58,7 @@ export class DiscardChanges extends React.Component<
 
   private getOkButtonLabel() {
     if (this.props.discardingAllChanges) {
-      return __DARWIN__ ? 'Discard All Changes' : 'Discard all changes'
+      return __DARWIN__ ? 'Discard All' : 'Discard all'
     }
     return __DARWIN__ ? 'Discard Changes' : 'Discard changes'
   }
@@ -89,10 +90,17 @@ export class DiscardChanges extends React.Component<
       >
         <DialogContent>
           {this.renderFileList()}
-          <p id="discard-changes-confirmation-message">
-            Changes can be restored by retrieving them from the {TrashNameLabel}
-            .
-          </p>
+          {this.props.permanentlyDelete ? (
+            <p id="discard-changes-confirmation-message">
+              <span className="warning-icon">⚠️</span>{' '}
+              <b>Changes CANNOT be restored after deletion!</b>
+            </p>
+          ) : (
+            <p id="discard-changes-confirmation-message">
+              Changes can be restored by retrieving them from the{' '}
+              {TrashNameLabel}.
+            </p>
+          )}
           {this.renderConfirmDiscardChanges()}
         </DialogContent>
 
@@ -158,9 +166,12 @@ export class DiscardChanges extends React.Component<
   private discard = async () => {
     this.setState({ isDiscardingChanges: true })
 
+    const moveToTrash = !this.props.permanentlyDelete
     await this.props.dispatcher.discardChanges(
       this.props.repository,
-      this.props.files
+      this.props.files,
+      moveToTrash,
+      this.props.permanentlyDelete
     )
 
     this.props.onConfirmDiscardChangesChanged(this.state.confirmDiscardChanges)

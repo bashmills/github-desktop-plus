@@ -2,22 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
+      "command": "yarn start",
+      "name": "Start app",
       "request": "launch",
-      "name": "Debug current test file",
-      "args": [
-        "--disable-warning=ExperimentalWarning",
-        "--experimental-test-module-mocks",
-        "--import",
-        "tsx",
-        "--import",
-        "${workspaceFolder}/app/test/globals.mts",
-        "--test",
-        "${relativeFile}"
-      ],
-      "envFile": "${workspaceFolder}/.test.env",
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen"
+      "type": "node-terminal",
+      "nodeVersionHint": 20,
+      "preLaunchTask": "Build"
     }
+    // {
+    //   "type": "node",
+    //   "request": "launch",
+    //   "name": "Debug current test file",
+    //   "args": [
+    //     "--disable-warning=ExperimentalWarning",
+    //     "--experimental-test-module-mocks",
+    //     "--import",
+    //     "tsx",
+    //     "--import",
+    //     "${workspaceFolder}/app/test/globals.mts",
+    //     "--test",
+    //     "${relativeFile}"
+    //   ],
+    //   "nodeVersionHint": 20,
+    //   "envFile": "${workspaceFolder}/.test.env",
+    //   "console": "integratedTerminal",
+    //   "internalConsoleOptions": "neverOpen"
+    // }
   ]
 }

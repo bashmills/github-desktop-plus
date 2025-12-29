@@ -19,17 +19,13 @@ import { FetchType } from '../models/fetch'
 import { shouldRenderApplicationMenu } from './lib/features'
 import { matchExistingRepository } from '../lib/repository-matching'
 import { getVersion, getName } from './lib/app-proxy'
-import {
-  getOS,
-  isOSNoLongerSupportedByElectron,
-  isMacOSAndNoLongerSupportedByElectron,
-  isWindowsAndNoLongerSupportedByElectron,
-} from '../lib/get-os'
+import { getOS, isOSNoLongerSupportedByElectron } from '../lib/get-os'
 import { MenuEvent, isTestMenuEvent } from '../main-process/menu'
 import {
   Repository,
   getGitHubHtmlUrl,
   getNonForkGitHubRepository,
+  getNonGitHubUrl,
   isRepositoryWithGitHubRepository,
 } from '../models/repository'
 import { Branch } from '../models/branch'
@@ -74,6 +70,7 @@ import { Welcome } from './welcome'
 import { AppMenuBar } from './app-menu'
 import { UpdateAvailable, renderBanner } from './banners'
 import { Preferences } from './preferences'
+import { ConfirmRestart } from './preferences/confirm-restart'
 import { RepositorySettings } from './repository-settings'
 import { AppError } from './app-error'
 import { MissingRepository } from './missing-repository'
@@ -108,7 +105,6 @@ import { PushNeedsPullWarning } from './push-needs-pull'
 import { getCurrentBranchForcePushState } from '../lib/rebase'
 import { Banner, BannerType } from '../models/banner'
 import { StashAndSwitchBranch } from './stash-changes/stash-and-switch-branch-dialog'
-import { OverwriteStash } from './stash-changes/overwrite-stashed-changes-dialog'
 import { ConfirmDiscardStashDialog } from './stashing/confirm-discard-stash'
 import { ConfirmCheckoutCommitDialog } from './checkout/confirm-checkout-commit'
 import { CreateTutorialRepositoryDialog } from './no-repositories/create-tutorial-repository-dialog'
@@ -448,6 +444,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.showChanges(true)
       case 'show-history':
         return this.showHistory(true)
+      case 'show-compare':
+        return this.showCompare(true)
       case 'choose-repository':
         return this.chooseRepository()
       case 'add-local-repository':
@@ -465,7 +463,9 @@ export class App extends React.Component<IAppProps, IAppState> {
       case 'delete-branch':
         return this.deleteBranch()
       case 'discard-all-changes':
-        return this.discardAllChanges()
+        return this.discardAllChanges(false)
+      case 'permanently-discard-all-changes':
+        return this.discardAllChanges(true)
       case 'stash-all-changes':
         return this.stashAllChanges()
       case 'show-preferences':
@@ -478,7 +478,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         )
         return this.updateBranchWithContributionTargetBranch()
       case 'compare-to-branch':
-        return this.showHistory(false, true)
+        return this.showCompare(false)
       case 'merge-branch':
         this.props.dispatcher.recordMenuInitiatedMerge()
         return this.mergeBranch()
@@ -490,8 +490,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.showRebaseDialog()
       case 'show-repository-settings':
         return this.showRepositorySettings()
-      case 'view-repository-on-github':
-        return this.viewRepositoryOnGitHub()
+      case 'view-repository-in-browser':
+        return this.viewRepositoryInBrowser()
       case 'compare-on-github':
         return this.openBranchOnGitHub('compare')
       case 'branch-on-github':
@@ -623,25 +623,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     inBackground: boolean,
     skipGuidCheck: boolean = false
   ) {
-    if (__LINUX__ || __RELEASE_CHANNEL__ === 'development') {
-      return
-    }
-
-    if (isWindowsAndNoLongerSupportedByElectron()) {
-      log.error(
-        `Can't check for updates on Windows 8.1 or older. Next available update only supports Windows 10 and later`
-      )
-      return
-    }
-
-    if (isMacOSAndNoLongerSupportedByElectron()) {
-      log.error(
-        `Can't check for updates on macOS 10.15 or older. Next available update only supports macOS 11.0 and later`
-      )
-      return
-    }
-
-    updateStore.checkForUpdates(inBackground, skipGuidCheck)
+    // Disable autoupdates so that the app doesn't revert to the desktop/desktop upstream whenever there is an update.
   }
 
   private updateBranchWithContributionTargetBranch() {
@@ -712,8 +694,27 @@ export class App extends React.Component<IAppProps, IAppState> {
       branchTip.branch.upstreamWithoutRemote
     )
 
-    const url = `${htmlURL}/${view}/${urlEncodedBranchName}`
-    this.props.dispatcher.openInBrowser(url)
+    const repoType = state.repository.gitHubRepository?.type ?? 'github'
+    const baseBranch =
+      state.repository.defaultBranch ??
+      state.state.branchesState.defaultBranch?.nameWithoutRemote ??
+      'main'
+    const URLS = {
+      github: {
+        tree: `${htmlURL}/tree/${urlEncodedBranchName}`,
+        compare: `${htmlURL}/compare/${urlEncodedBranchName}`,
+      },
+      bitbucket: {
+        tree: `${htmlURL}/src/${urlEncodedBranchName}`,
+        compare: `${htmlURL}/branches/compare/${urlEncodedBranchName}..`,
+      },
+      gitlab: {
+        tree: `${htmlURL}/tree/${urlEncodedBranchName}`,
+        compare: `${htmlURL}/compare/${baseBranch}...${urlEncodedBranchName}`,
+      },
+    }
+
+    this.props.dispatcher.openInBrowser(URLS[repoType][view])
   }
 
   private openCurrentRepositoryWorkingDirectory() {
@@ -771,7 +772,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
   }
 
-  private discardAllChanges() {
+  private discardAllChanges(permanentlyDiscard: boolean) {
     const state = this.state.selectedState
 
     if (state == null || state.type !== SelectionType.Repository) {
@@ -786,6 +787,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       files: workingDirectory.files,
       showDiscardChangesSetting: false,
       discardingAllChanges: true,
+      permanentlyDelete: permanentlyDiscard,
     })
   }
 
@@ -863,10 +865,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.showPopup({ type: PopupType.About })
   }
 
-  private async showHistory(
-    shouldFocusHistory: boolean,
-    showBranchList: boolean = false
-  ) {
+  private async showHistory(shouldFocusHistory: boolean) {
     const state = this.state.selectedState
     if (state == null || state.type !== SelectionType.Repository) {
       return
@@ -883,9 +882,8 @@ export class App extends React.Component<IAppProps, IAppState> {
       RepositorySectionTab.History
     )
 
-    await this.props.dispatcher.updateCompareForm(state.repository, {
-      filterText: '',
-      showBranchList,
+    this.props.dispatcher.updateCompareForm(state.repository, {
+      commitSearchQuery: '',
     })
 
     if (shouldFocusHistory) {
@@ -908,6 +906,29 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     if (shouldFocusChanges) {
       this.repositoryViewRef.current?.setFocusChangesNeeded()
+    }
+  }
+
+  private async showCompare(shouldFocusCompare: boolean) {
+    const state = this.state.selectedState
+    if (state == null || state.type !== SelectionType.Repository) {
+      return
+    }
+
+    this.props.dispatcher.closeCurrentFoldout()
+
+    await this.props.dispatcher.changeRepositorySection(
+      state.repository,
+      RepositorySectionTab.Compare
+    )
+
+    this.props.dispatcher.updateCompareForm(state.repository, {
+      filterText: '',
+      showBranchList: true,
+    })
+
+    if (shouldFocusCompare) {
+      this.repositoryViewRef.current?.setFocusCompareNeeded()
     }
   }
 
@@ -1279,10 +1300,10 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
   }
 
-  private viewRepositoryOnGitHub() {
+  private viewRepositoryInBrowser() {
     const repository = this.getRepository()
 
-    this.viewOnGitHub(repository)
+    this.viewInBrowser(repository)
   }
 
   /** Returns the URL to the current repository if hosted on GitHub */
@@ -1333,8 +1354,8 @@ export class App extends React.Component<IAppProps, IAppState> {
    * on Windows.
    */
   private renderAppMenuBar() {
-    // We only render the app menu bar on Windows
-    if (!__WIN32__) {
+    // We do not render the app menu bar on macOS
+    if (__DARWIN__) {
       return null
     }
 
@@ -1385,9 +1406,9 @@ export class App extends React.Component<IAppProps, IAppState> {
       this.state.currentFoldout &&
       this.state.currentFoldout.type === FoldoutType.AppMenu
 
-    // As Linux still uses the classic Electron menu, we are opting out of the
-    // custom menu that is shown as part of the title bar below
-    if (__LINUX__) {
+    // We do not render the app menu bar on Linux when the user has selected
+    // the "native" menu option
+    if (__LINUX__ && this.state.titleBarStyle === 'native') {
       return null
     }
 
@@ -1395,12 +1416,12 @@ export class App extends React.Component<IAppProps, IAppState> {
     // the title bar when the menu bar is active. On other platforms we
     // never render the title bar while in full-screen mode.
     if (inFullScreen) {
-      if (!__WIN32__ || !menuBarActive) {
+      if (__DARWIN__ || !menuBarActive) {
         return null
       }
     }
 
-    const showAppIcon = __WIN32__ && !this.state.showWelcomeFlow
+    const showAppIcon = !__DARWIN__ && !this.state.showWelcomeFlow
     const inWelcomeFlow = this.state.showWelcomeFlow
     const inNoRepositoriesView = this.inNoRepositoriesViewState()
 
@@ -1512,15 +1533,9 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       case PopupType.ConfirmDiscardChanges:
-        const showSetting =
-          popup.showDiscardChangesSetting === undefined
-            ? true
-            : popup.showDiscardChangesSetting
-        const discardingAllChanges =
-          popup.discardingAllChanges === undefined
-            ? false
-            : popup.discardingAllChanges
-
+        const showSetting = popup.showDiscardChangesSetting ?? true
+        const discardingAllChanges = popup.discardingAllChanges ?? false
+        const permanentlyDelete = popup.permanentlyDelete ?? false
         return (
           <DiscardChanges
             key="discard-changes"
@@ -1532,6 +1547,7 @@ export class App extends React.Component<IAppProps, IAppState> {
             }
             showDiscardChangesSetting={showSetting}
             discardingAllChanges={discardingAllChanges}
+            permanentlyDelete={permanentlyDelete}
             onDismissed={onPopupDismissedFn}
             onConfirmDiscardChangesChanged={this.onConfirmDiscardChangesChanged}
           />
@@ -1598,7 +1614,11 @@ export class App extends React.Component<IAppProps, IAppState> {
             customEditor={this.state.customEditor}
             useCustomShell={this.state.useCustomShell}
             customShell={this.state.customShell}
+            branchPresetScript={this.state.branchPresetScript}
+            titleBarStyle={this.state.titleBarStyle}
+            showRecentRepositories={this.state.showRecentRepositories}
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
+            hideWindowOnQuit={this.state.hideWindowOnQuit}
             onEditGlobalGitConfig={this.editGlobalGitConfig}
             underlineLinks={this.state.underlineLinks}
             showDiffCheckMarks={this.state.showDiffCheckMarks}
@@ -1725,11 +1745,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             applicationName={getName()}
             applicationVersion={version}
             applicationArchitecture={process.arch}
-            onCheckForNonStaggeredUpdates={this.onCheckForNonStaggeredUpdates}
             onShowAcknowledgements={this.showAcknowledgements}
             onShowTermsAndConditions={this.showTermsAndConditions}
             updateState={this.state.updateState}
-            onQuitAndInstall={this.onQuitAndInstall}
           />
         )
       case PopupType.PublishRepository:
@@ -1928,7 +1946,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       }
       case PopupType.StashAndSwitchBranch: {
         const { repository, branchToCheckout } = popup
-        const { branchesState, changesState } =
+        const { branchesState } =
           this.props.repositoryStateManager.get(repository)
         const { tip } = branchesState
 
@@ -1937,7 +1955,6 @@ export class App extends React.Component<IAppProps, IAppState> {
         }
 
         const currentBranch = tip.branch
-        const hasAssociatedStash = changesState.stashEntry !== null
 
         return (
           <StashAndSwitchBranch
@@ -1945,19 +1962,6 @@ export class App extends React.Component<IAppProps, IAppState> {
             dispatcher={this.props.dispatcher}
             repository={popup.repository}
             currentBranch={currentBranch}
-            branchToCheckout={branchToCheckout}
-            hasAssociatedStash={hasAssociatedStash}
-            onDismissed={onPopupDismissedFn}
-          />
-        )
-      }
-      case PopupType.ConfirmOverwriteStash: {
-        const { repository, branchToCheckout: branchToCheckout } = popup
-        return (
-          <OverwriteStash
-            key="overwrite-stash"
-            dispatcher={this.props.dispatcher}
-            repository={repository}
             branchToCheckout={branchToCheckout}
             onDismissed={onPopupDismissedFn}
           />
@@ -2077,19 +2081,13 @@ export class App extends React.Component<IAppProps, IAppState> {
         )
       }
       case PopupType.LocalChangesOverwritten:
-        const selectedState = this.state.selectedState
-
-        const existingStash =
-          selectedState !== null &&
-          selectedState.type === SelectionType.Repository
-            ? selectedState.state.changesState.stashEntry
-            : null
-
+        // Now that we support multiple stashes, lie to the dialog so that it always shows the "stash changes" option.
+        const existingStash = false
         return (
           <LocalChangesOverwrittenDialog
             repository={popup.repository}
             dispatcher={this.props.dispatcher}
-            hasExistingStash={existingStash !== null}
+            hasExistingStash={existingStash}
             retryAction={popup.retryAction}
             onDismissed={onPopupDismissedFn}
             files={popup.files}
@@ -2211,7 +2209,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             }
             accounts={this.state.accounts}
             cachedRepoRulesets={this.state.cachedRepoRulesets}
-            openFileInExternalEditor={this.openFileInExternalEditor}
+            openFileInExternalEditor={this.getOpenFileInExternalEditorHandler(
+              popup.repository
+            )}
             resolvedExternalEditor={this.state.resolvedExternalEditor}
             openRepositoryInShell={this.openCurrentRepositoryInShell}
           />
@@ -2377,6 +2377,7 @@ export class App extends React.Component<IAppProps, IAppState> {
 
         return (
           <UnreachableCommitsDialog
+            dispatcher={this.props.dispatcher}
             selectedShas={shas}
             shasInDiff={shasInDiff}
             commitLookup={commitLookup}
@@ -2506,6 +2507,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             onDismissed={onPopupDismissedFn}
           />
         )
+      }
+      case PopupType.ConfirmRestart: {
+        return <ConfirmRestart onDismissed={onPopupDismissedFn} />
       }
       case PopupType.ConfirmCommitFilteredChanges: {
         return (
@@ -2752,9 +2756,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.openShell(path, true)
   }
 
-  private onCheckForNonStaggeredUpdates = () =>
-    this.checkForUpdates(false, true)
-
   private showAcknowledgements = () => {
     this.props.dispatcher.showPopup({ type: PopupType.Acknowledgements })
   }
@@ -2762,8 +2763,6 @@ export class App extends React.Component<IAppProps, IAppState> {
   private showTermsAndConditions = () => {
     this.props.dispatcher.showPopup({ type: PopupType.TermsAndConditions })
   }
-
-  private onQuitAndInstall = () => updateStore.quitAndInstallUpdate()
 
   private renderPopups() {
     const popupContent = this.allPopupContent()
@@ -2879,12 +2878,13 @@ export class App extends React.Component<IAppProps, IAppState> {
         onSelectionChanged={this.onSelectionChanged}
         repositories={this.state.repositories}
         recentRepositories={this.state.recentRepositories}
+        showRecentRepositories={this.state.showRecentRepositories}
         localRepositoryStateLookup={this.state.localRepositoryStateLookup}
         askForConfirmationOnRemoveRepository={
           this.state.askForConfirmationOnRepositoryRemoval
         }
         onRemoveRepository={this.removeRepository}
-        onViewOnGitHub={this.viewOnGitHub}
+        onViewInBrowser={this.viewInBrowser}
         onOpenInShell={this.openInShell}
         onShowRepository={this.showRepository}
         onOpenInExternalEditor={this.openInExternalEditor}
@@ -2895,14 +2895,14 @@ export class App extends React.Component<IAppProps, IAppState> {
     )
   }
 
-  private viewOnGitHub = (
+  private viewInBrowser = (
     repository: Repository | CloningRepository | null
   ) => {
     if (!(repository instanceof Repository)) {
       return
     }
 
-    const url = getGitHubHtmlUrl(repository)
+    const url = getGitHubHtmlUrl(repository) ?? getNonGitHubUrl(repository)
 
     if (url) {
       this.props.dispatcher.openInBrowser(url)
@@ -2917,8 +2917,16 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.openShell(repository.path)
   }
 
-  private openFileInExternalEditor = (fullPath: string) => {
-    this.props.dispatcher.openInExternalEditor(fullPath)
+  private getOpenFileInExternalEditorHandler(repository: Repository) {
+    return (fullPath: string) =>
+      this.openFileInExternalEditor(repository, fullPath)
+  }
+
+  private openFileInExternalEditor = (
+    repository: Repository,
+    fullPath: string
+  ) => {
+    this.props.dispatcher.openInExternalEditor(repository, fullPath)
   }
 
   private openInExternalEditor = (
@@ -2928,7 +2936,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       return
     }
 
-    this.props.dispatcher.openInExternalEditor(repository.path)
+    this.props.dispatcher.openInExternalEditor(repository, repository.path)
   }
 
   private onOpenInExternalEditor = (path: string) => {
@@ -2938,7 +2946,9 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
 
     const fullPath = Path.join(repository.path, path)
-    this.props.dispatcher.openInExternalEditor(fullPath)
+    const nonCloningRepository =
+      repository instanceof CloningRepository ? null : repository
+    this.props.dispatcher.openInExternalEditor(nonCloningRepository, fullPath)
   }
 
   private showRepository = (repository: Repository | CloningRepository) => {
@@ -3059,7 +3069,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       externalEditorLabel: this.externalEditorLabel,
       onChangeRepositoryAlias: onChangeRepositoryAlias,
       onRemoveRepositoryAlias: onRemoveRepositoryAlias,
-      onViewOnGitHub: this.viewOnGitHub,
+      onViewInBrowser: this.viewInBrowser,
       repository: repository,
       shellLabel: this.state.useCustomShell
         ? undefined

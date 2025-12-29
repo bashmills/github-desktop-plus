@@ -44,7 +44,7 @@ import {
   Foldout,
 } from '../../lib/app-state'
 import { ContinueRebase } from './continue-rebase'
-import { Octicon, OcticonSymbolVariant } from '../octicons'
+import { Octicon, stash } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { IStashEntry } from '../../models/stash-entry'
 import classNames from 'classnames'
@@ -61,20 +61,6 @@ import { StashDiffViewerId } from '../stashing'
 import { enableFilteredChangesList } from '../../lib/feature-flag'
 
 const RowHeight = 29
-const StashIcon: OcticonSymbolVariant = {
-  w: 16,
-  h: 16,
-  p: [
-    'M10.5 1.286h-9a.214.214 0 0 0-.214.214v9a.214.214 0 0 0 .214.214h9a.214.214 0 0 0 ' +
-      '.214-.214v-9a.214.214 0 0 0-.214-.214zM1.5 0h9A1.5 1.5 0 0 1 12 1.5v9a1.5 1.5 0 0 1-1.5 ' +
-      '1.5h-9A1.5 1.5 0 0 1 0 10.5v-9A1.5 1.5 0 0 1 1.5 0zm5.712 7.212a1.714 1.714 0 1 ' +
-      '1-2.424-2.424 1.714 1.714 0 0 1 2.424 2.424zM2.015 12.71c.102.729.728 1.29 1.485 ' +
-      '1.29h9a1.5 1.5 0 0 0 1.5-1.5v-9a1.5 1.5 0 0 0-1.29-1.485v1.442a.216.216 0 0 1 ' +
-      '.004.043v9a.214.214 0 0 1-.214.214h-9a.216.216 0 0 1-.043-.004H2.015zm2 2c.102.729.728 ' +
-      '1.29 1.485 1.29h9a1.5 1.5 0 0 0 1.5-1.5v-9a1.5 1.5 0 0 0-1.29-1.485v1.442a.216.216 0 0 1 ' +
-      '.004.043v9a.214.214 0 0 1-.214.214h-9a.216.216 0 0 1-.043-.004H4.015z',
-  ],
-}
 
 const GitIgnoreFileName = '.gitignore'
 
@@ -143,7 +129,12 @@ interface IChangesListProps {
   readonly isShowingFoldout: boolean
   readonly onDiscardChangesFromFiles: (
     files: ReadonlyArray<WorkingDirectoryFileChange>,
-    isDiscardingAllChanges: boolean
+    isDiscardingAllChanges: boolean,
+    permanently: boolean
+  ) => void
+  readonly onStashChangesFromFiles: (
+    files: ReadonlyArray<WorkingDirectoryFileChange>,
+    isStashingAllChanges: boolean
   ) => void
 
   /** Callback that fires on page scroll to pass the new scrollTop location */
@@ -215,9 +206,12 @@ interface IChangesListProps {
   /** The name of the currently selected external editor */
   readonly externalEditorLabel?: string
 
-  readonly stashEntry: IStashEntry | null
+  readonly stashEntries: ReadonlyArray<IStashEntry>
 
   readonly isShowingStashEntry: boolean
+
+  /** The currently selected/viewed stash entry (if viewing stash) */
+  readonly selectedStashEntry: IStashEntry | null
 
   /**
    * Whether we should show the onboarding tutorial nudge
@@ -347,15 +341,42 @@ export class ChangesList extends React.Component<
     )
   }
 
+  private onStashAllChanges = () => {
+    this.props.dispatcher.createStashForCurrentBranch(this.props.repository)
+  }
+
   private onDiscardAllChanges = () => {
     this.props.onDiscardChangesFromFiles(
       this.props.workingDirectory.files,
+      true,
+      false
+    )
+  }
+
+  private onPermanentlyDiscardAllChanges = () => {
+    this.props.onDiscardChangesFromFiles(
+      this.props.workingDirectory.files,
+      true,
       true
     )
   }
 
-  private onStashChanges = () => {
-    this.props.dispatcher.createStashForCurrentBranch(this.props.repository)
+  private onStashChanges = (files: ReadonlyArray<string>) => {
+    const workingDirectory = this.props.workingDirectory
+    const modifiedFiles = new Array<WorkingDirectoryFileChange>()
+
+    files.forEach(file => {
+      const modifiedFile = workingDirectory.files.find(f => f.path === file)
+
+      if (modifiedFile != null) {
+        modifiedFiles.push(modifiedFile)
+      }
+    })
+
+    const stashingAllChanges =
+      modifiedFiles.length === workingDirectory.files.length
+
+    this.props.onStashChangesFromFiles(modifiedFiles, stashingAllChanges)
   }
 
   private onDiscardChanges = (files: ReadonlyArray<string>) => {
@@ -386,7 +407,8 @@ export class ChangesList extends React.Component<
 
         this.props.onDiscardChangesFromFiles(
           modifiedFiles,
-          discardingAllChanges
+          discardingAllChanges,
+          false
         )
       }
     }
@@ -405,6 +427,16 @@ export class ChangesList extends React.Component<
     return this.props.askForConfirmationOnDiscardChanges ? `${label}…` : label
   }
 
+  private getStashChangesMenuItemLabel = (files: ReadonlyArray<string>) => {
+    return files.length === 1
+      ? __DARWIN__
+        ? `Stash Changes`
+        : `Stash changes`
+      : __DARWIN__
+      ? `Stash ${files.length} Selected Changes`
+      : `Stash ${files.length} selected changes`
+  }
+
   private onContextMenu = (event: React.MouseEvent<any>) => {
     event.preventDefault()
 
@@ -414,7 +446,7 @@ export class ChangesList extends React.Component<
     }
 
     const hasLocalChanges = this.props.workingDirectory.files.length > 0
-    const hasStash = this.props.stashEntry !== null
+    const hasStash = this.props.stashEntries.length > 0
     const hasConflicts =
       this.props.conflictState !== null ||
       hasConflictedFiles(this.props.workingDirectory)
@@ -433,8 +465,15 @@ export class ChangesList extends React.Component<
         enabled: hasLocalChanges,
       },
       {
+        label: __DARWIN__
+          ? 'Permanently Discard All Changes…'
+          : 'Permanently discard all changes…',
+        action: this.onPermanentlyDiscardAllChanges,
+        enabled: hasLocalChanges,
+      },
+      {
         label: hasStash ? confirmStashAllChangesLabel : stashAllChangesLabel,
-        action: this.onStashChanges,
+        action: this.onStashAllChanges,
         enabled: hasLocalChanges && this.props.branch !== null && !hasConflicts,
       },
     ]
@@ -448,6 +487,15 @@ export class ChangesList extends React.Component<
     return {
       label: this.getDiscardChangesMenuItemLabel(paths),
       action: () => this.onDiscardChanges(paths),
+    }
+  }
+
+  private getStashChangesMenuItem = (
+    paths: ReadonlyArray<string>
+  ): IMenuItem => {
+    return {
+      label: this.getStashChangesMenuItemLabel(paths),
+      action: () => this.onStashChanges(paths),
     }
   }
 
@@ -566,6 +614,7 @@ export class ChangesList extends React.Component<
 
     const items: IMenuItem[] = [
       this.getDiscardChangesMenuItem(paths),
+      this.getStashChangesMenuItem(paths),
       { type: 'separator' },
     ]
     if (paths.length === 1) {
@@ -936,44 +985,71 @@ export class ChangesList extends React.Component<
     }
   }
 
-  private onStashEntryClicked = () => {
-    const { isShowingStashEntry, dispatcher, repository } = this.props
+  private onStashEntryClicked = (entry: IStashEntry) => {
+    const { isShowingStashEntry, selectedStashEntry, dispatcher, repository } =
+      this.props
 
-    if (isShowingStashEntry) {
+    // If we're viewing this specific stash entry, toggle back to working directory
+    if (
+      isShowingStashEntry &&
+      selectedStashEntry?.stashSha === entry.stashSha
+    ) {
       dispatcher.selectWorkingDirectoryFiles(repository)
-
       // If the button is clicked, that implies the stash was not restored or discarded
       dispatcher.incrementMetric('noActionTakenOnStashCount')
     } else {
-      dispatcher.selectStashedFile(repository)
+      // Otherwise, select this stash entry
+      dispatcher.selectStashedFile(repository, entry)
       dispatcher.incrementMetric('stashViewCount')
     }
   }
 
+  private onStashEntryClickedFn = (entry: IStashEntry) => {
+    return () => this.onStashEntryClicked(entry)
+  }
+
   private renderStashedChanges() {
-    if (this.props.stashEntry === null) {
+    const { stashEntries } = this.props
+
+    if (stashEntries.length === 0) {
       return null
     }
 
-    const className = classNames(
-      'stashed-changes-button',
-      this.props.isShowingStashEntry ? 'selected' : null
-    )
-
     return (
-      <button
-        className={className}
-        onClick={this.onStashEntryClicked}
-        tabIndex={0}
-        aria-expanded={this.props.isShowingStashEntry}
-        aria-controls={
-          this.props.isShowingStashEntry ? StashDiffViewerId : undefined
-        }
-      >
-        <Octicon className="stack-icon" symbol={StashIcon} />
-        <div className="text">Stashed Changes</div>
-        <Octicon symbol={octicons.chevronRight} />
-      </button>
+      <div className="stashed-changes-section">
+        <div className="stashed-changes-header">
+          <Octicon className="stack-icon" symbol={stash} />
+          <div className="text">
+            {stashEntries.length}{' '}
+            {stashEntries.length === 1 ? 'stash' : 'stashes'}
+          </div>
+        </div>
+        {stashEntries.map((entry, index) => {
+          const isSelected =
+            this.props.isShowingStashEntry &&
+            this.props.selectedStashEntry !== null &&
+            this.props.selectedStashEntry.stashSha === entry.stashSha
+
+          const className = classNames(
+            'stashed-changes-button',
+            isSelected ? 'selected' : null
+          )
+
+          return (
+            <button
+              key={entry.stashSha}
+              className={className}
+              onClick={this.onStashEntryClickedFn(entry)}
+              tabIndex={0}
+              aria-expanded={isSelected}
+              aria-controls={isSelected ? StashDiffViewerId : undefined}
+            >
+              <div className="text">{entry.stashSha}</div>
+              <Octicon symbol={octicons.chevronRight} />
+            </button>
+          )
+        })}
+      </div>
     )
   }
 

@@ -56,6 +56,8 @@ interface IAccount {
   readonly token: string
   readonly login: string
   readonly endpoint: string
+  readonly refreshToken: string
+  readonly tokenExpiresAt: number
   readonly emails: ReadonlyArray<IEmail>
   readonly avatarURL: string
   readonly id: number
@@ -137,6 +139,27 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
     return account
   }
 
+  public async modifyAccount(newAccount: Account): Promise<Account | null> {
+    await this.loadingPromise
+    const index = this.accounts.findIndex(
+      a => a.endpoint === newAccount.endpoint && a.id === newAccount.id
+    )
+    if (index === -1) {
+      log.warn(
+        `Account not found in store when trying to modify: ${newAccount.login}`
+      )
+      return null
+    }
+    if (!(await this.storeAccountKey(newAccount))) {
+      return null
+    }
+    this.accounts = this.accounts.map((a, i) => (i === index ? newAccount : a))
+
+    this.save()
+    this.emitUpdate(this.accounts)
+    return this.accounts[index]
+  }
+
   /** Refresh all accounts by fetching their latest info from the API. */
   public async refresh(): Promise<void> {
     this.accounts = await Promise.all(
@@ -145,6 +168,27 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
 
     this.save()
     this.emitUpdate(this.accounts)
+  }
+
+  private async storeAccountKey(account: Account) {
+    try {
+      const key = getKeyForAccount(account)
+      await this.secureStore.setItem(key, account.login, account.token)
+      return true
+    } catch (e) {
+      log.error(`Error adding account '${account.login}'`, e)
+
+      if ((__DARWIN__ || __LINUX__) && isKeyChainError(e)) {
+        this.emitError(
+          new Error(
+            `GitHub Desktop was unable to store the account token in the keychain. Please check you have unlocked access to the 'login' keychain.`
+          )
+        )
+      } else {
+        this.emitError(e)
+      }
+      return false
+    }
   }
 
   /**
@@ -238,6 +282,8 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
         account.login,
         account.endpoint,
         '',
+        account.refreshToken,
+        account.tokenExpiresAt,
         account.emails,
         account.avatarURL,
         account.id,
@@ -282,5 +328,10 @@ async function updatedAccount(account: Account): Promise<Account> {
     )
   }
 
-  return fetchUser(account.endpoint, account.token)
+  return fetchUser(
+    account.endpoint,
+    account.token,
+    account.refreshToken,
+    account.tokenExpiresAt
+  )
 }

@@ -3,8 +3,7 @@
 
 import * as path from 'path'
 import * as cp from 'child_process'
-import * as os from 'os'
-import packager, { OfficialArch, OsxNotarizeOptions } from 'electron-packager'
+import packager, { OsxNotarizeOptions } from 'electron-packager'
 import frontMatter from 'front-matter'
 import { externals } from '../app/webpack.common'
 
@@ -51,11 +50,16 @@ import {
 } from 'fs'
 import { copySync } from 'fs-extra'
 
+// Always use ad-hoc code signing ('-'), even for published builds, to avoid "app is damaged" error.
+// This is the friendliest non-paid option.
+// https://wiki.freepascal.org/Code_Signing_for_macOS#Ad_hoc_signing
+const isGitHubDesktopPlus = true
 const isPublishableBuild = isPublishable()
 const isDevelopmentBuild = getChannel() === 'development'
+const useAdHocSigning = isGitHubDesktopPlus || isDevelopmentBuild
 
 const projectRoot = path.join(__dirname, '..')
-const entitlementsSuffix = isDevelopmentBuild ? '-dev' : ''
+const entitlementsSuffix = useAdHocSigning ? '-dev' : ''
 const entitlementsPath = `${projectRoot}/script/entitlements${entitlementsSuffix}.plist`
 const extendInfoPath = `${projectRoot}/script/info.plist`
 const outRoot = path.join(projectRoot, 'out')
@@ -131,17 +135,19 @@ function packageApp() {
     )
   }
 
-  const toPackageArch = (targetArch: string | undefined): OfficialArch => {
-    if (targetArch === undefined) {
-      targetArch = os.arch()
+  const getPackageArch = (): 'arm64' | 'x64' | 'armv7l' => {
+    const arch = process.env.npm_config_arch || process.arch
+
+    if (arch === 'arm64' || arch === 'x64') {
+      return arch
     }
 
-    if (targetArch === 'arm64' || targetArch === 'x64') {
-      return targetArch
+    if (arch === 'arm') {
+      return 'armv7l'
     }
 
     throw new Error(
-      `Building Desktop for architecture '${targetArch}' is not supported`
+      `Building Desktop for architecture '${arch}' is not supported. Currently these architectures are supported: arm, arm64, x64`
     )
   }
 
@@ -160,13 +166,20 @@ function packageApp() {
     )
   }
 
+  // this setting only works for macOS and Windows, so let's clear it now to ensure
+  // the app is working as expected
+  const icon =
+    process.platform === 'linux'
+      ? undefined
+      : path.join(projectRoot, 'app', 'static', 'logos', getIconFileName())
+
   return packager({
     name: getExecutableName(),
     platform: toPackagePlatform(process.platform),
-    arch: toPackageArch(process.env.TARGET_ARCH),
+    arch: getPackageArch(),
     asar: false, // TODO: Probably wanna enable this down the road.
     out: getDistRoot(),
-    icon: path.join(projectRoot, 'app', 'static', 'logos', getIconFileName()),
+    icon,
     dir: outRoot,
     overwrite: true,
     tmpdir: false,
@@ -189,13 +202,13 @@ function packageApp() {
         hardenedRuntime: true,
         entitlements: entitlementsPath,
       }),
-      type: isPublishableBuild ? 'distribution' : 'development',
+      type: useAdHocSigning ? 'development' : 'distribution',
       // For development, we will use '-' as the identifier so that codesign
       // will sign the app to run locally. We need to disable 'identity-validation'
       // or otherwise it will replace '-' with one of the regular codesigning
       // identities in our system.
-      identity: isDevelopmentBuild ? '-' : undefined,
-      identityValidation: !isDevelopmentBuild,
+      identity: useAdHocSigning ? '-' : undefined,
+      identityValidation: !useAdHocSigning,
     },
     osxNotarize,
     protocols: [

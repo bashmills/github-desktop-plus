@@ -113,6 +113,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
         emoji={this.props.emoji}
         onDeleteBranch={this.onDeleteBranch}
         onRenameBranch={this.onRenameBranch}
+        onMakeDefaultBranch={this.onMakeDefaultBranch}
         underlineLinks={this.props.underlineLinks}
       />
     )
@@ -308,9 +309,12 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       return
     }
 
+    const { name, type, nameWithoutRemote } = tip.branch
     const items = generateBranchContextMenuItems({
-      name: tip.branch.name,
-      isLocal: tip.branch.type === BranchType.Local,
+      name,
+      nameWithoutRemote,
+      isLocal: type === BranchType.Local,
+      repoType: this.props.repository.gitHubRepository?.type,
       onRenameBranch: this.onRenameBranch,
       onViewBranchOnGitHub:
         isRepositoryWithGitHubRepository(this.props.repository) &&
@@ -320,6 +324,10 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       onViewPullRequestOnGitHub: this.props.currentPullRequest
         ? this.onViewPullRequestOnGithub
         : undefined,
+      onMakeDefaultBranch:
+        nameWithoutRemote === this.props.repository.defaultBranch
+          ? undefined
+          : this.onMakeDefaultBranch,
       onDeleteBranch: this.onDeleteBranch,
     })
 
@@ -354,19 +362,19 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       return
     }
 
-    if (!gitHubRepository || gitHubRepository.htmlURL === null) {
+    if (!gitHubRepository?.htmlURL || !tip.branch.upstreamWithoutRemote) {
       return
     }
 
-    if (!tip.branch.upstreamWithoutRemote) {
-      return
-    }
-
-    const url = `${gitHubRepository.htmlURL}/tree/${encodeURIComponent(
+    const encodedBranchName = encodeURIComponent(
       tip.branch.upstreamWithoutRemote
-    )}`
-
-    this.props.dispatcher.openInBrowser(url)
+    )
+    const VIEW_BRANCH_URL = {
+      github: `${gitHubRepository.htmlURL}/tree/${encodedBranchName}`,
+      bitbucket: `${gitHubRepository.htmlURL}/src/${encodedBranchName}`,
+      gitlab: `${gitHubRepository.htmlURL}/-/tree/${encodedBranchName}`,
+    }
+    this.props.dispatcher.openInBrowser(VIEW_BRANCH_URL[gitHubRepository.type])
   }
 
   private onViewPullRequestOnGithub = () => {
@@ -377,6 +385,13 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
     }
 
     this.props.dispatcher.showPullRequestByPR(pr)
+  }
+
+  private onMakeDefaultBranch = (branchName: string) => {
+    this.props.dispatcher.updateRepositoryDefaultBranch(
+      this.props.repository,
+      branchName
+    )
   }
 
   private onDeleteBranch = async (branchName: string) => {

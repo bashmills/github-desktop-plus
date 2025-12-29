@@ -4,7 +4,15 @@ on:
   push:
     branches:
       - development
+      - linux
+      - 'linux-release-*'
+    tags:
+      - 'release-*.*.*-linux*'
+      - 'v*.*.*'
   pull_request:
+    branches:
+      - linux
+      - 'linux-release-*'
   workflow_call:
     inputs:
       repository:
@@ -31,6 +39,10 @@ on:
       AZURE_CODE_SIGNING_CLIENT_SECRET:
       DESKTOP_OAUTH_CLIENT_ID:
       DESKTOP_OAUTH_CLIENT_SECRET:
+      DESKTOP_OAUTH_CLIENT_ID_BITBUCKET:
+      DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET:
+      DESKTOP_OAUTH_CLIENT_ID_GITLAB:
+      DESKTOP_OAUTH_CLIENT_SECRET_GITLAB:
       APPLE_ID:
       APPLE_ID_PASSWORD:
       APPLE_TEAM_ID:
@@ -64,6 +76,7 @@ jobs:
       - run: yarn validate-changelog
       - name: Ensure a clean working directory
         run: git diff --name-status --exit-code
+
   build:
     name: ${{ matrix.friendlyName }} ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
@@ -72,10 +85,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14-xlarge, windows-2022]
+        os: [macos-14, windows-2022]
         arch: [x64, arm64]
         include:
-          - os: macos-14-xlarge
+          - os: macos-14
             friendlyName: macOS
           - os: windows-2022
             friendlyName: Windows
@@ -116,6 +129,14 @@ jobs:
           DESKTOP_OAUTH_CLIENT_ID: ${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}
           DESKTOP_OAUTH_CLIENT_SECRET:
             ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}
+          DESKTOP_OAUTH_CLIENT_ID_BITBUCKET:
+            ${{ secrets.DESKTOP_OAUTH_CLIENT_ID_BITBUCKET }}
+          DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET:
+            ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET }}
+          DESKTOP_OAUTH_CLIENT_ID_GITLAB:
+            ${{ secrets.DESKTOP_OAUTH_CLIENT_ID_GITLAB }}
+          DESKTOP_OAUTH_CLIENT_SECRET_GITLAB:
+            ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET_GITLAB }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -129,12 +150,12 @@ jobs:
           npm_config_arch: ${{ matrix.arch }}
       - name: Run unit tests
         if: |
-          (runner.os == 'Windows' && matrix.arch == 'x64') || (runner.os == 'macOS' && matrix.arch == 'arm64')
+          (runner.os == 'macOS' && matrix.arch == 'x64')
         run: yarn test:unit
       - name: Run script tests
         run: yarn test:script
       - name: Install Azure Code Signing Client
-        if: ${{ runner.os == 'Windows' && inputs.sign }}
+        if: ${{ runner.os == 'Windows' }}
         run: |
           $acsZip = Join-Path $env:RUNNER_TEMP "acs.zip"
           $acsDir = Join-Path $env:RUNNER_TEMP "acs"
@@ -151,13 +172,64 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CODE_SIGNING_CLIENT_SECRET }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.upload-artifacts }}
         with:
           name: ${{matrix.friendlyName}}-${{matrix.arch}}
           path: |
-            dist/GitHub Desktop-${{matrix.arch}}.zip
+            dist/GitHub Desktop Plus-${{matrix.arch}}.zip
             dist/GitHubDesktop-*.nupkg
             dist/GitHubDesktopSetup-${{matrix.arch}}.exe
             dist/GitHubDesktopSetup-${{matrix.arch}}.msi
             dist/bundle-size.json
           if-no-files-found: error
+
+  publish:
+    name: Publish artifacts
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Set release tag
+        run: echo "RELEASE_TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: './artifacts'
+
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: './artifacts'
+
+      - name: Wait for release to be available
+        run: |
+          echo "Waiting for release ${{ env.RELEASE_TAG }} to be available..."
+          for i in {1..180}; do
+            response=$(curl --silent -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG")
+            if echo "$response" | grep -q '"id":'; then
+              echo "Release found."
+              exit 0
+            fi
+            echo "Release not found. Retrying in 10 seconds..."
+            sleep 10
+          done
+          echo "Release ${{ env.RELEASE_TAG }} not found after 30 minutes."
+          exit 1
+
+      - name: Rename artifacts
+        run: |
+          # GitHubDesktopSetup-<arch>.<ext> -> GitHubDesktopPlus-<release_tag>-windows-<arch>.<ext>
+          for file in $(find ./artifacts -type f -name "GitHubDesktopSetup-*"); do
+            new_name=$(echo "$file" | sed -E "s/GitHubDesktopSetup-(.*)\\.(.*)/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-windows-\\1.\\2/")
+            mv --verbose "$file" "$new_name"
+          done
+
+          # GitHub Desktop Plus-<arch>.zip -> GitHubDesktopPlus-<release_tag>-macOS-<arch>.zip
+          find ./artifacts -type f -name "GitHub Desktop Plus-*.zip" -print0 | while IFS= read -r -d '' file; do
+            new_name=$(echo "$file" | sed -E "s/GitHub Desktop Plus-(.*)\\.zip/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-macOS-\\1.zip/")
+            mv --verbose "$file" "$new_name"
+          done
+
+      - name: Upload assets to release
+        run: |
+          gh release upload ${{ env.RELEASE_TAG }} artifacts/**/*.exe artifacts/**/*.msi artifacts/**/*.zip --clobber --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,9 @@
-import { Repository } from '../../models/repository'
+import {
+  isRepositoryWithGitHubRepository,
+  hasDefaultRemoteUrl,
+  Repository,
+} from '../../models/repository'
+import { RepoType } from '../../models/github-repository'
 import { IMenuItem } from '../../lib/menu-item'
 import { Repositoryish } from './group-repositories'
 import { clipboard } from 'electron'
@@ -13,7 +18,7 @@ interface IRepositoryListItemContextMenuConfig {
   shellLabel: string | undefined
   externalEditorLabel: string | undefined
   askForConfirmationOnRemoveRepository: boolean
-  onViewOnGitHub: (repository: Repositoryish) => void
+  onViewInBrowser: (repository: Repositoryish) => void
   onOpenInShell: (repository: Repositoryish) => void
   onShowRepository: (repository: Repositoryish) => void
   onOpenInExternalEditor: (repository: Repositoryish) => void
@@ -27,8 +32,11 @@ export const generateRepositoryListContextMenu = (
 ) => {
   const { repository } = config
   const missing = repository instanceof Repository && repository.missing
-  const github =
-    repository instanceof Repository && repository.gitHubRepository != null
+  const isGitHub =
+    repository instanceof Repository &&
+    isRepositoryWithGitHubRepository(repository)
+  const hasOriginUrl =
+    repository instanceof Repository && hasDefaultRemoteUrl(repository)
   const openInExternalEditor = config.externalEditorLabel
     ? `Open in ${config.externalEditorLabel}`
     : DefaultEditorLabel
@@ -48,9 +56,11 @@ export const generateRepositoryListContextMenu = (
     },
     { type: 'separator' },
     {
-      label: 'View on GitHub',
-      action: () => config.onViewOnGitHub(repository),
-      enabled: github,
+      label: getViewOnBrowserLabel(
+        isGitHub ? repository.gitHubRepository.type : null
+      ),
+      action: () => config.onViewInBrowser(repository),
+      enabled: isGitHub || hasOriginUrl,
     },
     {
       label: openInShell,
@@ -75,6 +85,19 @@ export const generateRepositoryListContextMenu = (
   ]
 
   return items
+}
+
+function getViewOnBrowserLabel(repoType: RepoType | null) {
+  switch (repoType) {
+    case 'github':
+      return 'View on GitHub'
+    case 'bitbucket':
+      return 'View on Bitbucket'
+    case 'gitlab':
+      return 'View on GitLab'
+    default:
+      return 'View in your browser'
+  }
 }
 
 const buildAliasMenuItems = (

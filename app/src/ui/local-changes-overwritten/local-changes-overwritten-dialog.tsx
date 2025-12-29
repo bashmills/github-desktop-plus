@@ -144,8 +144,7 @@ export class LocalChangesOverwrittenDialog extends React.Component<
     // tell createStashForCurrentBranch not to show a confirmation dialog which
     // would disrupt the async flow (since you can't await a dialog).
     const createdStash = await dispatcher.createStashForCurrentBranch(
-      repository,
-      false
+      repository
     )
 
     this.props.onDismissed()
@@ -183,6 +182,8 @@ export class LocalChangesOverwrittenDialog extends React.Component<
         return 'reorder'
       case RetryActionType.DiscardChanges:
         return 'discard changes'
+      case RetryActionType.StashChanges:
+        return 'stash changes'
       default:
         assertNever(
           this.props.retryAction,

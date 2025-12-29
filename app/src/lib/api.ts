@@ -13,9 +13,11 @@ import { uuid } from './uuid'
 import { GitProtocol } from './remote-parsing'
 import {
   getEndpointVersion,
+  isBitbucket,
   isDotCom,
   isGHE,
   isGHES,
+  isGitLab,
   updateEndpointVersion,
 } from './endpoint-capabilities'
 import {
@@ -26,6 +28,7 @@ import { HttpStatusCode } from './http-status-code'
 import { CopilotError } from './copilot-error'
 import { BypassReasonType } from '../ui/secret-scanning/bypass-push-protection-dialog'
 import { enableMultipleLoginAccounts } from './feature-flag'
+import { assertNever } from './fatal-error'
 
 const envEndpoint = process.env['DESKTOP_GITHUB_DOTCOM_API_ENDPOINT']
 const envHTMLURL = process.env['DESKTOP_GITHUB_DOTCOM_HTML_URL']
@@ -71,6 +74,14 @@ type CopilotChatCompletionResponse = {
       readonly content: string
     }
   }>
+}
+
+type IBitbucketAPIPage<T> = {
+  readonly page: number
+  readonly pagelen: number
+  readonly size: number
+  readonly next?: string
+  readonly values: ReadonlyArray<T>
 }
 
 /**
@@ -127,12 +138,45 @@ interface IFetchAllOptions<T> {
 
 const ClientID = process.env.TEST_ENV ? '' : __OAUTH_CLIENT_ID__
 const ClientSecret = process.env.TEST_ENV ? '' : __OAUTH_SECRET__
+const ClientIDBitbucket = process.env.TEST_ENV
+  ? ''
+  : __OAUTH_CLIENT_ID_BITBUCKET__
+const ClientSecretBitbucket = process.env.TEST_ENV
+  ? ''
+  : __OAUTH_SECRET_BITBUCKET__
+const ClientIDGitLab = process.env.TEST_ENV ? '' : __OAUTH_CLIENT_ID_GITLAB__
+const ClientSecretGitLab = process.env.TEST_ENV ? '' : __OAUTH_SECRET_GITLAB__
 
 if (!ClientID || !ClientID.length || !ClientSecret || !ClientSecret.length) {
   log.warn(
     `DESKTOP_OAUTH_CLIENT_ID and/or DESKTOP_OAUTH_CLIENT_SECRET is undefined. You won't be able to authenticate new users.`
   )
 }
+if (
+  !ClientIDBitbucket ||
+  !ClientIDBitbucket.length ||
+  !ClientSecretBitbucket ||
+  !ClientSecretBitbucket.length
+) {
+  log.warn(
+    `DESKTOP_OAUTH_CLIENT_ID_BITBUCKET and/or DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET is undefined. You won't be able to authenticate new users.`
+  )
+}
+if (
+  !ClientIDGitLab ||
+  !ClientIDGitLab.length ||
+  !ClientSecretGitLab ||
+  !ClientSecretGitLab.length
+) {
+  log.warn(
+    `DESKTOP_OAUTH_CLIENT_ID_GITLAB and/or DESKTOP_OAUTH_CLIENT_SECRET_GITLAB is undefined. You won't be able to authenticate new GitLab users.`
+  )
+}
+
+const BitbucketBasicAuth = () =>
+  Buffer.from(`${ClientIDBitbucket}:${ClientSecretBitbucket}`).toString(
+    'base64'
+  )
 
 export type GitHubAccountType = 'User' | 'Organization'
 
@@ -143,17 +187,50 @@ const oauthScopes = ['repo', 'user', 'workflow']
  * Information about a repository as returned by the GitHub API.
  */
 export interface IAPIRepository {
-  readonly clone_url: string
+  readonly clone_url: string // blank if unknown
   readonly ssh_url: string
   readonly html_url: string
   readonly name: string
   readonly owner: IAPIIdentity
-  readonly private: boolean
+  readonly private: boolean | null // null if unknown
   readonly fork: boolean
   readonly default_branch: string
   readonly pushed_at: string
   readonly has_issues: boolean
   readonly archived: boolean
+}
+export interface IBitbucketAPIRepositorySummary {
+  readonly uuid: string
+  readonly full_name: string
+  readonly name: string
+  readonly links: {
+    readonly html: {
+      readonly href: string
+    }
+  }
+}
+function summaryToIAPIRepository(
+  repo: IBitbucketAPIRepositorySummary
+): IAPIRepository {
+  return {
+    clone_url: '',
+    ssh_url: `git@bitbucket.org:${repo.full_name}.git`,
+    html_url: repo.links.html.href,
+    name: repo.name,
+    owner: {
+      id: 0,
+      login: repo.full_name.split('/')[0],
+      avatar_url: '',
+      html_url: '',
+      type: 'User',
+    },
+    private: null,
+    fork: false,
+    default_branch: '',
+    pushed_at: '',
+    has_issues: false,
+    archived: false,
+  }
 }
 
 /** Information needed to clone a repository. */
@@ -201,6 +278,59 @@ export interface IAPIFullRepository extends IAPIRepository {
    */
   readonly permissions?: IAPIRepositoryPermissions
 }
+export interface IBitbucketAPIRepository
+  extends IBitbucketAPIRepositorySummary {
+  readonly owner: IBitbucketAPIIdentity
+  readonly is_private: boolean
+  readonly parent?: IBitbucketAPIRepository
+  readonly has_issues: boolean
+  readonly updated_on: string
+  readonly mainbranch: {
+    readonly name: string
+  }
+  readonly links: {
+    readonly html: {
+      readonly href: string
+    }
+    readonly clone: ReadonlyArray<{
+      readonly name: string
+      readonly href: string
+    }>
+  }
+}
+function toIAPIRepository(repo: IBitbucketAPIRepository): IAPIRepository {
+  return {
+    clone_url:
+      repo.links.clone.filter(c => c.name === 'https')[0]?.href ||
+      `https://bitbucket.org/${repo.full_name}.git`,
+    ssh_url:
+      repo.links.clone.filter(c => c.name === 'ssh')[0]?.href ||
+      `git@bitbucket.org:${repo.full_name}.git`,
+    html_url: repo.links.html.href,
+    name: repo.name,
+    owner: toIAPIIdentity(repo.owner),
+    private: repo.is_private,
+    fork: false,
+    default_branch: repo.mainbranch?.name,
+    pushed_at: repo.updated_on,
+    has_issues: repo.has_issues,
+    archived: false,
+  }
+}
+function toIAPIFullRepository(
+  repo: IBitbucketAPIRepository
+): IAPIFullRepository {
+  return {
+    ...toIAPIRepository(repo),
+    parent: repo.parent ? toIAPIRepository(repo.parent) : undefined,
+    permissions: {
+      // Let's be optimistic
+      admin: true,
+      push: true,
+      pull: true,
+    },
+  }
+}
 
 /*
  * Information about how the user is permitted to interact with a repository.
@@ -244,6 +374,28 @@ export interface IAPIIdentity {
   readonly html_url: string
   readonly type: GitHubAccountType
 }
+export interface IBitbucketAPIIdentity {
+  readonly uuid: string
+  readonly display_name: string
+  readonly username: string
+  readonly links: {
+    readonly avatar: {
+      readonly href: string
+    }
+    readonly html: {
+      readonly href: string
+    }
+  }
+}
+function toIAPIIdentity(identity: IBitbucketAPIIdentity): IAPIIdentity {
+  return {
+    id: 0,
+    login: identity.display_name,
+    avatar_url: identity.links.avatar.href,
+    html_url: identity.links.html.href,
+    type: 'User',
+  }
+}
 
 /**
  * Complete identity details returned in some situations by the GitHub API.
@@ -275,6 +427,17 @@ interface IAPIFullIdentity {
     readonly name: string
   }
 }
+function toIAPIFullIdentity(identity: IBitbucketAPIIdentity): IAPIFullIdentity {
+  return {
+    id: 0,
+    login: identity.username,
+    avatar_url: identity.links.avatar.href,
+    html_url: identity.links.html.href,
+    name: identity.display_name,
+    email: null,
+    type: 'User',
+  }
+}
 
 /** The users we get from the mentionables endpoint. */
 export interface IAPIMentionableUser {
@@ -301,6 +464,19 @@ export interface IAPIMentionableUser {
    * a real name for their public profile.
    */
   readonly name: string | null
+}
+interface IBitbucketApiWorkspaceMembership {
+  user: IBitbucketAPIIdentity
+}
+function toIAPIMentionableUser(
+  member: IBitbucketApiWorkspaceMembership
+): IAPIMentionableUser {
+  return {
+    avatar_url: member.user.links.avatar.href,
+    email: null,
+    login: member.user.display_name,
+    name: member.user.display_name,
+  }
 }
 
 /** Represents the commit details (title and description) generated by Copilot */
@@ -336,6 +512,19 @@ export interface IAPIEmail {
   readonly primary: boolean
   readonly visibility: EmailVisibility
 }
+export interface IBitbucketAPIEmail {
+  readonly email: string
+  readonly is_primary: boolean
+  readonly is_confirmed: boolean
+}
+function toIAPIEmail(email: IBitbucketAPIEmail): IAPIEmail {
+  return {
+    email: email.email,
+    verified: email.is_confirmed,
+    primary: email.is_primary,
+    visibility: 'public',
+  }
+}
 
 /** Information about an issue as returned by the GitHub API. */
 export interface IAPIIssue {
@@ -344,9 +533,51 @@ export interface IAPIIssue {
   readonly state: 'open' | 'closed'
   readonly updated_at: string
 }
+export interface IBitbucketAPIIssue {
+  readonly id: number
+  readonly title: string
+  readonly state:
+    | 'submitted'
+    | 'new'
+    | 'open'
+    | 'resolved'
+    | 'on hold'
+    | 'invalid'
+    | 'duplicate'
+    | 'wontfix'
+    | 'closed'
+  readonly updated_on: string
+}
+function toIAPIIssue(issue: IBitbucketAPIIssue): IAPIIssue {
+  return {
+    number: issue.id,
+    title: issue.title,
+    state: ['submitted', 'new', 'open'].includes(issue.state)
+      ? 'open'
+      : 'closed',
+    updated_at: issue.updated_on,
+  }
+}
 
 /** The combined state of a ref. */
 export type APIRefState = 'failure' | 'pending' | 'success' | 'error'
+export type BitbucketAPIRefState =
+  | 'FAILED'
+  | 'INPROGRESS'
+  | 'STOPPED'
+  | 'SUCCESSFUL'
+export type GitLabAPIPipelineStatus =
+  | 'created'
+  | 'waiting_for_resource'
+  | 'preparing'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'failed'
+  | 'canceled'
+  | 'skipped'
+  | 'manual'
+  | 'scheduled'
 
 /** The overall status of a check run */
 export enum APICheckStatus {
@@ -378,6 +609,36 @@ export interface IAPIRefStatusItem {
   readonly context: string
   readonly id: number
 }
+export interface IBitbucketAPICommitStatus {
+  readonly state: BitbucketAPIRefState
+  readonly url: string
+  readonly description: string
+  readonly name: string
+}
+function toIAPIRefStatusItem(
+  id: number,
+  status: IBitbucketAPICommitStatus
+): IAPIRefStatusItem {
+  return {
+    state: mapRefState(status.state),
+    target_url: status.url,
+    description: status.description,
+    context: status.name,
+    id,
+  }
+}
+function mapRefState(state: BitbucketAPIRefState): APIRefState {
+  switch (state) {
+    case 'FAILED':
+      return 'failure'
+    case 'INPROGRESS':
+      return 'pending'
+    case 'STOPPED':
+      return 'error'
+    case 'SUCCESSFUL':
+      return 'success'
+  }
+}
 
 /** The API response to a ref status request. */
 export interface IAPIRefStatus {
@@ -398,6 +659,81 @@ export interface IAPIRefCheckRun {
   readonly started_at: string
   readonly html_url: string
   readonly pull_requests: ReadonlyArray<IAPIPullRequest>
+}
+export interface IGitLabAPIPipelineStatus {
+  readonly status: GitLabAPIPipelineStatus
+  readonly web_url: string
+  readonly id: number
+  readonly iid: number
+  readonly source: string
+  readonly sha: string
+  readonly ref: string
+  readonly created_at: string
+  readonly updated_at: string
+}
+function toIAPIRefCheckRunFromGitLab(
+  pipelineStatus: IGitLabAPIPipelineStatus
+): IAPIRefCheckRun {
+  return {
+    id: pipelineStatus.id,
+    url: pipelineStatus.web_url,
+    status: toAPICheckStatusFromGitLab(pipelineStatus.status),
+    conclusion: toAPICheckConclusionFromGitLab(pipelineStatus.status),
+    name: `${pipelineStatus.source}: ${pipelineStatus.ref}`,
+    check_suite: {
+      id: pipelineStatus.id,
+    },
+    app: {
+      name: 'Pipelines',
+    },
+    completed_at: pipelineStatus.updated_at,
+    started_at: pipelineStatus.created_at,
+    html_url: pipelineStatus.web_url,
+    pull_requests: [],
+  }
+}
+function toAPICheckStatusFromGitLab(
+  status: GitLabAPIPipelineStatus
+): APICheckStatus {
+  switch (status) {
+    case 'created':
+    case 'waiting_for_resource':
+    case 'preparing':
+    case 'pending':
+    case 'scheduled':
+      return APICheckStatus.Queued
+    case 'running':
+      return APICheckStatus.InProgress
+    case 'manual':
+    case 'success':
+    case 'failed':
+    case 'canceled':
+    case 'skipped':
+      return APICheckStatus.Completed
+  }
+}
+function toAPICheckConclusionFromGitLab(
+  status: GitLabAPIPipelineStatus
+): APICheckConclusion | null {
+  switch (status) {
+    case 'created':
+    case 'waiting_for_resource':
+    case 'preparing':
+    case 'pending':
+    case 'scheduled':
+    case 'running':
+      return null
+    case 'manual':
+      return APICheckConclusion.ActionRequired
+    case 'success':
+      return APICheckConclusion.Success
+    case 'failed':
+      return APICheckConclusion.Failure
+    case 'canceled':
+      return APICheckConclusion.Canceled
+    case 'skipped':
+      return APICheckConclusion.Skipped
+  }
 }
 
 // NB. Only partially mapped
@@ -633,6 +969,24 @@ interface IAPIPullRequestRef {
    */
   readonly repo: IAPIRepository | null
 }
+interface IBitbucketAPIPullRequestRef {
+  readonly branch: {
+    readonly name: string
+  }
+  readonly commit: {
+    readonly hash: string
+  }
+  readonly repository: IBitbucketAPIRepositorySummary
+}
+function toIAPIPullRequestRef(
+  ref: IBitbucketAPIPullRequestRef
+): IAPIPullRequestRef {
+  return {
+    ref: ref.branch.name,
+    sha: ref.commit.hash,
+    repo: summaryToIAPIRepository(ref.repository),
+  }
+}
 
 /** Information about a pull request as returned by the GitHub API. */
 export interface IAPIPullRequest {
@@ -646,6 +1000,215 @@ export interface IAPIPullRequest {
   readonly body: string
   readonly state: 'open' | 'closed'
   readonly draft?: boolean
+}
+interface IBitbucketAPIPullRequest {
+  readonly id: number
+  readonly title: string
+  readonly created_on: string
+  readonly updated_on: string
+  readonly author: IBitbucketAPIIdentity
+  readonly source: IBitbucketAPIPullRequestRef
+  readonly destination: IBitbucketAPIPullRequestRef
+  readonly description: string
+  readonly state: 'OPEN' | 'MERGED' | 'DECLINED'
+  readonly type: 'pullrequest'
+}
+function toIAPIPullRequest(pr: IBitbucketAPIPullRequest): IAPIPullRequest {
+  return {
+    number: pr.id,
+    title: pr.title,
+    created_at: pr.created_on,
+    updated_at: pr.updated_on,
+    user: toIAPIIdentity(pr.author),
+    head: toIAPIPullRequestRef(pr.source),
+    base: toIAPIPullRequestRef(pr.destination),
+    body: pr.description,
+    state: pr.state === 'OPEN' ? 'open' : 'closed',
+  }
+}
+
+// GitLab API Interfaces
+export interface IGitLabAPIIdentity {
+  readonly id: number
+  readonly username: string
+  readonly name: string
+  readonly avatar_url: string
+  readonly web_url: string
+}
+function toIAPIIdentityFromGitLab(identity: IGitLabAPIIdentity): IAPIIdentity {
+  return {
+    id: identity.id,
+    login: identity.username,
+    avatar_url: identity.avatar_url,
+    html_url: identity.web_url,
+    type: 'User',
+  }
+}
+function toIAPIFullIdentityFromGitLab(
+  identity: IGitLabAPIIdentity
+): IAPIFullIdentity {
+  return {
+    id: identity.id,
+    login: identity.username,
+    avatar_url: identity.avatar_url,
+    html_url: identity.web_url,
+    name: identity.name,
+    email: null,
+    type: 'User',
+  }
+}
+
+export interface IGitLabAPIEmail {
+  readonly email: string
+  readonly confirmed_at: string | null
+}
+function toIAPIEmailFromGitLab(
+  email: IGitLabAPIEmail,
+  index: number
+): IAPIEmail {
+  return {
+    email: email.email,
+    verified: email.confirmed_at !== null,
+    primary: index === 0,
+    visibility: 'public',
+  }
+}
+
+export interface IGitLabAPIRepository {
+  readonly id: number
+  readonly name: string
+  readonly path: string
+  readonly path_with_namespace: string
+  readonly web_url: string
+  readonly ssh_url_to_repo: string
+  readonly http_url_to_repo: string
+  readonly namespace: {
+    readonly kind: string
+    readonly path: string
+    readonly full_path: string
+  }
+  readonly owner?: IGitLabAPIIdentity
+  readonly visibility: 'private' | 'internal' | 'public'
+  readonly default_branch: string
+  readonly last_activity_at: string
+  readonly issues_enabled: boolean
+  readonly archived: boolean
+  readonly forked_from_project?: IGitLabAPIRepository
+}
+function toIAPIRepositoryFromGitLab(
+  repo: IGitLabAPIRepository
+): IAPIRepository {
+  const ownerLogin = repo.path_with_namespace.split('/')[0]
+  return {
+    clone_url: repo.http_url_to_repo,
+    ssh_url: repo.ssh_url_to_repo,
+    html_url: repo.web_url,
+    name: repo.path,
+    owner: {
+      id: repo.owner?.id ?? 0,
+      login: ownerLogin,
+      avatar_url: repo.owner?.avatar_url ?? '',
+      html_url: repo.owner?.web_url ?? '',
+      type: 'User',
+    },
+    private: repo.visibility === 'private',
+    fork: !!repo.forked_from_project,
+    default_branch: repo.default_branch,
+    pushed_at: repo.last_activity_at,
+    has_issues: repo.issues_enabled,
+    archived: repo.archived,
+  }
+}
+function toIAPIFullRepositoryFromGitLab(
+  repo: IGitLabAPIRepository
+): IAPIFullRepository {
+  return {
+    ...toIAPIRepositoryFromGitLab(repo),
+    parent: repo.forked_from_project
+      ? toIAPIRepositoryFromGitLab(repo.forked_from_project)
+      : undefined,
+    permissions: {
+      admin: true,
+      push: true,
+      pull: true,
+    },
+  }
+}
+
+interface IGitLabAPIMergeRequest {
+  readonly iid: number
+  readonly title: string
+  readonly description: string
+  readonly state: 'opened' | 'closed' | 'locked' | 'merged'
+  readonly created_at: string
+  readonly updated_at: string
+  readonly author: IGitLabAPIIdentity
+  readonly source_branch: string
+  readonly target_branch: string
+  readonly source_project_id: number
+  readonly target_project_id: number
+  readonly sha: string
+  readonly draft: boolean
+  readonly web_url: string
+}
+function toIAPIPullRequestFromGitLab(
+  mr: IGitLabAPIMergeRequest,
+  sourceRepo: IGitLabAPIRepository | null,
+  targetRepo: IGitLabAPIRepository | null
+): IAPIPullRequest {
+  return {
+    number: mr.iid,
+    title: mr.title,
+    created_at: mr.created_at,
+    updated_at: mr.updated_at,
+    user: toIAPIIdentityFromGitLab(mr.author),
+    head: {
+      ref: mr.source_branch,
+      sha: mr.sha,
+      repo: sourceRepo ? toIAPIFullRepositoryFromGitLab(sourceRepo) : null,
+    },
+    base: {
+      ref: mr.target_branch,
+      sha: mr.sha,
+      repo: targetRepo ? toIAPIFullRepositoryFromGitLab(targetRepo) : null,
+    },
+    body: mr.description,
+    state: mr.state === 'opened' ? 'open' : 'closed',
+    draft: mr.draft,
+  }
+}
+
+export interface IGitLabAPIIssue {
+  readonly iid: number
+  readonly title: string
+  readonly state: 'opened' | 'closed'
+  readonly updated_at: string
+}
+function toIAPIIssueFromGitLab(issue: IGitLabAPIIssue): IAPIIssue {
+  return {
+    number: issue.iid,
+    title: issue.title,
+    state: issue.state === 'opened' ? 'open' : 'closed',
+    updated_at: issue.updated_at,
+  }
+}
+
+export interface IGitLabAPIProjectMember {
+  readonly id: number
+  readonly username: string
+  readonly name: string
+  readonly avatar_url: string
+  readonly web_url: string
+}
+function toIAPIMentionableUserFromGitLab(
+  member: IGitLabAPIProjectMember
+): IAPIMentionableUser {
+  return {
+    avatar_url: member.avatar_url,
+    email: null,
+    login: member.username,
+    name: member.name,
+  }
 }
 
 /** Information about a pull request review as returned by the GitHub API. */
@@ -677,6 +1240,20 @@ interface IAPIAccessToken {
   readonly access_token: string
   readonly scope: string
   readonly token_type: string
+}
+interface IBitbucketAPIAccessToken {
+  readonly access_token: string
+  readonly token_type: string
+  readonly scopes: string
+  readonly expires_in: number
+  readonly refresh_token: string
+}
+interface IGitLabAPIAccessToken {
+  readonly access_token: string
+  readonly token_type: string
+  readonly expires_in: number
+  readonly refresh_token: string
+  readonly created_at: number
 }
 
 /** The response we receive from fetching mentionables. */
@@ -816,6 +1393,12 @@ interface IAPIAliveWebSocket {
 }
 
 type TokenInvalidatedCallback = (endpoint: string, token: string) => void
+type TokenRefreshedCallback = (
+  endpoint: string,
+  token: string,
+  refreshToken: string,
+  expiresAt: number
+) => void
 
 export interface IAPICreatePushProtectionBypassResponse {
   reason: BypassReasonType
@@ -829,25 +1412,63 @@ export interface IAPICreatePushProtectionBypassResponse {
 export class API {
   private static readonly tokenInvalidatedListeners =
     new Set<TokenInvalidatedCallback>()
+  private static readonly tokenRefreshedListeners =
+    new Set<TokenRefreshedCallback>()
 
   public static onTokenInvalidated(callback: TokenInvalidatedCallback) {
     this.tokenInvalidatedListeners.add(callback)
   }
 
-  private static emitTokenInvalidated(endpoint: string, token: string) {
+  public static onTokenRefreshed(callback: TokenRefreshedCallback) {
+    this.tokenRefreshedListeners.add(callback)
+  }
+
+  protected static emitTokenInvalidated(endpoint: string, token: string) {
     this.tokenInvalidatedListeners.forEach(callback =>
       callback(endpoint, token)
     )
   }
 
-  /** Create a new API client from the given account. */
-  public static fromAccount(account: Account): API {
-    return new API(account.endpoint, account.token, account.copilotEndpoint)
+  protected static emitTokenRefreshed(
+    endpoint: string,
+    token: string,
+    refreshToken: string,
+    expiresAt: number
+  ) {
+    this.tokenRefreshedListeners.forEach(callback =>
+      callback(endpoint, token, refreshToken, expiresAt)
+    )
   }
 
-  private endpoint: string
-  private token: string
+  /** Create a new API client from the given account. */
+  public static fromAccount(account: Account): API {
+    switch (account.apiType) {
+      case 'bitbucket':
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define -- a necessary evil if we want to minimize the diff in other files
+        return new BitbucketAPI(
+          account.token,
+          account.refreshToken,
+          account.tokenExpiresAt
+        )
+      case 'gitlab':
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define -- a necessary evil if we want to minimize the diff in other files
+        return GitLabAPI.get(
+          account.token,
+          account.refreshToken,
+          account.tokenExpiresAt
+        )
+      case 'dotcom':
+      case 'enterprise':
+        return new API(account.endpoint, account.token, account.copilotEndpoint)
+      default:
+        assertNever(account.apiType, 'Unknown API type')
+    }
+  }
+
+  protected endpoint: string
+  protected token: string
   private copilotEndpoint?: string
+  private refreshTokenPromise?: Promise<void>
 
   /** Create a new API client for the endpoint, authenticated with the token. */
   public constructor(
@@ -858,6 +1479,16 @@ export class API {
     this.endpoint = endpoint
     this.token = token
     this.copilotEndpoint = copilotEndpoint
+  }
+
+  public getToken() {
+    return this.token
+  }
+  public getRefreshToken() {
+    return ''
+  }
+  public getExpiresAt() {
+    return 0
   }
 
   /**
@@ -1065,6 +1696,26 @@ export class API {
         error
       )
     }
+  }
+
+  private async refreshTokenWithMutex() {
+    // Since JS is single-threaded we don't have to worry about nasty race conditions, but we do need to be careful around awaits
+    if (this.refreshTokenPromise) {
+      // Another refresh is already in progress in the event loop, just need to wait for it to finish.
+      // If the other refresh fails, ignore the error and continue with the request, which will invalidate the account.
+      await this.refreshTokenPromise.catch(() => {})
+      return
+    }
+    this.refreshTokenPromise = this.refreshToken()
+    try {
+      await this.refreshTokenPromise
+    } finally {
+      this.refreshTokenPromise = undefined
+    }
+  }
+
+  protected async refreshToken() {
+    // No special handling on GitHub
   }
 
   /** Fetch the logged in account. */
@@ -1771,13 +2422,12 @@ export class API {
    * pages when available, buffers all items and returns them in
    * one array when done.
    */
-  private async fetchAll<T>(path: string, options?: IFetchAllOptions<T>) {
+  protected async fetchAll<T>(path: string, options?: IFetchAllOptions<T>) {
     const buf = new Array<T>()
     const opts: IFetchAllOptions<T> = { perPage: 100, ...options }
     const params = { per_page: `${opts.perPage}` }
 
     let nextPath: string | null = urlWithQueryString(path, params)
-    let page: ReadonlyArray<T> = []
     do {
       const response: Response = await this.ghRequest('GET', nextPath)
       if (opts.suppressErrors !== false && !response.ok) {
@@ -1785,22 +2435,33 @@ export class API {
         return buf
       }
 
-      page = await parsedResponse<ReadonlyArray<T>>(response)
+      let page = await parsedResponse<ReadonlyArray<T> | IBitbucketAPIPage<T>>(
+        response
+      )
+      let paginatorNext: string | null | false = false
+      if ('page' in page) {
+        paginatorNext = page.next ?? null
+        page = page.values
+      }
       if (page) {
         buf.push(...page)
         opts.onPage?.(page)
       }
 
-      nextPath = opts.getNextPagePath
-        ? opts.getNextPagePath(response)
-        : getNextPagePathFromLink(response)
+      if (paginatorNext !== false) {
+        nextPath = paginatorNext
+      } else {
+        nextPath = opts.getNextPagePath
+          ? opts.getNextPagePath(response)
+          : getNextPagePathFromLink(response)
+      }
     } while (nextPath && (!opts.continue || (await opts.continue(buf))))
 
     return buf
   }
 
   /** Make an authenticated request to the client's endpoint with its token. */
-  private async request(
+  protected async request(
     endpoint: string,
     method: HTTPMethod,
     path: string,
@@ -1810,13 +2471,19 @@ export class API {
       reloadCache?: boolean
     } = {}
   ): Promise<Response> {
+    const expiration = this.getTokenExpiration()
+    if (expiration !== null && expiration.getTime() < Date.now()) {
+      log.warn(`Token expired for endpoint ${this.endpoint}, refreshing token`)
+      await this.refreshTokenWithMutex()
+    }
+
     return await request(
       endpoint,
       this.token,
       method,
       path,
       options.body,
-      options.customHeaders,
+      { ...this.getExtraHeaders(), ...options.customHeaders },
       options.reloadCache
     )
   }
@@ -1836,6 +2503,14 @@ export class API {
   ): Promise<Response> {
     const response = await this.request(this.endpoint, method, path, options)
 
+    this.checkTokenInvalidated(response)
+
+    tryUpdateEndpointVersionFromResponse(this.endpoint, response)
+
+    return response
+  }
+
+  protected checkTokenInvalidated(response: Response) {
     // Only consider invalid token when the status is 401 and the response has
     // the X-GitHub-Request-Id header, meaning it comes from GH(E) and not from
     // any kind of proxy/gateway. For more info see #12943
@@ -1848,10 +2523,14 @@ export class API {
     ) {
       API.emitTokenInvalidated(this.endpoint, this.token)
     }
+  }
 
-    tryUpdateEndpointVersionFromResponse(this.endpoint, response)
+  protected getTokenExpiration(): Date | null {
+    return null
+  }
 
-    return response
+  protected getExtraHeaders(): Object {
+    return {}
   }
 
   /**
@@ -2203,6 +2882,606 @@ export class API {
   }
 }
 
+export class BitbucketAPI extends API {
+  private apiRefreshToken: string
+  private expiresAt: Date | null = null
+
+  public constructor(token: string, refreshToken: string, expiresAt: number) {
+    super(getBitbucketAPIEndpoint(), token)
+    this.apiRefreshToken = refreshToken
+    this.expiresAt = expiresAt ? new Date(expiresAt) : null
+  }
+
+  public override getRefreshToken() {
+    return this.apiRefreshToken
+  }
+  public override getExpiresAt() {
+    return this.expiresAt?.getTime() ?? 0
+  }
+
+  protected override async refreshToken() {
+    try {
+      const response = await fetch(
+        'https://bitbucket.org/site/oauth2/access_token',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${BitbucketBasicAuth()}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `grant_type=refresh_token&refresh_token=${this.apiRefreshToken}`,
+        }
+      )
+
+      const result = await parsedResponse<IBitbucketAPIAccessToken>(response)
+      this.token = result.access_token
+      this.apiRefreshToken = result.refresh_token
+      this.expiresAt = new Date(toExpiresAt(result.expires_in))
+      API.emitTokenRefreshed(
+        this.endpoint,
+        this.token,
+        this.apiRefreshToken,
+        this.expiresAt.getTime()
+      )
+    } catch (e) {
+      log.warn('refreshOAuthTokenBitbucket failed', e)
+    }
+  }
+
+  protected override getExtraHeaders(): Object {
+    return {
+      Authorization: `Bearer ${this.token}`,
+    }
+  }
+
+  protected override checkTokenInvalidated(response: Response) {
+    if (response.status === 401) {
+      API.emitTokenInvalidated(this.endpoint, this.token)
+    }
+  }
+
+  protected override getTokenExpiration(): Date | null {
+    return this.expiresAt
+  }
+
+  public override async fetchAllOpenPullRequests(
+    owner: string,
+    name: string
+  ): Promise<IAPIPullRequest[]> {
+    const url = urlWithQueryString(
+      `repositories/${owner}/${name}/pullrequests`,
+      {
+        state: 'OPEN',
+      }
+    )
+    try {
+      const prs = await this.fetchAll<IBitbucketAPIPullRequest>(url)
+      return prs.map(toIAPIPullRequest)
+    } catch (e) {
+      log.warn(`failed fetching open PRs for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public override async fetchUpdatedPullRequests(
+    owner: string,
+    name: string,
+    since: Date,
+    maxResults = 320
+  ) {
+    const sinceTime = since.getTime()
+    const url = urlWithQueryString(
+      `repositories/${owner}/${name}/pullrequests`,
+      {
+        state: ['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED'],
+        sort: '-updated_on',
+      }
+    )
+
+    try {
+      const prs = await this.fetchAll<IBitbucketAPIPullRequest>(url, {
+        // We use a page size smaller than our default 100 here because we
+        // expect that the majority use case will return much less than
+        // 100 results. Given that as long as _any_ PR has changed we'll
+        // get the full list back (PRs doesn't support ?since=) we want
+        // to keep this number fairly conservative in order to not use
+        // up bandwidth needlessly while balancing it such that we don't
+        // have to use a lot of requests to update our database. We then
+        // ramp up the page size (see getNextPagePathWithIncreasingPageSize)
+        // if it turns out there's a lot of updated PRs.
+        perPage: 10,
+        getNextPagePath: getNextPagePathWithIncreasingPageSize,
+        continue(results) {
+          if (results.length >= maxResults) {
+            throw new MaxResultsError('got max pull requests, aborting')
+          }
+
+          // Given that we sort the results in descending order by their
+          // updated_at field we can safely say that if the last item
+          // is modified after our sinceTime then haven't reached the
+          // end of updated PRs.
+          const last = results.at(-1)
+          return last !== undefined && Date.parse(last.updated_on) > sinceTime
+        },
+        // We can't ignore errors here as that might mean that we haven't
+        // retrieved enough pages to fully capture the changes since the
+        // last time we updated. Ignoring errors here would mean that we'd
+        // store an incorrect lastUpdated field in the database.
+        suppressErrors: false,
+      })
+      return prs
+        .filter(pr => Date.parse(pr.updated_on) >= sinceTime)
+        .map(toIAPIPullRequest)
+    } catch (e) {
+      log.warn(`failed fetching updated PRs for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public override async fetchAccount(): Promise<IAPIFullIdentity> {
+    const response = await this.request(this.endpoint, 'GET', 'user')
+    return toIAPIFullIdentity(
+      await parsedResponse<IBitbucketAPIIdentity>(response)
+    )
+  }
+
+  public override async fetchEmails(): Promise<ReadonlyArray<IAPIEmail>> {
+    const emails = await this.fetchAll<IBitbucketAPIEmail>('user/emails')
+    return emails.map(toIAPIEmail)
+  }
+
+  public async fetchMentionables(
+    owner: string,
+    name: string
+  ): Promise<IAPIMentionablesResponse | null> {
+    try {
+      const response = await this.fetchAll<IBitbucketApiWorkspaceMembership>(
+        `workspaces/${owner}/members`
+      )
+      return {
+        etag: undefined,
+        users: response.map(member => toIAPIMentionableUser(member)),
+      }
+    } catch (e) {
+      log.warn(`fetchMentionables: failed for ${owner}/${name}`, e)
+      return null
+    }
+  }
+
+  public override async fetchRepository(
+    owner: string,
+    name: string
+  ): Promise<IAPIFullRepository | null> {
+    try {
+      const response = await this.request(
+        this.endpoint,
+        'GET',
+        `repositories/${owner}/${name}`
+      )
+      if (response.status === HttpStatusCode.NotFound) {
+        log.warn(`fetchRepository: '${owner}/${name}' returned a 404`)
+        return null
+      }
+      const repo = await parsedResponse<IBitbucketAPIRepository>(response)
+      return toIAPIFullRepository(repo)
+    } catch (e) {
+      log.warn(`fetchRepository: an error occurred for '${owner}/${name}'`, e)
+      return null
+    }
+  }
+
+  public override async fetchProtectedBranches() {
+    // This could be implemented with GET /repositories/{workspace}/{repo_slug}/branch-restrictions,
+    // but it would require increasing the OAuth scope to admin:repository, and currently this is
+    // only being used for metrics collection, so it's not necessary.
+    return []
+  }
+
+  public async fetchPushControl(): Promise<IAPIPushControl> {
+    return {
+      pattern: null,
+      required_signatures: false,
+      required_status_checks: [],
+      required_approving_review_count: 0,
+      required_linear_history: false,
+      allow_actor: true,
+      allow_deletions: true,
+      allow_force_pushes: true,
+    }
+  }
+
+  public override async getFetchPollInterval(): Promise<number | null> {
+    return null
+  }
+
+  public override async fetchIssues(
+    owner: string,
+    name: string,
+    state: 'open' | 'closed' | 'all',
+    _since: Date | null
+  ): Promise<ReadonlyArray<IAPIIssue>> {
+    // TODO: I don't have any way to test this since we don't use Bitbucket's built in issue tracker. Feel free to implement date filtering (since) if you need it.
+    const QUERY_ALL = ''
+    const QUERY_OPEN = 'state="new" OR state="open" OR state="submitted"'
+    const QUERY_CLOSED =
+      'state="resolved" OR state="invalid" OR state="on hold" OR state="duplicate" OR state="wontfix" OR state="closed"'
+    const query =
+      state === 'all' ? QUERY_ALL : state === 'open' ? QUERY_OPEN : QUERY_CLOSED
+
+    const params: { [key: string]: string } = {
+      q: query,
+    }
+
+    const url = urlWithQueryString(
+      `repositories/${owner}/${name}/issues`,
+      params
+    )
+    try {
+      const issues = await this.fetchAll<IBitbucketAPIIssue>(url)
+      return issues.map(toIAPIIssue)
+    } catch (e) {
+      log.warn(`fetchIssues: failed for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public override async fetchCombinedRefStatus(
+    owner: string,
+    name: string,
+    ref: string
+  ): Promise<IAPIRefStatus | null> {
+    const match = ref.match(/refs\/pull\/(\d+)\/head/)
+    if (!match) {
+      log.warn(`unexpected ref format for Bitbucket PR check runs: ${ref}`)
+      return null
+    }
+    const path = `repositories/${owner}/${name}/pullrequests/${match[1]}/statuses`
+
+    try {
+      const statuses = await this.fetchAll<IBitbucketAPICommitStatus>(path)
+      const checkRuns = statuses.map((status, index) =>
+        toIAPIRefStatusItem(index, status)
+      )
+      return {
+        state: getCombinedRefStatus(checkRuns),
+        total_count: checkRuns.length,
+        statuses: checkRuns,
+      }
+    } catch (err) {
+      log.debug(
+        `Failed fetching check runs for ref ${ref} (${owner}/${name})`,
+        err
+      )
+      return null
+    }
+  }
+
+  public override async fetchRefCheckRuns(): Promise<IAPIRefCheckRuns | null> {
+    return null
+  }
+
+  public override async fetchUserCopilotInfo(): Promise<undefined> {
+    return undefined
+  }
+
+  public override async fetchFeatureFlags(): Promise<undefined> {
+    return undefined
+  }
+}
+
+export class GitLabAPI extends API {
+  // Refreshing the token also invalidates both the old token and the old refresh token.
+  // We need to make GitLabAPI a singleton to ensure there are no race conditions when refreshing the token
+  private static instance: GitLabAPI | null = null
+
+  public static get(
+    token: string,
+    refreshToken: string,
+    expiresAt: number
+  ): GitLabAPI {
+    if (!GitLabAPI.instance || !GitLabAPI.instance.token) {
+      GitLabAPI.instance = new GitLabAPI(token, refreshToken, expiresAt)
+    }
+    return GitLabAPI.instance
+  }
+
+  private apiRefreshToken: string
+  private expiresAt: Date | null = null
+
+  private constructor(token: string, refreshToken: string, expiresAt: number) {
+    super(getGitLabAPIEndpoint(), token)
+    this.apiRefreshToken = refreshToken
+    this.expiresAt = expiresAt ? new Date(expiresAt) : null
+  }
+
+  public override getRefreshToken() {
+    return this.apiRefreshToken
+  }
+  public override getExpiresAt() {
+    return this.expiresAt?.getTime() ?? 0
+  }
+
+  protected override async refreshToken() {
+    try {
+      const response = await fetch('https://gitlab.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: ClientIDGitLab,
+          client_secret: ClientSecretGitLab,
+          refresh_token: this.apiRefreshToken,
+          grant_type: 'refresh_token',
+        }),
+      })
+
+      const result = await parsedResponse<IGitLabAPIAccessToken>(response)
+      this.token = result.access_token
+      this.apiRefreshToken = result.refresh_token
+      this.expiresAt = new Date(toExpiresAt(result.expires_in))
+      API.emitTokenRefreshed(
+        this.endpoint,
+        this.token,
+        this.apiRefreshToken,
+        this.expiresAt.getTime()
+      )
+    } catch (e) {
+      log.warn('refreshOAuthTokenGitLab failed', e)
+    }
+  }
+
+  protected override getExtraHeaders(): Object {
+    return {
+      Authorization: `Bearer ${this.token}`,
+    }
+  }
+
+  protected override checkTokenInvalidated(response: Response) {
+    if (response.status === 401) {
+      API.emitTokenInvalidated(this.endpoint, this.token)
+    }
+  }
+
+  protected override getTokenExpiration(): Date | null {
+    return this.expiresAt
+  }
+
+  public override async fetchAllOpenPullRequests(
+    owner: string,
+    name: string
+  ): Promise<IAPIPullRequest[]> {
+    const projectPath = encodeURIComponent(`${owner}/${name}`)
+    const url = `projects/${projectPath}/merge_requests?state=opened`
+    try {
+      const mrs = await this.fetchAll<IGitLabAPIMergeRequest>(url)
+      return await this.fetchReposAndMapMergeRequests(mrs)
+    } catch (e) {
+      log.warn(`failed fetching open MRs for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  private async fetchReposAndMapMergeRequests(mrs: IGitLabAPIMergeRequest[]) {
+    const projectIdsToFetch = new Set<number>()
+    for (const mr of mrs) {
+      projectIdsToFetch.add(mr.source_project_id)
+      projectIdsToFetch.add(mr.target_project_id)
+    }
+    const projects = await Promise.all(
+      Array.from(projectIdsToFetch).map(id => this.fetchRepositoryById(id))
+    )
+    return mrs.map(mr =>
+      toIAPIPullRequestFromGitLab(
+        mr,
+        projects.find(p => p?.id === mr.source_project_id) ?? null,
+        projects.find(p => p?.id === mr.target_project_id) ?? null
+      )
+    )
+  }
+
+  public override async fetchUpdatedPullRequests(
+    owner: string,
+    name: string,
+    since: Date,
+    maxResults = 320
+  ) {
+    const sinceTime = since.getTime()
+    const projectPath = encodeURIComponent(`${owner}/${name}`)
+    const sinceISO = since.toISOString()
+    const url = `projects/${projectPath}/merge_requests?updated_after=${sinceISO}&order_by=updated_at&sort=desc`
+
+    try {
+      const mrs = await this.fetchAll<IGitLabAPIMergeRequest>(url, {
+        perPage: 10,
+        getNextPagePath: getNextPagePathWithIncreasingPageSize,
+        continue(results) {
+          if (results.length >= maxResults) {
+            throw new MaxResultsError('got max merge requests, aborting')
+          }
+
+          const last = results.at(-1)
+          return last !== undefined && Date.parse(last.updated_at) > sinceTime
+        },
+        suppressErrors: false,
+      })
+      const filteredMrs = mrs.filter(
+        mr => Date.parse(mr.updated_at) >= sinceTime
+      )
+      return await this.fetchReposAndMapMergeRequests(filteredMrs)
+    } catch (e) {
+      log.warn(`failed fetching updated MRs for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public override async fetchAccount(): Promise<IAPIFullIdentity> {
+    const response = await this.request(this.endpoint, 'GET', 'user')
+    return toIAPIFullIdentityFromGitLab(
+      await parsedResponse<IGitLabAPIIdentity>(response)
+    )
+  }
+
+  public override async fetchEmails(): Promise<ReadonlyArray<IAPIEmail>> {
+    const emails = await this.fetchAll<IGitLabAPIEmail>('user/emails')
+    return emails.map((email, index) => toIAPIEmailFromGitLab(email, index))
+  }
+
+  public async fetchMentionables(
+    owner: string,
+    name: string
+  ): Promise<IAPIMentionablesResponse | null> {
+    try {
+      const projectPath = encodeURIComponent(`${owner}/${name}`)
+      const response = await this.fetchAll<IGitLabAPIProjectMember>(
+        `projects/${projectPath}/members`
+      )
+      return {
+        etag: undefined,
+        users: response.map(member => toIAPIMentionableUserFromGitLab(member)),
+      }
+    } catch (e) {
+      log.warn(`fetchMentionables: failed for ${owner}/${name}`, e)
+      return null
+    }
+  }
+
+  public override async fetchRepository(
+    owner: string,
+    name: string
+  ): Promise<IAPIFullRepository | null> {
+    try {
+      const projectPath = encodeURIComponent(`${owner}/${name}`)
+      const response = await this.request(
+        this.endpoint,
+        'GET',
+        `projects/${projectPath}`
+      )
+      if (response.status === HttpStatusCode.NotFound) {
+        log.warn(`fetchRepository: '${owner}/${name}' returned a 404`)
+        return null
+      }
+      const repo = await parsedResponse<IGitLabAPIRepository>(response)
+      return toIAPIFullRepositoryFromGitLab(repo)
+    } catch (e) {
+      log.warn(`fetchRepository: an error occurred for '${owner}/${name}'`, e)
+      return null
+    }
+  }
+
+  private async fetchRepositoryById(
+    id: number
+  ): Promise<IGitLabAPIRepository | null> {
+    try {
+      const response = await this.request(
+        this.endpoint,
+        'GET',
+        `projects/${id}`
+      )
+      if (response.status === HttpStatusCode.NotFound) {
+        log.warn(`fetchRepositoryById: '${id}' returned a 404`)
+        return null
+      }
+      return await parsedResponse<IGitLabAPIRepository>(response)
+    } catch (e) {
+      log.warn(`fetchRepositoryById: an error occurred for '${id}'`, e)
+      return null
+    }
+  }
+
+  public override async fetchProtectedBranches() {
+    return []
+  }
+
+  public async fetchPushControl(): Promise<IAPIPushControl> {
+    return {
+      pattern: null,
+      required_signatures: false,
+      required_status_checks: [],
+      required_approving_review_count: 0,
+      required_linear_history: false,
+      allow_actor: true,
+      allow_deletions: true,
+      allow_force_pushes: true,
+    }
+  }
+
+  public override async getFetchPollInterval(): Promise<number | null> {
+    return null
+  }
+
+  public override async fetchIssues(
+    owner: string,
+    name: string,
+    state: 'open' | 'closed' | 'all',
+    _since: Date | null
+  ): Promise<ReadonlyArray<IAPIIssue>> {
+    const projectPath = encodeURIComponent(`${owner}/${name}`)
+    const stateParam = {
+      open: '&state=opened',
+      closed: '&state=closed',
+      all: '',
+    }[state]
+    const url = `projects/${projectPath}/issues?scope=all${stateParam}`
+    try {
+      const issues = await this.fetchAll<IGitLabAPIIssue>(url)
+      return issues.map(toIAPIIssueFromGitLab)
+    } catch (e) {
+      log.warn(`fetchIssues: failed for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public override async fetchCombinedRefStatus(): Promise<IAPIRefStatus | null> {
+    return null
+  }
+
+  public override async fetchRefCheckRuns(
+    owner: string,
+    name: string,
+    ref: string,
+    reloadCache: boolean = false
+  ): Promise<IAPIRefCheckRuns | null> {
+    const match = ref.match(/refs\/pull\/(\d+)\/head/)
+    if (!match) {
+      log.warn(`unexpected ref format for GitLab MR pipeline check: ${ref}`)
+      return null
+    }
+    const projectPath = encodeURIComponent(`${owner}/${name}`)
+    const path = `projects/${projectPath}/merge_requests/${match[1]}/pipelines`
+
+    try {
+      const statuses = await this.fetchAll<IGitLabAPIPipelineStatus>(path)
+      return {
+        total_count: statuses.length,
+        check_runs: statuses.map(toIAPIRefCheckRunFromGitLab),
+      }
+    } catch (err) {
+      log.debug(
+        `Failed fetching check runs for ref ${ref} (${owner}/${name})`,
+        err
+      )
+      return null
+    }
+  }
+
+  public override async fetchPRWorkflowRunsByBranchName(): Promise<IAPIWorkflowRuns | null> {
+    return null
+  }
+
+  public override async fetchWorkflowRunJobs(): Promise<IAPIWorkflowJobs | null> {
+    return null
+  }
+
+  public override async fetchUserCopilotInfo(): Promise<undefined> {
+    return undefined
+  }
+
+  public override async fetchFeatureFlags(): Promise<undefined> {
+    return undefined
+  }
+}
+
 export async function deleteToken(account: Account) {
   try {
     const creds = Buffer.from(`${ClientID}:${ClientSecret}`).toString('base64')
@@ -2225,9 +3504,18 @@ export async function deleteToken(account: Account) {
 /** Fetch the user authenticated by the token. */
 export async function fetchUser(
   endpoint: string,
-  token: string
+  token: string,
+  refreshToken: string,
+  expiresAt: number
 ): Promise<Account> {
-  const api = new API(endpoint, token)
+  let api: API
+  if (endpoint === getBitbucketAPIEndpoint()) {
+    api = new BitbucketAPI(token, refreshToken, expiresAt)
+  } else if (endpoint === getGitLabAPIEndpoint()) {
+    api = GitLabAPI.get(token, refreshToken, expiresAt)
+  } else {
+    api = new API(endpoint, token)
+  }
   try {
     const [user, emails, copilotInfo, features] = await Promise.all([
       api.fetchAccount(),
@@ -2239,7 +3527,9 @@ export async function fetchUser(
     return new Account(
       user.login,
       endpoint,
-      token,
+      api.getToken(), // Grab it back from the API because it may have been refreshed
+      api.getRefreshToken(),
+      api.getExpiresAt(),
       emails,
       user.avatar_url,
       user.id,
@@ -2255,6 +3545,10 @@ export async function fetchUser(
   }
 }
 
+function toExpiresAt(expiresInSeconds: number) {
+  return Date.now() + expiresInSeconds * 900 // 10% safety buffer
+}
+
 /**
  * Map a repository's URL to the endpoint associated with it. For example:
  *
@@ -2265,6 +3559,10 @@ export function getEndpointForRepository(url: string): string {
   const parsed = URL.parse(url)
   if (parsed.hostname === 'github.com') {
     return getDotComAPIEndpoint()
+  } else if (parsed.hostname === 'bitbucket.org') {
+    return getBitbucketAPIEndpoint()
+  } else if (parsed.hostname === 'gitlab.com') {
+    return getGitLabAPIEndpoint()
   } else {
     return `${parsed.protocol}//${parsed.hostname}/api`
   }
@@ -2291,6 +3589,10 @@ export function getHTMLURL(endpoint: string): string {
   // We need to normalize them.
   if (endpoint === getDotComAPIEndpoint() && !envEndpoint) {
     return 'https://github.com'
+  } else if (endpoint === getBitbucketAPIEndpoint()) {
+    return 'https://bitbucket.org'
+  } else if (endpoint === getGitLabAPIEndpoint()) {
+    return 'https://gitlab.com'
   } else {
     if (isGHE(endpoint)) {
       const url = new window.URL(endpoint)
@@ -2320,8 +3622,18 @@ export function getEnterpriseAPIURL(endpoint: string): string {
   return isGHE(endpoint) ? `https://api.${host}/` : `https://${host}/api/v3`
 }
 
-export const getAPIEndpoint = (endpoint: string) =>
-  isDotCom(endpoint) ? getDotComAPIEndpoint() : getEnterpriseAPIURL(endpoint)
+export const getAPIEndpoint = (endpoint: string) => {
+  if (isDotCom(endpoint)) {
+    return getDotComAPIEndpoint()
+  }
+  if (isBitbucket(endpoint)) {
+    return getBitbucketAPIEndpoint()
+  }
+  if (isGitLab(endpoint)) {
+    return getGitLabAPIEndpoint()
+  }
+  return getEnterpriseAPIURL(endpoint)
+}
 
 /** Get github.com's API endpoint. */
 export function getDotComAPIEndpoint(): string {
@@ -2335,6 +3647,14 @@ export function getDotComAPIEndpoint(): string {
   }
 
   return 'https://api.github.com'
+}
+
+export function getBitbucketAPIEndpoint(): string {
+  return 'https://api.bitbucket.org/2.0'
+}
+
+export function getGitLabAPIEndpoint(): string {
+  return 'https://gitlab.com/api/v4'
 }
 
 /** Get the account for the endpoint. */
@@ -2394,10 +3714,27 @@ export function getOAuthAuthorizationURL(
   ).toString()
 }
 
+export function getBitbucketOAuthAuthorizationURL(): string {
+  return `https://bitbucket.org/site/oauth2/authorize?client_id=${ClientIDBitbucket}&response_type=code`
+}
+
+export function getGitLabOAuthAuthorizationURL(redirectUri: string): string {
+  const scope = encodeURIComponent('read_user read_api read_repository')
+  return `https://gitlab.com/oauth/authorize?client_id=${ClientIDGitLab}&redirect_uri=${encodeURIComponent(
+    redirectUri
+  )}&response_type=code&scope=${scope}`
+}
+
+export function getGitLabOAuthRedirectUri(): string {
+  return __DEV_SECRETS__
+    ? 'x-github-desktop-dev-auth://oauth'
+    : 'x-github-desktop-auth://oauth'
+}
+
 export async function requestOAuthToken(
   endpoint: string,
   code: string
-): Promise<string | null> {
+): Promise<[string, string, number] | null> {
   try {
     const urlBase = getHTMLURL(endpoint)
     const response = await request(
@@ -2414,9 +3751,62 @@ export async function requestOAuthToken(
     tryUpdateEndpointVersionFromResponse(endpoint, response)
 
     const result = await parsedResponse<IAPIAccessToken>(response)
-    return result.access_token
+    return [result.access_token, '', 0]
   } catch (e) {
     log.warn(`requestOAuthToken: failed with endpoint ${endpoint}`, e)
+    return null
+  }
+}
+
+export async function requestOAuthTokenBitbucket(
+  code: string
+): Promise<[string, string, number] | null> {
+  try {
+    const response = await fetch(
+      'https://bitbucket.org/site/oauth2/access_token',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${BitbucketBasicAuth()}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `grant_type=authorization_code&code=${code}`,
+      }
+    )
+
+    const result = await parsedResponse<IBitbucketAPIAccessToken>(response)
+    const expiresAt = toExpiresAt(result.expires_in)
+    return [result.access_token, result.refresh_token, expiresAt]
+  } catch (e) {
+    log.warn('requestOAuthTokenBitbucket failed', e)
+    return null
+  }
+}
+
+export async function requestOAuthTokenGitLab(
+  code: string,
+  redirectUri: string
+): Promise<[string, string, number] | null> {
+  try {
+    const response = await fetch('https://gitlab.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: ClientIDGitLab,
+        client_secret: ClientSecretGitLab,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    })
+
+    const result = await parsedResponse<IGitLabAPIAccessToken>(response)
+    const expiresAt = toExpiresAt(result.expires_in)
+    return [result.access_token, result.refresh_token, expiresAt]
+  } catch (e) {
+    log.warn('requestOAuthTokenGitLab failed', e)
     return null
   }
 }
@@ -2429,6 +3819,19 @@ function tryUpdateEndpointVersionFromResponse(
   if (gheVersion !== null) {
     updateEndpointVersion(endpoint, gheVersion)
   }
+}
+
+function getCombinedRefStatus(
+  checkRuns: ReadonlyArray<IAPIRefStatusItem>
+): APIRefState {
+  // https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#get-the-combined-status-for-a-specific-reference
+  if (checkRuns.some(cr => cr.state === 'failure' || cr.state === 'error')) {
+    return 'failure'
+  }
+  if (checkRuns.length === 0 || checkRuns.some(cr => cr.state === 'pending')) {
+    return 'pending'
+  }
+  return 'success'
 }
 
 const knownThirdPartyHosts = new Set([
@@ -2451,6 +3854,26 @@ const isKnownThirdPartyHost = (hostname: string) => {
   }
 
   return false
+}
+
+/**
+ * Determines whether a given remote URL belongs to a trusted host.
+ */
+export function isTrustedRemoteHost(url: string) {
+  const { protocol, host } = new window.URL(url)
+
+  if (protocol !== 'https:') {
+    return false
+  }
+
+  // We must explicitly allow github.com for users that are not logged-in,
+  // as it is not part of the knowThirdPartyHosts constant.
+  if (host === 'github.com' || host.endsWith('.github.com')) {
+    return true
+  }
+
+  // Check known third party hosts.
+  return isKnownThirdPartyHost(host)
 }
 
 /**

@@ -13,7 +13,7 @@ import { IMatches } from '../../lib/fuzzy-find'
 import { ILocalRepositoryState, Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
 import { Button } from '../lib/button'
-import { Octicon } from '../octicons'
+import { Octicon, syncClockwise } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { showContextualMenu } from '../../lib/menu-item'
 import { IMenuItem } from '../../lib/menu-item'
@@ -33,6 +33,7 @@ const BlankSlateImage = encodePathAsUrl(__dirname, 'static/empty-no-repo.svg')
 interface IRepositoriesListProps {
   readonly selectedRepository: Repositoryish | null
   readonly repositories: ReadonlyArray<Repositoryish>
+  readonly showRecentRepositories: boolean
   readonly recentRepositories: ReadonlyArray<number>
 
   /** A cache of the latest repository state values, keyed by the repository id */
@@ -53,8 +54,8 @@ interface IRepositoriesListProps {
   /** Called when the repository should be shown in Finder/Explorer/File Manager. */
   readonly onShowRepository: (repository: Repositoryish) => void
 
-  /** Called when the repository should be opened on GitHub in the default web browser. */
-  readonly onViewOnGitHub: (repository: Repositoryish) => void
+  /** Called when the repository should be opened in the default web browser. */
+  readonly onViewInBrowser: (repository: Repositoryish) => void
 
   /** Called when the repository should be shown in the shell. */
   readonly onOpenInShell: (repository: Repositoryish) => void
@@ -79,6 +80,7 @@ interface IRepositoriesListProps {
 
 interface IRepositoriesListState {
   readonly newRepositoryMenuExpanded: boolean
+  readonly pullingRepositories: boolean
   readonly selectedItem: IRepositoryListItem | null
 }
 
@@ -149,6 +151,7 @@ export class RepositoriesList extends React.Component<
 
     this.state = {
       newRepositoryMenuExpanded: false,
+      pullingRepositories: false,
       selectedItem: null,
     }
   }
@@ -297,7 +300,7 @@ export class RepositoriesList extends React.Component<
       externalEditorLabel: this.props.externalEditorLabel,
       onChangeRepositoryAlias: this.onChangeRepositoryAlias,
       onRemoveRepositoryAlias: this.onRemoveRepositoryAlias,
-      onViewOnGitHub: this.props.onViewOnGitHub,
+      onViewInBrowser: this.props.onViewInBrowser,
       repository: item.repository,
       shellLabel: this.props.shellLabel,
     })
@@ -316,11 +319,19 @@ export class RepositoriesList extends React.Component<
       this.getGroupLabel(groups[group].identifier)
 
   public render() {
-    const groups = this.getRepositoryGroups(
+    let groups = this.getRepositoryGroups(
       this.props.repositories,
       this.props.localRepositoryStateLookup,
       this.props.recentRepositories
     )
+
+    if (!this.props.showRecentRepositories) {
+      groups = groups.filter(group => group.identifier.kind !== 'recent')
+    }
+
+    if (!this.props.showRecentRepositories) {
+      groups = groups.filter(group => group.identifier.kind !== 'recent')
+    }
 
     // So there's two types of selection at play here. There's the repository
     // selection for the whole app and then there's the keyboard selection in
@@ -364,15 +375,35 @@ export class RepositoriesList extends React.Component<
 
   private renderPostFilter = () => {
     return (
-      <Button
-        className="new-repository-button"
-        onClick={this.onNewRepositoryButtonClick}
-        ariaExpanded={this.state.newRepositoryMenuExpanded}
-        onKeyDown={this.onNewRepositoryButtonKeyDown}
-      >
-        Add
-        <Octicon symbol={octicons.triangleDown} />
-      </Button>
+      <>
+        <Button
+          className="repo-list-button new-repository"
+          onClick={this.onNewRepositoryButtonClick}
+          ariaExpanded={this.state.newRepositoryMenuExpanded}
+          onKeyDown={this.onNewRepositoryButtonKeyDown}
+        >
+          Add
+          <Octicon symbol={octicons.triangleDown} />
+        </Button>
+
+        {this.state.pullingRepositories ? (
+          <Button
+            className="repo-list-button pull-repositories-spin"
+            disabled={true}
+          >
+            <Octicon symbol={syncClockwise} className="spin" />
+            Pulling…
+          </Button>
+        ) : (
+          <Button
+            className="repo-list-button pull-repositories"
+            onClick={this.onPullRepositoriesButtonClick}
+          >
+            <Octicon symbol={octicons.arrowDown} />
+            {__DARWIN__ ? 'Pull All' : 'Pull all'}
+          </Button>
+        )}
+      </>
     )
   }
 
@@ -430,6 +461,16 @@ export class RepositoriesList extends React.Component<
     showContextualMenu(items).then(() => {
       this.setState({ newRepositoryMenuExpanded: false })
     })
+  }
+
+  private onPullRepositoriesButtonClick = async () => {
+    this.setState({ pullingRepositories: true })
+    await Promise.all(
+      this.props.repositories
+        .filter(r => r instanceof Repository)
+        .map(r => this.props.dispatcher.pull(r))
+    )
+    this.setState({ pullingRepositories: false })
   }
 
   private onCloneRepository = () => {

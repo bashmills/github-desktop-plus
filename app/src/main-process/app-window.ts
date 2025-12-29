@@ -8,17 +8,18 @@ import {
 } from 'electron'
 import { shell } from '../lib/app-shell'
 import { Emitter, Disposable } from 'event-kit'
+import { join } from 'path'
 import { encodePathAsUrl } from '../lib/path'
 import {
   getWindowState,
   registerWindowStateChangedEvents,
 } from '../lib/window-state'
+import { readTitleBarConfigFileSync } from '../lib/get-title-bar-config'
 import { MenuEvent } from './menu'
 import { URLActionType } from '../lib/parse-app-url'
 import { ILaunchStats } from '../lib/stats'
 import { menuFromElectronMenu } from '../models/app-menu'
 import { now } from './now'
-import * as path from 'path'
 import windowStateKeeper from 'electron-window-state'
 import * as ipcMain from './ipc-main'
 import * as ipcWebContents from './ipc-webcontents'
@@ -29,6 +30,7 @@ import {
 import { addTrustedIPCSender } from './trusted-ipc-sender'
 import { getUpdaterGUID } from '../lib/get-updater-guid'
 import { CLIAction } from '../lib/cli-action'
+import { getStore } from './settings-store'
 
 export class AppWindow {
   private window: Electron.BrowserWindow
@@ -43,6 +45,8 @@ export class AppWindow {
 
   // See https://github.com/desktop/desktop/pull/11162
   private shouldMaximizeOnShow = false
+
+  private store = getStore()
 
   public constructor() {
     const savedWindowState = windowStateKeeper({
@@ -78,7 +82,16 @@ export class AppWindow {
     } else if (__WIN32__) {
       windowOptions.frame = false
     } else if (__LINUX__) {
-      windowOptions.icon = path.join(__dirname, 'static', 'icon-logo.png')
+      if (readTitleBarConfigFileSync().titleBarStyle === 'custom') {
+        windowOptions.frame = false
+      }
+      windowOptions.icon = join(__dirname, 'static', 'logos', '512x512.png')
+
+      // relax restriction here for users trying to run app at a small
+      // resolution and any other side-effects of dropping this restriction are
+      // currently unsupported
+      delete windowOptions.minHeight
+      delete windowOptions.minWidth
     }
 
     this.window = new BrowserWindow(windowOptions)
@@ -113,11 +126,14 @@ export class AppWindow {
     })
 
     this.window.on('close', e => {
+      const hideWindowOnQuitSetting = this.store.get('hideWindowOnQuit', false)
+      const hideInsteadOfClose =
+        (__DARWIN__ || hideWindowOnQuitSetting) && !quitting
       // On macOS, closing the window doesn't mean the app is quitting. If the
       // app is updating, we will prevent the window from closing only when the
       // app is also quitting.
       if (
-        (!__DARWIN__ || quitting) &&
+        !hideInsteadOfClose &&
         !quittingEvenIfUpdating &&
         this.isDownloadingUpdate
       ) {
@@ -136,7 +152,7 @@ export class AppWindow {
       // on macOS, when the user closes the window we really just hide it. This
       // lets us activate quickly and keep all our interesting logic in the
       // renderer.
-      if (__DARWIN__ && !quitting) {
+      if (hideInsteadOfClose) {
         e.preventDefault()
         // https://github.com/desktop/desktop/issues/12838
         if (this.window.isFullScreen()) {

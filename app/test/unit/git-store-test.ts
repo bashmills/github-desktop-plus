@@ -33,7 +33,7 @@ describe('GitStore', () => {
       const repo = new Repository(path, -1, null, false)
       const gitStore = new GitStore(repo, shell, new TestStatsStore())
 
-      const commits = await gitStore.loadCommitBatch('HEAD', 0)
+      const commits = await gitStore.loadCommitBatch('HEAD', 0, false)
 
       assert(commits !== null)
       assert.equal(commits.length, 100)

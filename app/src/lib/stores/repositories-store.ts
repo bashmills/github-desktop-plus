@@ -28,6 +28,7 @@ import { WorkflowPreferences } from '../../models/workflow-preferences'
 import { clearTagsToPush } from './helpers/tags-to-push-storage'
 import { IMatchedGitHubRepository } from '../repository-matching'
 import { shallowEquals } from '../equality'
+import { EditorOverride } from '../../models/editor-override'
 
 type AddRepositoryOptions = {
   missing?: boolean
@@ -123,8 +124,12 @@ export class RepositoriesStore extends TypedBaseStore<
       )
     }
 
+    const isBitbucket = repo.htmlURL && this.isBitbucketUrl(repo.htmlURL)
+    const isGitLab = repo.htmlURL && this.isGitLabUrl(repo.htmlURL)
+    const repoType = isBitbucket ? 'bitbucket' : isGitLab ? 'gitlab' : 'github'
     const ghRepo = new GitHubRepository(
       repo.name,
+      repoType,
       owner,
       repo.id,
       repo.private,
@@ -141,6 +146,24 @@ export class RepositoriesStore extends TypedBaseStore<
     return Promise.resolve(ghRepo)
   }
 
+  private isBitbucketUrl(url: string): boolean {
+    try {
+      const parsedUrl = new URL(url)
+      return parsedUrl.host === 'bitbucket.org'
+    } catch (e) {
+      return false
+    }
+  }
+
+  private isGitLabUrl(url: string): boolean {
+    try {
+      const parsedUrl = new URL(url)
+      return parsedUrl.host === 'gitlab.com'
+    } catch (e) {
+      return false
+    }
+  }
+
   private async toRepository(repo: IDatabaseRepository) {
     assertNonNullable(repo.id, "can't convert to Repository without id")
     return new Repository(
@@ -151,7 +174,9 @@ export class RepositoriesStore extends TypedBaseStore<
         : await Promise.resolve(null), // Dexie gets confused if we return null
       repo.missing,
       repo.alias,
+      repo.defaultBranch,
       repo.workflowPreferences,
+      repo.customEditorOverride,
       repo.isTutorialRepository
     )
   }
@@ -214,6 +239,7 @@ export class RepositoriesStore extends TypedBaseStore<
           ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
           path,
           alias: null,
+          defaultBranch: null,
           gitHubRepositoryID: ghRepo.dbID,
           missing: false,
           lastStashCheckDate: null,
@@ -252,6 +278,7 @@ export class RepositoriesStore extends TypedBaseStore<
           missing: opts?.missing ?? false,
           lastStashCheckDate: null,
           alias: null,
+          defaultBranch: null,
         }
         const id = await this.db.repositories.add(dbRepo)
         return this.toRepository({ id, ...dbRepo })
@@ -286,7 +313,9 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       missing,
       repository.alias,
+      repository.defaultBranch,
       repository.workflowPreferences,
+      repository.customEditorOverride,
       repository.isTutorialRepository
     )
   }
@@ -302,6 +331,44 @@ export class RepositoriesStore extends TypedBaseStore<
     alias: string | null
   ): Promise<void> {
     await this.db.repositories.update(repository.id, { alias })
+
+    this.emitUpdatedRepositories()
+  }
+
+  /**
+   * Update the alias for the specified repository.
+   *
+   * @param repository    The repository to update.
+   * @param defaultBranch The new default branch to use.
+   */
+  public async updateRepositoryDefaultBranch(
+    repository: Repository,
+    defaultBranch: string | null
+  ): Promise<Repository> {
+    await this.db.repositories.update(repository.id, { defaultBranch })
+
+    this.emitUpdatedRepositories()
+
+    return new Repository(
+      repository.path,
+      repository.id,
+      repository.gitHubRepository,
+      repository.missing,
+      repository.alias,
+      defaultBranch,
+      repository.workflowPreferences,
+      repository.customEditorOverride,
+      repository.isTutorialRepository
+    )
+  }
+
+  public async updateRepositoryEditorOverride(
+    repository: Repository,
+    customEditorOverride: EditorOverride | null
+  ): Promise<void> {
+    await this.db.repositories.update(repository.id, {
+      customEditorOverride,
+    })
 
     this.emitUpdatedRepositories()
   }
@@ -336,7 +403,9 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       false,
       repository.alias,
+      repository.defaultBranch,
       repository.workflowPreferences,
+      repository.customEditorOverride,
       repository.isTutorialRepository
     )
   }
@@ -482,7 +551,9 @@ export class RepositoriesStore extends TypedBaseStore<
       ghRepo,
       repo.missing,
       repo.alias,
+      repo.defaultBranch,
       repo.workflowPreferences,
+      repo.customEditorOverride,
       repo.isTutorialRepository
     )
 
@@ -552,9 +623,9 @@ export class RepositoriesStore extends TypedBaseStore<
       ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
       ownerID: owner.id,
       name: gitHubRepository.name,
-      private: gitHubRepository.private,
+      private: gitHubRepository.private ?? existingRepo?.private ?? null,
       htmlURL: gitHubRepository.html_url,
-      cloneURL: gitHubRepository.clone_url,
+      cloneURL: (gitHubRepository.clone_url || existingRepo?.cloneURL) ?? null,
       parentID,
       lastPruneDate: existingRepo?.lastPruneDate ?? null,
       issuesEnabled: gitHubRepository.has_issues,

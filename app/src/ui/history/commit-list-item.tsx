@@ -127,6 +127,9 @@ export class CommitListItem extends React.PureComponent<
       ? 'Empty commit message'
       : commit.summary
 
+    const commitClassNames = classNames('commit', {
+      'merge-commit': commit.isMergeCommit,
+    })
     const summaryClassNames = classNames('summary', {
       'empty-summary': hasEmptySummary,
     })
@@ -145,7 +148,7 @@ export class CommitListItem extends React.PureComponent<
         ]}
       >
         <div
-          className="commit"
+          className={commitClassNames}
           onMouseEnter={this.onMouseEnter}
           onMouseLeave={this.onMouseLeave}
           onMouseUp={this.onMouseUp}

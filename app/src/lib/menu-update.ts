@@ -11,6 +11,7 @@ import { updateMenuState as ipcUpdateMenuState } from '../ui/main-process-proxy'
 import { AppMenu, MenuItem } from '../models/app-menu'
 import { hasConflictedFiles } from './status'
 import { findContributionTargetDefaultBranch } from './branch'
+import { hasDefaultRemoteUrl } from '../models/repository'
 
 export interface IMenuItemState {
   readonly enabled?: boolean
@@ -106,13 +107,14 @@ const allMenuIds: ReadonlyArray<MenuIDs> = [
   'rename-branch',
   'delete-branch',
   'discard-all-changes',
+  'permanently-discard-all-changes',
   'stash-all-changes',
   'preferences',
   'update-branch-with-contribution-target-branch',
   'compare-to-branch',
   'merge-branch',
   'rebase-branch',
-  'view-repository-on-github',
+  'view-repository-in-browser',
   'compare-on-github',
   'branch-on-github',
   'open-in-shell',
@@ -124,6 +126,7 @@ const allMenuIds: ReadonlyArray<MenuIDs> = [
   'create-branch',
   'show-changes',
   'show-history',
+  'show-compare',
   'show-repository-list',
   'show-branches-list',
   'open-working-directory',
@@ -154,6 +157,10 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
   const isHostedOnGitHub = selectedState
     ? isRepositoryHostedOnGitHub(selectedState.repository)
     : false
+  const hasRemoteUrl =
+    selectedState && selectedState.repository instanceof Repository
+      ? hasDefaultRemoteUrl(selectedState.repository)
+      : false
 
   let repositorySelected = false
   let onNonDefaultBranch = false
@@ -209,7 +216,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       }
 
       hasPublishedBranch = !!tip.branch.upstream
-      branchHasStashEntry = changesState.stashEntry !== null
+      branchHasStashEntry = changesState.stashEntries.length > 0
     } else {
       onNonDefaultBranch = true
     }
@@ -238,6 +245,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     'go-to-commit-message',
     'show-changes',
     'show-history',
+    'show-compare',
     'show-branches-list',
     'open-external-editor',
     'compare-to-branch',
@@ -284,7 +292,10 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       isHostedOnGitHub && hasPublishedBranch
     )
 
-    menuStateBuilder.setEnabled('view-repository-on-github', isHostedOnGitHub)
+    menuStateBuilder.setEnabled(
+      'view-repository-in-browser',
+      isHostedOnGitHub || hasRemoteUrl
+    )
     menuStateBuilder.setEnabled(
       'create-issue-in-repository-on-github',
       repoIssuesEnabled
@@ -317,6 +328,11 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     )
 
     menuStateBuilder.setEnabled(
+      'permanently-discard-all-changes',
+      repositoryActive && hasChangedFiles && !rebaseInProgress
+    )
+
+    menuStateBuilder.setEnabled(
       'stash-all-changes',
       hasChangedFiles && onBranch && !rebaseInProgress && !hasConflicts
     )
@@ -335,7 +351,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       menuStateBuilder.disable(id)
     }
 
-    menuStateBuilder.disable('view-repository-on-github')
+    menuStateBuilder.disable('view-repository-in-browser')
     menuStateBuilder.disable('create-pull-request')
     menuStateBuilder.disable('preview-pull-request')
     if (
@@ -343,7 +359,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       selectedState.type === SelectionType.MissingRepository
     ) {
       if (selectedState.repository.gitHubRepository) {
-        menuStateBuilder.enable('view-repository-on-github')
+        menuStateBuilder.enable('view-repository-in-browser')
       }
       menuStateBuilder.enable('remove-repository')
     }
@@ -352,6 +368,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     menuStateBuilder.disable('rename-branch')
     menuStateBuilder.disable('delete-branch')
     menuStateBuilder.disable('discard-all-changes')
+    menuStateBuilder.disable('permanently-discard-all-changes')
     menuStateBuilder.disable('stash-all-changes')
     menuStateBuilder.disable('update-branch-with-contribution-target-branch')
     menuStateBuilder.disable('merge-branch')

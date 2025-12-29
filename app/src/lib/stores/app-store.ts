@@ -20,10 +20,11 @@ import { CloneRepositoryTab } from '../../models/clone-repository-tab'
 import { CloningRepository } from '../../models/cloning-repository'
 import {
   Commit,
-  ICommitContext,
   CommitOneLine,
+  ICommitContext,
   shortenSHA,
 } from '../../models/commit'
+import { ICommitMessage } from '../../models/commit-message'
 import {
   DiffSelection,
   DiffSelectionType,
@@ -36,6 +37,14 @@ import {
   GitHubRepository,
   hasWritePermission,
 } from '../../models/github-repository'
+import { Popup, PopupType } from '../../models/popup'
+import {
+  ICheckoutProgress,
+  IFetchProgress,
+  IMultiCommitOperationProgress,
+  IRevertProgress,
+  Progress,
+} from '../../models/progress'
 import {
   defaultPullRequestSuggestedNextAction,
   PullRequest,
@@ -47,31 +56,21 @@ import {
   remoteEquals,
 } from '../../models/remote'
 import {
+  getNonForkGitHubRepository,
   ILocalRepositoryState,
+  isForkedRepositoryContributingToParent,
+  isRepositoryWithGitHubRepository,
   nameOf,
   Repository,
-  isRepositoryWithGitHubRepository,
   RepositoryWithGitHubRepository,
-  getNonForkGitHubRepository,
-  isForkedRepositoryContributingToParent,
 } from '../../models/repository'
 import {
+  AppFileStatusKind,
   CommittedFileChange,
   WorkingDirectoryFileChange,
   WorkingDirectoryStatus,
-  AppFileStatusKind,
 } from '../../models/status'
-import { TipState, tipEquals, IValidBranch } from '../../models/tip'
-import { ICommitMessage } from '../../models/commit-message'
-import {
-  Progress,
-  ICheckoutProgress,
-  IFetchProgress,
-  IRevertProgress,
-  IMultiCommitOperationProgress,
-} from '../../models/progress'
-import { Popup, PopupType } from '../../models/popup'
-import { themeChangeMonitor } from '../../ui/lib/theme-change-monitor'
+import { IValidBranch, tipEquals, TipState } from '../../models/tip'
 import { getAppPath } from '../../ui/lib/app-proxy'
 import {
   ApplicableTheme,
@@ -80,226 +79,192 @@ import {
   getPersistedThemeName,
   setPersistedTheme,
 } from '../../ui/lib/application-theme'
+import { themeChangeMonitor } from '../../ui/lib/theme-change-monitor'
+import { TitleBarStyle } from '../../ui/lib/title-bar-style'
 import {
   getAppMenu,
   getCurrentWindowState,
   getCurrentWindowZoomFactor,
-  updatePreferredAppMenuItemLabels,
-  updateAccounts,
-  setWindowZoomFactor,
+  getTitleBarStyle,
   onShowInstallingUpdate,
-  sendWillQuitEvenIfUpdatingSync,
   quitApp,
+  saveTitleBarStyle,
   sendCancelQuittingSync,
+  sendWillQuitEvenIfUpdatingSync,
+  setWindowZoomFactor,
+  updateAccounts,
+  updatePreferredAppMenuItemLabels,
 } from '../../ui/main-process-proxy'
 import {
   API,
-  getAccountForEndpoint,
-  IAPIOrganization,
-  getEndpointForRepository,
-  IAPIFullRepository,
-  IAPIComment,
-  IAPIRepoRuleset,
   deleteToken,
+  getAccountForEndpoint,
+  getEndpointForRepository,
+  IAPIComment,
   IAPICreatePushProtectionBypassResponse,
   getAccountForEndpointToken,
   getAccountForEndpointLogin,
+  IAPIFullRepository,
+  IAPIOrganization,
+  IAPIRepoRuleset,
 } from '../api'
 import { shell } from '../app-shell'
 import {
+  ChangesSelectionKind,
+  ChangesWorkingDirectorySelection,
   CompareAction,
-  HistoryTabMode,
   Foldout,
   FoldoutType,
+  HistoryTabMode,
   IAppState,
+  IChangesState,
   ICompareBranch,
   ICompareFormUpdate,
+  ICompareState,
   ICompareToBranch,
+  IConstrainedValue,
   IDisplayHistory,
+  IFileListFilterState,
+  IMultiCommitOperationState,
+  IRepositoryState,
+  isCherryPickConflictState,
+  isMergeConflictState,
+  isRebaseConflictState,
   PossibleSelections,
   RepositorySectionTab,
   SelectionType,
-  IRepositoryState,
-  ChangesSelectionKind,
-  ChangesWorkingDirectorySelection,
-  isRebaseConflictState,
-  isCherryPickConflictState,
-  IFileListFilterState,
-  isMergeConflictState,
-  IMultiCommitOperationState,
-  IConstrainedValue,
-  ICompareState,
 } from '../app-state'
 import {
   findEditorOrDefault,
   getAvailableEditors,
+  launchAndReturnStdout,
   launchCustomExternalEditor,
   launchExternalEditor,
 } from '../editors'
 import { assertNever, fatalError, forceUnwrap } from '../fatal-error'
 
-import { formatCommitMessage } from '../format-commit-message'
-import { getAccountForRepository } from '../get-account-for-repository'
+import { GitError as DugiteError } from 'dugite'
+import { parseRemote } from '../../lib/remote-parsing'
+import { getStore } from '../../main-process/settings-store'
+import { Banner, BannerType } from '../../models/banner'
 import {
-  abortMerge,
-  addRemote,
-  checkoutBranch,
-  createCommit,
-  getAuthorIdentity,
-  getChangedFiles,
-  getCommitDiff,
-  getMergeBase,
-  getRemotes,
-  getWorkingDirectoryDiff,
-  isCoAuthoredByTrailer,
-  pull as pullRepo,
-  push as pushRepo,
-  renameBranch,
-  saveGitIgnore,
-  appendIgnoreRule,
-  createMergeCommit,
-  getBranchesPointedAt,
-  abortRebase,
-  continueRebase,
-  rebase,
-  PushOptions,
-  RebaseResult,
-  getRebaseSnapshot,
-  IStatusResult,
-  GitError,
-  MergeResult,
-  getBranchesDifferingFromUpstream,
-  deleteLocalBranch,
-  deleteRemoteBranch,
-  fastForwardBranches,
-  GitResetMode,
-  reset,
-  getBranchAheadBehind,
-  getRebaseInternalState,
-  getCommit,
-  appendIgnoreFile,
-  getRepositoryType,
-  RepositoryType,
-  getCommitRangeDiff,
-  getCommitRangeChangedFiles,
-  updateRemoteHEAD,
-  getBranchMergeBaseChangedFiles,
-  getBranchMergeBaseDiff,
-  checkoutCommit,
-  getRemoteURL,
-  getGlobalConfigPath,
-  getFilesDiffText,
-} from '../git'
-import {
-  installGlobalLFSFilters,
-  installLFSHooks,
-  isUsingLFS,
-} from '../git/lfs'
-import { inferLastPushForRepository } from '../infer-last-push-for-repository'
-import { updateMenuState } from '../menu-update'
-import { merge } from '../merge'
-import {
-  IMatchedGitHubRepository,
-  matchGitHubRepository,
-  matchExistingRepository,
-  urlMatchesRemote,
-} from '../repository-matching'
-import { ForcePushBranchState, getCurrentBranchForcePushState } from '../rebase'
-import { RetryAction, RetryActionType } from '../../models/retry-actions'
-import {
-  Default as DefaultShell,
-  findShellOrDefault,
-  launchCustomShell,
-  launchShell,
-  parse as parseShell,
-  Shell,
-} from '../shells'
-import { ILaunchStats, StatsStore } from '../stats'
-import { hasShownWelcomeFlow, markWelcomeFlowComplete } from '../welcome'
-import { WindowState } from '../window-state'
-import { TypedBaseStore } from './base-store'
-import { MergeTreeResult } from '../../models/merge'
-import { promiseWithMinimumTimeout } from '../promise'
-import { BackgroundFetcher } from './helpers/background-fetcher'
-import { RepositoryStateCache } from './repository-state-cache'
-import { readEmoji } from '../read-emoji'
-import { Emoji } from '../emoji'
-import { GitStoreCache } from './git-store-cache'
-import { GitErrorContext } from '../git-error-context'
-import {
-  setNumber,
-  setBoolean,
-  getBoolean,
-  getNumber,
-  getNumberArray,
-  setNumberArray,
-  getEnum,
-  getObject,
-  setObject,
-  getFloatNumber,
-} from '../local-storage'
-import { ExternalEditorError, suggestedExternalEditor } from '../editors/shared'
-import { ApiRepositoriesStore } from './api-repositories-store'
-import {
-  updateChangedFiles,
-  updateConflictState,
-  selectWorkingDirectoryFiles,
-} from './updates/changes-state'
+  IBranchNamePreset,
+  parseBranchNamePresets,
+} from '../../models/branch-preset'
+import { ComputedAction } from '../../models/computed-action'
+import { DragElement } from '../../models/drag-drop'
+import { EditorOverride } from '../../models/editor-override'
+import { ILastThankYou } from '../../models/last-thank-you'
 import { ManualConflictResolution } from '../../models/manual-conflict-resolution'
-import { BranchPruner } from './helpers/branch-pruner'
+import { MenuLabelsEvent } from '../../models/menu-labels'
+import { MergeTreeResult } from '../../models/merge'
+import {
+  MultiCommitOperationDetail,
+  MultiCommitOperationKind,
+  MultiCommitOperationStep,
+  MultiCommitOperationStepKind,
+} from '../../models/multi-commit-operation'
+import { RepoRulesInfo } from '../../models/repo-rules'
+import { RetryAction, RetryActionType } from '../../models/retry-actions'
+import { IStashEntry, StashedChangesLoadStates } from '../../models/stash-entry'
+import {
+  isValidTutorialStep,
+  orderedTutorialSteps,
+  TutorialStep,
+} from '../../models/tutorial-step'
+import {
+  defaultUncommittedChangesStrategy,
+  UncommittedChangesStrategy,
+} from '../../models/uncommitted-changes-strategy'
+import { WorkflowPreferences } from '../../models/workflow-preferences'
+import { TrashNameLabel } from '../../ui/lib/context-menu'
+import { getDefaultDir } from '../../ui/lib/default-dir'
+import {
+  getShowSideBySideDiff,
+  setShowSideBySideDiff,
+  ShowSideBySideDiffDefault,
+} from '../../ui/lib/diff-mode'
+import { pathExists } from '../../ui/lib/path-exists'
+import { updateStore } from '../../ui/lib/update-store'
+import { resizableComponentClass } from '../../ui/resizable'
+import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
+import { findContributionTargetDefaultBranch } from '../branch'
+import { IRefCheck } from '../ci-checks/ci-checks'
+import { clamp } from '../clamp'
+import { compare } from '../compare'
+import {
+  ICustomIntegration,
+  migratedCustomIntegration,
+} from '../custom-integration'
+import { ExternalEditorError, suggestedExternalEditor } from '../editors/shared'
+import { isAttributableEmailFor } from '../email'
+import { Emoji } from '../emoji'
+import { EndpointToken } from '../endpoint-token'
+import { arrayEquals } from '../equality'
+import {
+  CheckoutError,
+  DiscardChangesError,
+  ErrorWithMetadata,
+  StashChangesError,
+} from '../error-with-metadata'
 import {
   enableCommitMessageGeneration,
   enableCustomIntegration,
 } from '../feature-flag'
-import { Banner, BannerType } from '../../models/banner'
-import { ComputedAction } from '../../models/computed-action'
+import { formatCommitMessage } from '../format-commit-message'
+import { getAccountForRepository } from '../get-account-for-repository'
 import {
-  createDesktopStashEntry,
-  getLastDesktopStashEntryForBranch,
-  popStashEntry,
-  dropDesktopStashEntry,
-  moveStashEntry,
-} from '../git/stash'
-import {
-  UncommittedChangesStrategy,
-  defaultUncommittedChangesStrategy,
-} from '../../models/uncommitted-changes-strategy'
-import { IStashEntry, StashedChangesLoadStates } from '../../models/stash-entry'
-import { arrayEquals } from '../equality'
-import { MenuLabelsEvent } from '../../models/menu-labels'
-import { findRemoteBranchName } from './helpers/find-branch-name'
-import { updateRemoteUrl } from './updates/update-remote-url'
-import {
-  TutorialStep,
-  orderedTutorialSteps,
-  isValidTutorialStep,
-} from '../../models/tutorial-step'
-import { OnboardingTutorialAssessor } from './helpers/tutorial-assessor'
-import { getUntrackedFiles } from '../status'
-import { isBranchPushable } from '../helpers/push-control'
-import {
-  findAssociatedPullRequest,
-  isPullRequestAssociatedWithBranch,
-} from '../helpers/pull-request-matching'
-import { parseRemote } from '../../lib/remote-parsing'
-import { createTutorialRepository } from './helpers/create-tutorial-repository'
-import { sendNonFatalException } from '../helpers/non-fatal-exception'
-import { getDefaultDir } from '../../ui/lib/default-dir'
-import { WorkflowPreferences } from '../../models/workflow-preferences'
-import { RepositoryIndicatorUpdater } from './helpers/repository-indicator-updater'
-import { isAttributableEmailFor } from '../email'
-import { TrashNameLabel } from '../../ui/lib/context-menu'
-import { GitError as DugiteError } from 'dugite'
-import {
-  ErrorWithMetadata,
-  CheckoutError,
-  DiscardChangesError,
-} from '../error-with-metadata'
-import {
-  ShowSideBySideDiffDefault,
-  getShowSideBySideDiff,
-  setShowSideBySideDiff,
-} from '../../ui/lib/diff-mode'
+  abortMerge,
+  abortRebase,
+  addRemote,
+  appendIgnoreFile,
+  appendIgnoreRule,
+  checkoutBranch,
+  checkoutCommit,
+  continueRebase,
+  createCommit,
+  createMergeCommit,
+  deleteLocalBranch,
+  deleteRemoteBranch,
+  fastForwardBranches,
+  getAuthorIdentity,
+  getBranchAheadBehind,
+  getBranchesDifferingFromUpstream,
+  getBranchesPointedAt,
+  getBranchMergeBaseChangedFiles,
+  getBranchMergeBaseDiff,
+  getChangedFiles,
+  getCommit,
+  getCommitDiff,
+  getCommitRangeChangedFiles,
+  getCommitRangeDiff,
+  getFilesDiffText,
+  getGlobalConfigPath,
+  getMergeBase,
+  getRebaseInternalState,
+  getRebaseSnapshot,
+  getRemotes,
+  getRemoteURL,
+  getRepositoryType,
+  getWorkingDirectoryDiff,
+  GitError,
+  GitResetMode,
+  isCoAuthoredByTrailer,
+  IStatusResult,
+  MergeResult,
+  pull as pullRepo,
+  PushOptions,
+  push as pushRepo,
+  rebase,
+  RebaseResult,
+  renameBranch,
+  RepositoryType,
+  reset,
+  saveGitIgnore,
+  unstageAll,
+  updateRemoteHEAD,
+} from '../git'
+import { GitErrorContext } from '../git-error-context'
 import {
   abortCherryPick,
   cherryPick,
@@ -308,49 +273,97 @@ import {
   getCherryPickSnapshot,
   isCherryPickHeadFound,
 } from '../git/cherry-pick'
-import { DragElement } from '../../models/drag-drop'
-import { ILastThankYou } from '../../models/last-thank-you'
-import { squash } from '../git/squash'
-import { getTipSha } from '../tip'
 import {
-  MultiCommitOperationDetail,
-  MultiCommitOperationKind,
-  MultiCommitOperationStep,
-  MultiCommitOperationStepKind,
-} from '../../models/multi-commit-operation'
-import { reorder } from '../git/reorder'
-import { UseWindowsOpenSSHKey } from '../ssh/ssh'
-import { isConflictsFlow } from '../multi-commit-operation'
-import { clamp } from '../clamp'
-import { EndpointToken } from '../endpoint-token'
-import { IRefCheck } from '../ci-checks/ci-checks'
-import {
-  NotificationsStore,
-  getNotificationsEnabled,
-} from './notifications-store'
-import * as ipcRenderer from '../ipc-renderer'
-import { pathExists } from '../../ui/lib/path-exists'
-import { offsetFromNow } from '../offset-from'
-import { findContributionTargetDefaultBranch } from '../branch'
-import { ValidNotificationPullRequestReview } from '../valid-notification-pull-request-review'
+  installGlobalLFSFilters,
+  installLFSHooks,
+  isUsingLFS,
+} from '../git/lfs'
 import { determineMergeability } from '../git/merge-tree'
-import { PopupManager } from '../popup-manager'
-import { resizableComponentClass } from '../../ui/resizable'
-import { compare } from '../compare'
+import { reorder } from '../git/reorder'
+import { squash } from '../git/squash'
+import {
+  createDesktopStashEntry,
+  dropDesktopStashEntry,
+  getLastDesktopStashEntryForBranch,
+  moveStashEntry,
+  popStashEntry,
+} from '../git/stash'
+import { sendNonFatalException } from '../helpers/non-fatal-exception'
+import {
+  findAssociatedPullRequest,
+  isPullRequestAssociatedWithBranch,
+} from '../helpers/pull-request-matching'
+import { isBranchPushable } from '../helpers/push-control'
 import { parseRepoRules, useRepoRulesLogic } from '../helpers/repo-rules'
-import { RepoRulesInfo } from '../../models/repo-rules'
+import { inferLastPushForRepository } from '../infer-last-push-for-repository'
+import * as ipcRenderer from '../ipc-renderer'
+import {
+  getBoolean,
+  getEnum,
+  getFloatNumber,
+  getNumber,
+  getNumberArray,
+  getObject,
+  setBoolean,
+  setNumber,
+  setNumberArray,
+  setObject,
+} from '../local-storage'
+import { updateMenuState } from '../menu-update'
+import { merge } from '../merge'
+import { isConflictsFlow } from '../multi-commit-operation'
+import { offsetFromNow } from '../offset-from'
+import { IOAuthAction } from '../parse-app-url'
+import { PopupManager } from '../popup-manager'
+import { promiseWithMinimumTimeout } from '../promise'
+import { readEmoji } from '../read-emoji'
+import { ForcePushBranchState, getCurrentBranchForcePushState } from '../rebase'
+import {
+  IMatchedGitHubRepository,
+  matchExistingRepository,
+  matchGitHubRepository,
+  urlMatchesRemote,
+} from '../repository-matching'
+import {
+  Default as DefaultShell,
+  findShellOrDefault,
+  launchCustomShell,
+  launchShell,
+  parse as parseShell,
+  Shell,
+} from '../shells'
+import { UseWindowsOpenSSHKey } from '../ssh/ssh'
+import { ILaunchStats, StatsStore } from '../stats'
+import { getUntrackedFiles } from '../status'
+import { getTipSha } from '../tip'
 import {
   setUseExternalCredentialHelper,
   useExternalCredentialHelper,
   useExternalCredentialHelperDefault,
 } from '../trampoline/use-external-credential-helper'
-import { IOAuthAction } from '../parse-app-url'
+import { ValidNotificationPullRequestReview } from '../valid-notification-pull-request-review'
+import { hasShownWelcomeFlow, markWelcomeFlowComplete } from '../welcome'
+import { WindowState } from '../window-state'
+import { ApiRepositoriesStore } from './api-repositories-store'
+import { TypedBaseStore } from './base-store'
+import { GitStoreCache } from './git-store-cache'
+import { BackgroundFetcher } from './helpers/background-fetcher'
+import { BranchPruner } from './helpers/branch-pruner'
+import { createTutorialRepository } from './helpers/create-tutorial-repository'
+import { findRemoteBranchName } from './helpers/find-branch-name'
+import { RepositoryIndicatorUpdater } from './helpers/repository-indicator-updater'
+import { OnboardingTutorialAssessor } from './helpers/tutorial-assessor'
 import {
-  ICustomIntegration,
-  migratedCustomIntegration,
-} from '../custom-integration'
-import { updateStore } from '../../ui/lib/update-store'
-import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
+  getNotificationsEnabled,
+  NotificationsStore,
+} from './notifications-store'
+import { RepositoryStateCache } from './repository-state-cache'
+import {
+  selectWorkingDirectoryFiles,
+  updateChangedFiles,
+  updateConflictState,
+} from './updates/changes-state'
+import { updateRemoteUrl } from './updates/update-remote-url'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -427,7 +440,9 @@ const tabSizeKey: string = 'tab-size'
 
 const shellKey = 'shell'
 
+const showRecentRepositoriesKey = 'show-recent-repositories'
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
+const hideWindowOnQuitKey = 'hide-window-on-quit'
 
 // background fetching should occur hourly when Desktop is active, but this
 // lower interval ensures user interactions like switching repositories and
@@ -438,6 +453,8 @@ const BackgroundFetchMinimumInterval = 30 * 60 * 1000
  * Wait 2 minutes before refreshing repository indicators
  */
 const InitialRepositoryIndicatorTimeout = 2 * 60 * 1000
+
+const MinimumFilteredCommitsToLoad = 50
 
 const MaxInvalidFoldersToDisplay = 3
 
@@ -450,6 +467,8 @@ const customEditorKey = 'custom-editor'
 
 export const useCustomShellKey = 'use-custom-shell'
 const customShellKey = 'custom-shell'
+
+const branchPresetScriptKey = 'branch-preset-script'
 
 export const underlineLinksKey = 'underline-links'
 export const underlineLinksDefault = true
@@ -569,6 +588,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private repositoryFilterText: string = ''
 
   private currentMergeTreePromise: Promise<void> | null = null
+  private currentCommitFilterPromise: Promise<void> | null = null
 
   /** The function to resolve the current Open in Desktop flow. */
   private resolveOpenInDesktop:
@@ -581,6 +601,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private selectedTheme = ApplicationTheme.System
   private currentTheme: ApplicableTheme = ApplicationTheme.Light
   private selectedTabSize = tabSizeDefault
+  private titleBarStyle: TitleBarStyle = 'native'
+  private showRecentRepositories: boolean = true
+  private hideWindowOnQuit: boolean = false
 
   private useWindowsOpenSSH: boolean = false
 
@@ -602,6 +625,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private useCustomShell: boolean = false
   private customShell: ICustomIntegration | null = null
+
+  private branchPresetScript: ICustomIntegration | null = null
 
   private showCIStatusPopover: boolean = false
 
@@ -685,6 +710,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.repositoryIndicatorsEnabled =
       getBoolean(repositoryIndicatorsEnabledKey) ?? true
 
+    this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
+
+    this.hideWindowOnQuit = getBoolean(hideWindowOnQuitKey) ?? false
+
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
       this.getRepositoriesForIndicatorRefresh,
       this.refreshIndicatorForRepository
@@ -697,6 +726,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }, InitialRepositoryIndicatorTimeout)
 
     API.onTokenInvalidated(this.onTokenInvalidated)
+    API.onTokenRefreshed(this.onTokenRefreshed)
 
     this.notificationsStore.onChecksFailedNotification(
       this.onChecksFailedNotification
@@ -781,6 +811,24 @@ export class AppStore extends TypedBaseStore<IAppState> {
       type: PopupType.InvalidatedToken,
       account,
     })
+  }
+
+  private onTokenRefreshed = async (
+    endpoint: string,
+    token: string,
+    refreshToken: string,
+    tokenExpiresAt: number
+  ) => {
+    const account = getAccountForEndpoint(this.accounts, endpoint)
+    if (account === null) {
+      return
+    }
+    const updatedAccount = account.withRefreshToken(
+      token,
+      refreshToken,
+      tokenExpiresAt
+    )
+    await this._updateAccount(updatedAccount)
   }
 
   private onShowInstallingUpdate = () => {
@@ -1098,12 +1146,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
       selectedTheme: this.selectedTheme,
       currentTheme: this.currentTheme,
       selectedTabSize: this.selectedTabSize,
+      titleBarStyle: this.titleBarStyle,
+      showRecentRepositories: this.showRecentRepositories,
       apiRepositories: this.apiRepositoriesStore.getState(),
       useWindowsOpenSSH: this.useWindowsOpenSSH,
       showCommitLengthWarning: this.showCommitLengthWarning,
       optOutOfUsageTracking: this.statsStore.getOptOut(),
       currentOnboardingTutorialStep: this.currentOnboardingTutorialStep,
       repositoryIndicatorsEnabled: this.repositoryIndicatorsEnabled,
+      hideWindowOnQuit: this.hideWindowOnQuit,
       commitSpellcheckEnabled: this.commitSpellcheckEnabled,
       currentDragElement: this.currentDragElement,
       lastThankYou: this.lastThankYou,
@@ -1111,6 +1162,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       customEditor: this.customEditor,
       useCustomShell: this.useCustomShell,
       customShell: this.customShell,
+      branchPresetScript: this.branchPresetScript,
       showCIStatusPopover: this.showCIStatusPopover,
       notificationsEnabled: getNotificationsEnabled(),
       pullRequestSuggestedNextAction: this.pullRequestSuggestedNextAction,
@@ -1191,20 +1243,27 @@ export class AppStore extends TypedBaseStore<IAppState> {
     let selectStashEntry = false
 
     this.repositoryStateCache.updateChangesState(repository, state => {
-      const stashEntry = gitStore.currentBranchStashEntry
+      const stashEntries = gitStore.currentBranchStashEntries
 
       // Figure out what selection changes we need to make as a result of this
       // change.
       if (state.selection.kind === ChangesSelectionKind.Stash) {
-        if (state.stashEntry !== null) {
-          if (stashEntry === null) {
-            // We're showing a stash now and the stash entry has just disappeared
+        if (state.stashEntries.length > 0) {
+          if (stashEntries.length === 0) {
+            // We're showing a stash now and all stash entries have disappeared
             // so we need to switch back over to the working directory.
             selectWorkingDirectory = true
-          } else if (state.stashEntry.stashSha !== stashEntry.stashSha) {
-            // The current stash entry has changed from underneath so we must
-            // ensure we have a valid selection.
-            selectStashEntry = true
+          } else {
+            const selectedStashSha =
+              state.selection.selectedStashEntry?.stashSha
+
+            // If the selected stash doesn't exist anymore, select a new one
+            if (
+              selectedStashSha &&
+              !stashEntries.some(e => e.stashSha === selectedStashSha)
+            ) {
+              selectStashEntry = true
+            }
           }
         }
       }
@@ -1213,7 +1272,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         commitMessage: gitStore.commitMessage,
         showCoAuthoredBy: gitStore.showCoAuthoredBy,
         coAuthors: gitStore.coAuthors,
-        stashEntry,
+        stashEntries,
       }
     })
 
@@ -1533,18 +1592,19 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const cachedState = compareState.formState
     const action =
       initialAction != null ? initialAction : getInitialAction(cachedState)
-    this._executeCompare(repository, action)
+    this._executeCompare(repository, action, true)
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
   public async _executeCompare(
     repository: Repository,
-    action: CompareAction
+    action: CompareAction,
+    fromInitialize = false
   ): Promise<void> {
     const gitStore = this.gitStoreCache.get(repository)
     const kind = action.kind
 
-    if (action.kind === HistoryTabMode.History) {
+    if (fromInitialize || action.kind === HistoryTabMode.History) {
       const { tip } = gitStore
 
       let currentSha: string | null = null
@@ -1556,7 +1616,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       }
 
       const { compareState } = this.repositoryStateCache.get(repository)
-      const { formState, commitSHAs } = compareState
+      const { formState, allHistoryCommitSHAs } = compareState
       const previousTip = compareState.tip
 
       const tipIsUnchanged =
@@ -1567,7 +1627,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       if (
         tipIsUnchanged &&
         formState.kind === HistoryTabMode.History &&
-        commitSHAs.length > 0
+        allHistoryCommitSHAs.length > 0
       ) {
         // don't refresh the history view here because we know nothing important
         // has changed and we don't want to rebuild this state
@@ -1575,26 +1635,44 @@ export class AppStore extends TypedBaseStore<IAppState> {
       }
 
       // load initial group of commits for current branch
-      const commits = await gitStore.loadCommitBatch('HEAD', 0)
+      const commits = await gitStore.loadCommitBatch('HEAD', 0, false)
 
       if (commits === null) {
         return
       }
 
-      const newState: IDisplayHistory = {
+      const queryLowercase = compareState.commitSearchQuery.toLowerCase()
+      const filteredCommits = commits.filter(sha =>
+        this.commitIsIncluded(gitStore.commitLookup.get(sha), queryLowercase)
+      )
+
+      const historyState: IDisplayHistory = {
         kind: HistoryTabMode.History,
       }
 
-      this.repositoryStateCache.updateCompareState(repository, () => ({
+      this.repositoryStateCache.updateCompareState(repository, oldState => ({
         tip: currentSha,
-        formState: newState,
-        commitSHAs: commits,
-        filterText: '',
-        showBranchList: false,
+        formState: fromInitialize ? oldState.formState : historyState,
+        allHistoryCommitSHAs: commits,
+        filteredHistoryCommitSHAs: filteredCommits,
+        filterText: fromInitialize ? oldState.filterText : '',
+        showBranchList: fromInitialize ? oldState.showBranchList : true,
       }))
-      this.updateOrSelectFirstCommit(repository, commits)
+      if (!fromInitialize) {
+        this.updateOrSelectFirstCommit(repository, commits)
+      }
 
-      return this.emitUpdate()
+      if (filteredCommits.length > 0) {
+        this.emitUpdate()
+      }
+      if (filteredCommits.length < MinimumFilteredCommitsToLoad) {
+        return this._loadNextCommitBatch(
+          repository,
+          filteredCommits.length,
+          queryLowercase
+        )
+      }
+      return
     }
 
     if (action.kind === HistoryTabMode.Compare) {
@@ -1645,7 +1723,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.repositoryStateCache.updateCompareState(repository, () => ({
       formState: newState,
       filterText: comparisonBranch.name,
-      commitSHAs,
+      compareCommitSHAs: commitSHAs,
     }))
 
     const tip = gitStore.tip
@@ -1723,39 +1801,124 @@ export class AppStore extends TypedBaseStore<IAppState> {
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
-  public async _loadNextCommitBatch(repository: Repository): Promise<void> {
+  public async _loadNextCommitBatch(
+    repository: Repository,
+    alreadyFiltered: number,
+    queryTextLowercase?: string
+  ): Promise<void> {
     const gitStore = this.gitStoreCache.get(repository)
 
     const state = this.repositoryStateCache.get(repository)
-    const { formState } = state.compareState
-    if (formState.kind === HistoryTabMode.History) {
-      const commits = state.compareState.commitSHAs
+    const commits = state.compareState.allHistoryCommitSHAs
+    if (queryTextLowercase === undefined) {
+      queryTextLowercase = state.compareState.commitSearchQuery.toLowerCase()
+    }
+    const isSearching = !!queryTextLowercase
 
-      const tip = state.branchesState.tip
+    const tip = state.branchesState.tip
 
-      let newCommits: string[] | null = null
+    let newCommits: string[] | null = null
 
-      // Prioritize pulling from the local commits if the last one we pulled is local
-      if (
-        commits.length > 0 &&
-        tip.kind === TipState.Valid &&
-        gitStore.localCommitSHAs.includes(commits[commits.length - 1])
-      ) {
-        newCommits = await gitStore.loadLocalCommits(tip.branch, commits.length)
-      }
+    // Prioritize pulling from the local commits if the last one we pulled is local
+    if (
+      commits.length > 0 &&
+      tip.kind === TipState.Valid &&
+      gitStore.localCommitSHAs.includes(commits[commits.length - 1])
+    ) {
+      newCommits = await gitStore.loadLocalCommits(tip.branch, commits.length)
+    }
 
-      if (!newCommits || newCommits.length === 0) {
-        newCommits = await gitStore.loadCommitBatch('HEAD', commits.length)
-      }
+    if (!newCommits || newCommits.length === 0) {
+      newCommits = await gitStore.loadCommitBatch(
+        'HEAD',
+        commits.length,
+        isSearching
+      )
+    }
 
-      if (!newCommits) {
-        return
-      }
+    if (!newCommits || newCommits.length === 0) {
+      return
+    }
 
-      this.repositoryStateCache.updateCompareState(repository, () => ({
-        commitSHAs: commits.concat(newCommits),
-      }))
+    const newFilteredCommits = newCommits.filter(sha =>
+      this.commitIsIncluded(gitStore.commitLookup.get(sha), queryTextLowercase)
+    )
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      allHistoryCommitSHAs: commits.concat(newCommits),
+      filteredHistoryCommitSHAs:
+        state.compareState.filteredHistoryCommitSHAs.concat(newFilteredCommits),
+    }))
+
+    const numFilteredCommits = alreadyFiltered + newFilteredCommits.length
+    if (newFilteredCommits.length > 0) {
       this.emitUpdate()
+    }
+    if (numFilteredCommits < MinimumFilteredCommitsToLoad) {
+      return this._loadNextCommitBatch(
+        repository,
+        numFilteredCommits,
+        queryTextLowercase
+      )
+    }
+    return
+  }
+
+  private commitIsIncluded(
+    commit: Commit | undefined,
+    filterTextLowerCase: string
+  ): boolean {
+    if (!commit) {
+      return false
+    }
+    return (
+      !filterTextLowerCase ||
+      commit.summary.toLowerCase().includes(filterTextLowerCase) ||
+      commit.body.toLowerCase().includes(filterTextLowerCase) ||
+      commit.tags.some(tag =>
+        tag.toLowerCase().startsWith(filterTextLowerCase)
+      ) ||
+      commit.sha.toLowerCase().startsWith(filterTextLowerCase)
+    )
+  }
+
+  public async _updateCommitSearchQuery(
+    repository: Repository,
+    query: string
+  ): Promise<void> {
+    const state = this.repositoryStateCache.get(repository)
+    const compareState = state.compareState
+    const isIncrementalSearch = query.startsWith(compareState.commitSearchQuery)
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitSearchQuery: query,
+    }))
+
+    if (this.currentCommitFilterPromise) {
+      await this.currentCommitFilterPromise
+    }
+
+    const candidateCommitSHAs = isIncrementalSearch
+      ? compareState.filteredHistoryCommitSHAs
+      : compareState.allHistoryCommitSHAs
+    const queryTextLowercase = query.toLowerCase()
+    const filteredCommitSHAs = queryTextLowercase
+      ? candidateCommitSHAs.filter(sha =>
+          this.commitIsIncluded(state.commitLookup.get(sha), queryTextLowercase)
+        )
+      : candidateCommitSHAs
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      filteredHistoryCommitSHAs: filteredCommitSHAs,
+    }))
+    this.emitUpdate()
+    if (filteredCommitSHAs.length < MinimumFilteredCommitsToLoad) {
+      this.currentCommitFilterPromise = this._loadNextCommitBatch(
+        repository,
+        filteredCommitSHAs.length,
+        queryTextLowercase
+      )
+      await this.currentCommitFilterPromise
+      this.currentCommitFilterPromise = null
     }
   }
 
@@ -2347,6 +2510,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.emitUpdate()
     })
 
+    this.titleBarStyle = await getTitleBarStyle()
+
     this.lastThankYou = getObject<ILastThankYou>(lastThankYouKey)
 
     this.useCustomEditor =
@@ -2356,6 +2521,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.useCustomShell =
       enableCustomIntegration() && getBoolean(useCustomShellKey, false)
     this.customShell = getObject<ICustomIntegration>(customShellKey) ?? null
+
+    this.branchPresetScript =
+      getObject<ICustomIntegration>(branchPresetScriptKey) ?? null
 
     // Migrate custom editor and shell to the new format if needed. This
     // will persist the new format to local storage.
@@ -2574,17 +2742,31 @@ export class AppStore extends TypedBaseStore<IAppState> {
       useCustomShell,
       selectedShell,
       selectedRepository,
-      useCustomEditor,
-      selectedExternalEditor,
       askForConfirmationOnRepositoryRemoval,
       askForConfirmationOnForcePush,
     } = this
+
+    const isRepository = selectedRepository instanceof Repository
+    const isGitHub =
+      isRepository && isRepositoryWithGitHubRepository(selectedRepository)
+    const hasEditorOverride =
+      isRepository && selectedRepository.customEditorOverride !== null
+
+    const useCustomEditor = hasEditorOverride
+      ? selectedRepository.customEditorOverride.useCustomEditor
+      : this.useCustomEditor
+    const selectedExternalEditor = hasEditorOverride
+      ? selectedRepository.customEditorOverride.selectedExternalEditor
+      : this.selectedExternalEditor
 
     const labels: MenuLabelsEvent = {
       selectedShell: useCustomShell ? null : selectedShell,
       selectedExternalEditor: useCustomEditor ? null : selectedExternalEditor,
       askForConfirmationOnRepositoryRemoval,
       askForConfirmationOnForcePush,
+      gitHubRepositoryType: isGitHub
+        ? selectedRepository.gitHubRepository.type
+        : null,
     }
 
     if (state === null) {
@@ -2612,17 +2794,13 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const isStashedChangesVisible =
       changesState.selection.kind === ChangesSelectionKind.Stash
 
-    const askForConfirmationWhenStashingAllChanges =
-      changesState.stashEntry !== null
-
     updatePreferredAppMenuItemLabels({
       ...labels,
       contributionTargetDefaultBranch,
       isForcePushForCurrentRepository,
       isStashedChangesVisible,
       hasCurrentPullRequest: currentPullRequest !== null,
-      askForConfirmationWhenStashingAllChanges,
-      isChangesFilterVisible: this.showChangesFilter,
+      askForConfirmationWhenStashingAllChanges: false,
     })
   }
 
@@ -2769,7 +2947,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
           null,
           commit,
           BranchType.Local,
-          `refs/heads/${rebaseState.targetBranch}`
+          `refs/heads/${rebaseState.targetBranch}`,
+          false
         )
       }
     } else if (isCherryPickConflictState(conflictState)) {
@@ -3191,6 +3370,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
    * Changes the selection in the changes view to the stash entry view and
    * optionally selects a particular file from the current stash entry.
    *
+   *  @param stashEntry The stash entry to view (if undefined, uses most recent stash)
    *  @param file  A file to select when showing the stash entry.
    *               If undefined this method will preserve the previously selected
    *               file or pick the first changed file if no selection exists.
@@ -3199,6 +3379,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
    */
   public async _selectStashedFile(
     repository: Repository,
+    stashEntry?: IStashEntry,
     file?: CommittedFileChange | null
   ): Promise<void> {
     this.repositoryStateCache.update(repository, () => ({
@@ -3206,7 +3387,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }))
     this.repositoryStateCache.updateChangesState(repository, state => {
       let selectedStashedFile: CommittedFileChange | null = null
-      const { stashEntry, selection } = state
+      const { selection } = state
+
+      // Determine which stash entry to use
+      const targetStashEntry = stashEntry ?? this.getSelectedStashEntry(state)
 
       const currentlySelectedFile =
         selection.kind === ChangesSelectionKind.Stash
@@ -3214,9 +3398,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
           : null
 
       const currentFiles =
-        stashEntry !== null &&
-        stashEntry.files.kind === StashedChangesLoadStates.Loaded
-          ? stashEntry.files.files
+        targetStashEntry !== null &&
+        targetStashEntry.files.kind === StashedChangesLoadStates.Loaded
+          ? targetStashEntry.files.files
           : []
 
       if (file === undefined) {
@@ -3245,6 +3429,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return {
         selection: {
           kind: ChangesSelectionKind.Stash,
+          selectedStashEntry: targetStashEntry,
           selectedStashedFile,
           selectedStashedFileDiff: null,
         },
@@ -3264,6 +3449,20 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
   }
 
+  private getSelectedStashEntry(state: IChangesState): IStashEntry | null {
+    const { stashEntries, selection } = state
+    if (
+      selection.kind === ChangesSelectionKind.Stash &&
+      selection.selectedStashEntry !== null &&
+      stashEntries.some(
+        e => e.stashSha === selection.selectedStashEntry?.stashSha
+      )
+    ) {
+      return selection.selectedStashEntry
+    }
+    return stashEntries[0] ?? null
+  }
+
   private async updateChangesStashDiff(repository: Repository) {
     const stateBeforeLoad = this.repositoryStateCache.get(repository)
     const changesStateBeforeLoad = stateBeforeLoad.changesState
@@ -3273,7 +3472,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    const stashEntry = changesStateBeforeLoad.stashEntry
+    const stashEntry = selectionBeforeLoad.selectedStashEntry
 
     if (stashEntry === null) {
       return
@@ -3293,6 +3492,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.repositoryStateCache.updateChangesState(repository, () => ({
         selection: {
           kind: ChangesSelectionKind.Stash,
+          selectedStashEntry: stashEntry,
           selectedStashedFile: null,
           selectedStashedFileDiff: null,
         },
@@ -3318,6 +3518,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.repositoryStateCache.updateChangesState(repository, () => ({
       selection: {
         kind: ChangesSelectionKind.Stash,
+        selectedStashEntry: stashEntry,
         selectedStashedFile: file,
         selectedStashedFileDiff: diff,
       },
@@ -3626,7 +3827,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     if (section === RepositorySectionTab.History) {
       refreshSectionPromise = this.refreshHistorySection(repository)
-    } else if (section === RepositorySectionTab.Changes) {
+    } else if (
+      section === RepositorySectionTab.Changes ||
+      section === RepositorySectionTab.Compare
+    ) {
       refreshSectionPromise = this.refreshChangesSection(repository, {
         includingStatus: false,
         clearPartialState: false,
@@ -3805,6 +4009,25 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdate()
   }
 
+  public _setShowRecentRepositories(showRecentRepositories: boolean) {
+    if (this.showRecentRepositories === showRecentRepositories) {
+      return
+    }
+    setBoolean(showRecentRepositoriesKey, showRecentRepositories)
+    this.showRecentRepositories = showRecentRepositories
+    this.emitUpdate()
+  }
+
+  public _setHideWindowOnQuit(hideWindowOnQuit: boolean) {
+    if (this.hideWindowOnQuit === hideWindowOnQuit) {
+      return
+    }
+    setBoolean(hideWindowOnQuitKey, hideWindowOnQuit)
+    this.hideWindowOnQuit = hideWindowOnQuit
+    this.emitUpdate()
+    getStore().set('hideWindowOnQuit', hideWindowOnQuit)
+  }
+
   public _setCommitSpellcheckEnabled(commitSpellcheckEnabled: boolean) {
     if (this.commitSpellcheckEnabled === commitSpellcheckEnabled) {
       return
@@ -3877,7 +4100,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     return this.updateOrSelectFirstCommit(
       repository,
-      state.compareState.commitSHAs
+      state.compareState.allHistoryCommitSHAs
     )
   }
 
@@ -4049,7 +4272,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   ): Promise<Repository> {
     const repositoryState = this.repositoryStateCache.get(repository)
     const { changesState, branchesState } = repositoryState
-    const { currentBranchProtected, stashEntry } = changesState
+    const { currentBranchProtected } = changesState
     const { tip } = branchesState
     const hasChanges = changesState.workingDirectory.files.length > 0
 
@@ -4059,19 +4282,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
 
     let strategy = explicitStrategy ?? this.uncommittedChangesStrategy
-
-    // The user hasn't been presented with an explicit choice
-    if (explicitStrategy === undefined) {
-      // Even if the user has chosen to "always stash on current branch" in
-      // preferences we still want to let them know changes might be lost
-      if (strategy === UncommittedChangesStrategy.StashOnCurrentBranch) {
-        if (hasChanges && stashEntry !== null) {
-          const type = PopupType.ConfirmOverwriteStash
-          this._showPopup({ type, repository, branchToCheckout: branch })
-          return repository
-        }
-      }
-    }
 
     // Always move changes to new branch if we're on a detached head, unborn
     // branch, or a protected branch.
@@ -4192,7 +4402,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private async onSuccessfulCheckout(repository: Repository, branch: Branch) {
     const repositoryState = this.repositoryStateCache.get(repository)
-    const { stashEntry } = repositoryState.changesState
+    const { stashEntries } = repositoryState.changesState
     const { defaultBranch } = repositoryState.branchesState
 
     this.clearBranchProtectionState(repository)
@@ -4206,7 +4416,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.statsStore.recordNonDefaultBranchCheckout()
     }
 
-    if (stashEntry !== null && !this.hasUserViewedStash) {
+    if (stashEntries.length > 0 && !this.hasUserViewedStash) {
       this.statsStore.increment('stashNotViewedAfterCheckoutCount')
     }
 
@@ -4285,28 +4495,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
    * Creates a stash associated to the current checked out branch.
    *
    * @param repository
-   * @param showConfirmationDialog  Whether to show a confirmation
-   *                                dialog if an existing stash exists.
    */
   public async _createStashForCurrentBranch(
-    repository: Repository,
-    showConfirmationDialog: boolean
+    repository: Repository
   ): Promise<boolean> {
     const repositoryState = this.repositoryStateCache.get(repository)
     const tip = repositoryState.branchesState.tip
     const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
-    const hasExistingStash = repositoryState.changesState.stashEntry !== null
 
     if (currentBranch === null) {
-      return false
-    }
-
-    if (showConfirmationDialog && hasExistingStash) {
-      this._showPopup({
-        type: PopupType.ConfirmOverwriteStash,
-        branchToCheckout: null,
-        repository,
-      })
       return false
     }
 
@@ -4448,6 +4645,28 @@ export class AppStore extends TypedBaseStore<IAppState> {
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _updateRepositoryDefaultBranch(
+    repository: Repository,
+    defaultBranch: string | null
+  ): Promise<void> {
+    const repo = await this.repositoriesStore.updateRepositoryDefaultBranch(
+      repository,
+      defaultBranch
+    )
+    await this._refreshRepository(repo)
+  }
+
+  public async _updateRepositoryEditorOverride(
+    repository: Repository,
+    customEditorOverride: EditorOverride | null
+  ): Promise<void> {
+    await this.repositoriesStore.updateRepositoryEditorOverride(
+      repository,
+      customEditorOverride
+    )
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
   public async _renameBranch(
     repository: Repository,
     branch: Branch,
@@ -4457,10 +4676,13 @@ export class AppStore extends TypedBaseStore<IAppState> {
     await gitStore.performFailableOperation(async () => {
       await renameBranch(repository, branch, newName)
 
-      const stashEntry = gitStore.desktopStashEntries.get(branch.name)
+      const stashEntries = gitStore.desktopStashEntries.get(branch.name)
 
-      if (stashEntry) {
-        await moveStashEntry(repository, stashEntry, newName)
+      if (stashEntries && stashEntries.length > 0) {
+        // Move all stash entries to the new branch name
+        for (const stashEntry of stashEntries) {
+          await moveStashEntry(repository, stashEntry, newName)
+        }
       }
     })
 
@@ -5110,7 +5332,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public async _discardChanges(
     repository: Repository,
     files: ReadonlyArray<WorkingDirectoryFileChange>,
-    moveToTrash: boolean = true
+    moveToTrash: boolean = true,
+    cleanUntracked: boolean = false
   ) {
     const gitStore = this.gitStoreCache.get(repository)
 
@@ -5120,11 +5343,38 @@ export class AppStore extends TypedBaseStore<IAppState> {
       await gitStore.discardChanges(
         files,
         moveToTrash,
-        askForConfirmationOnDiscardChangesPermanently
+        askForConfirmationOnDiscardChangesPermanently,
+        cleanUntracked
       )
     } catch (error) {
       if (!(error instanceof DiscardChangesError)) {
         log.error('Failed discarding changes', error)
+      }
+
+      this.emitError(error)
+      return
+    }
+
+    return this._refreshRepository(repository)
+  }
+
+  public async _stashChanges(
+    repository: Repository,
+    files: ReadonlyArray<WorkingDirectoryFileChange>
+  ) {
+    try {
+      const repositoryState = this.repositoryStateCache.get(repository)
+      const tip = repositoryState.branchesState.tip
+      const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
+
+      if (currentBranch === null) {
+        return
+      }
+
+      await this.createStashEntries(repository, currentBranch, files)
+    } catch (error) {
+      if (!(error instanceof StashChangesError)) {
+        log.error('Failed stashing changes', error)
       }
 
       this.emitError(error)
@@ -5716,6 +5966,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this._endMultiCommitOperation(repository)
     }
 
+    this._changeRepositorySection(repository, RepositorySectionTab.History)
+
     return this._refreshRepository(repository)
   }
 
@@ -5760,6 +6012,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
         },
       }
     )
+
+    this._changeRepositorySection(repository, RepositorySectionTab.History)
 
     return result || RebaseResult.Error
   }
@@ -5905,17 +6159,55 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return shell.openExternal(url)
   }
 
+  public async _getBranchNamePresets(
+    repoPath: string
+  ): Promise<IBranchNamePreset[]> {
+    const { branchPresetScript } = this.getState()
+    if (branchPresetScript === null || branchPresetScript.path === '') {
+      return []
+    }
+    const stdout = await launchAndReturnStdout(repoPath, branchPresetScript)
+    return parseBranchNamePresets(stdout)
+  }
+
   public async _editGlobalGitConfig() {
     await getGlobalConfigPath()
-      .then(p => this._openInExternalEditor(p))
+      .then(p => this._openInExternalEditor(null, p))
       .catch(e => log.error('Could not open global Git config for editing', e))
   }
 
   /** Open a path to a repository or file using the user's configured editor */
-  public async _openInExternalEditor(fullPath: string): Promise<void> {
-    const { selectedExternalEditor, useCustomEditor, customEditor } =
-      this.getState()
+  public async _openInExternalEditor(
+    repository: Repository | null,
+    fullPath: string
+  ): Promise<void> {
+    if (repository?.customEditorOverride) {
+      const { selectedExternalEditor, useCustomEditor, customEditor } =
+        repository?.customEditorOverride
+      return this._openInExternalEditorImpl(
+        selectedExternalEditor,
+        useCustomEditor,
+        customEditor,
+        fullPath
+      )
+    } else {
+      const { selectedExternalEditor, useCustomEditor, customEditor } =
+        this.getState()
+      return this._openInExternalEditorImpl(
+        selectedExternalEditor,
+        useCustomEditor,
+        customEditor,
+        fullPath
+      )
+    }
+  }
 
+  public async _openInExternalEditorImpl(
+    selectedExternalEditor: string | null,
+    useCustomEditor: boolean,
+    customEditor: ICustomIntegration | null,
+    fullPath: string
+  ): Promise<void> {
     try {
       if (useCustomEditor && customEditor) {
         await launchCustomExternalEditor(fullPath, customEditor)
@@ -6228,6 +6520,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return this.signInStore.beginEnterpriseSignIn(resultCallback)
   }
 
+  public _beginBitbucketSignIn(
+    resultCallback?: (result: SignInResult) => void
+  ) {
+    return this.signInStore.beginBitbucketSignIn(resultCallback)
+  }
+
+  public _beginGitLabSignIn(resultCallback?: (result: SignInResult) => void) {
+    return this.signInStore.beginGitLabSignIn(resultCallback)
+  }
+
   public _setSignInEndpoint(url: string): Promise<void> {
     return this.signInStore.setEndpoint(url)
   }
@@ -6300,6 +6602,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
     )
     await this.accountsStore.removeAccount(account)
     await deleteToken(account)
+  }
+
+  public async _updateAccount(account: Account): Promise<void> {
+    log.info(
+      `[AppStore] updating account ${account.login} (${account.name}) in store`
+    )
+    await this.accountsStore.modifyAccount(account)
+    this.emitUpdate()
   }
 
   private async _addAccount(account: Account): Promise<void> {
@@ -6571,6 +6881,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
     })
   }
 
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _getCommitChangedFiles(
+    repository: Repository,
+    commit: Commit
+  ): Promise<ReadonlyArray<CommittedFileChange>> {
+    const changesetData = await getChangedFiles(repository, commit.sha)
+    return changesetData.files
+  }
+
   public async _installGlobalLFSFilters(force: boolean): Promise<void> {
     try {
       await installGlobalLFSFilters(force)
@@ -6702,9 +7021,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    const showPrUrl = `${baseRepoUrl}/pull/${pr.pullRequestNumber}`
+    const SHOW_PR_URL = {
+      github: `${baseRepoUrl}/pull/${pr.pullRequestNumber}`,
+      bitbucket: `${baseRepoUrl}/pull-requests/${pr.pullRequestNumber}`,
+      gitlab: `${baseRepoUrl}/merge_requests/${pr.pullRequestNumber}`,
+    }
 
-    await this._openInBrowser(showPrUrl)
+    const type = pr.base.gitHubRepository.type
+    await this._openInBrowser(SHOW_PR_URL[type])
   }
 
   public async _refreshPullRequests(repository: Repository): Promise<void> {
@@ -6778,7 +7102,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    const { parent, owner, name, htmlURL } = gitHubRepository
+    const { parent, owner, name, htmlURL, type } = gitHubRepository
     const isForkContributingToParent =
       isForkedRepositoryContributingToParent(repository)
 
@@ -6788,9 +7112,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         : ''
     const encodedBaseBranch =
       baseBranch !== undefined
-        ? baseForkPreface +
-          encodeURIComponent(baseBranch.nameWithoutRemote) +
-          '...'
+        ? baseForkPreface + encodeURIComponent(baseBranch.nameWithoutRemote)
         : ''
 
     const compareForkPreface = isForkContributingToParent
@@ -6803,10 +7125,20 @@ export class AppStore extends TypedBaseStore<IAppState> {
         compareBranch.upstreamWithoutRemote ?? compareBranch.nameWithoutRemote
       )
 
-    const compareString = `${encodedBaseBranch}${encodedCompareBranch}`
-    const baseURL = `${htmlURL}/pull/new/${compareString}`
+    const param = (name: string, value: string): string => {
+      return value ? encodeURIComponent(name) + '=' + value : ''
+    }
 
-    await this._openInBrowser(baseURL)
+    // prettier-ignore
+    const PR_URLS = {
+      bitbucket:
+        `${htmlURL}/pull-requests/new?${param('source', encodedCompareBranch)}&${param('dest', encodedBaseBranch)}`,
+      github:
+        `${htmlURL}/pull/new/${encodedBaseBranch ? encodedBaseBranch + '...' : ''}${encodedCompareBranch}`,
+      gitlab:
+        `${htmlURL}/merge_requests/new?${param('merge_request[source_branch]', encodedCompareBranch)}&${param('merge_request[target_branch]', encodedBaseBranch)}`,
+    }
+    await this._openInBrowser(PR_URLS[type])
   }
 
   public async _updateExistingUpstreamRemote(
@@ -7006,6 +7338,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return Promise.resolve()
   }
 
+  /*
+   * Set the title bar style for the application
+   */
+  public _setTitleBarStyle(titleBarStyle: TitleBarStyle) {
+    this.titleBarStyle = titleBarStyle
+    return saveTitleBarStyle(titleBarStyle)
+  }
+
   public async _resolveCurrentEditor() {
     const match = await findEditorOrDefault(this.selectedExternalEditor)
     const resolvedExternalEditor = match != null ? match.editor : null
@@ -7098,20 +7438,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
     repository: Repository,
     branch: Branch
   ) {
-    const entry = await getLastDesktopStashEntryForBranch(repository, branch)
     const gitStore = this.gitStoreCache.get(repository)
 
     const createdStash = await gitStore.performFailableOperation(() =>
       this.createStashEntry(repository, branch)
     )
-
-    if (createdStash === true && entry !== null) {
-      const { stashSha, branchName } = entry
-      await gitStore.performFailableOperation(async () => {
-        await dropDesktopStashEntry(repository, stashSha)
-        log.info(`Dropped stash '${stashSha}' associated with ${branchName}`)
-      })
-    }
 
     return createdStash === true
   }
@@ -7120,8 +7451,24 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const { changesState } = this.repositoryStateCache.get(repository)
     const { workingDirectory } = changesState
     const untrackedFiles = getUntrackedFiles(workingDirectory)
+    return createDesktopStashEntry(repository, branch, untrackedFiles, null)
+  }
 
-    return createDesktopStashEntry(repository, branch, untrackedFiles)
+  private async createStashEntries(
+    repository: Repository,
+    branch: Branch,
+    selectedFiles: ReadonlyArray<WorkingDirectoryFileChange>
+  ) {
+    // Unstage all so that only the selected files are added to the stash (otherwise, staged changes are added),
+    // and also so that deleted files are present in the index (fix 'pathspec did not match any file(s) known to git')
+    await unstageAll(repository)
+    await this._loadStatus(repository)
+
+    const { changesState } = this.repositoryStateCache.get(repository)
+    const { workingDirectory } = changesState
+    const untrackedFiles = getUntrackedFiles(workingDirectory)
+    const files = selectedFiles.map(f => f.path)
+    return createDesktopStashEntry(repository, branch, untrackedFiles, files)
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
@@ -7327,8 +7674,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     commits: ReadonlyArray<CommitOneLine>
   ) {
     const { compareState } = this.repositoryStateCache.get(repository)
-    const { commitSHAs } = compareState
-    const commitIndexBySha = new Map(commitSHAs.map((sha, i) => [sha, i]))
+    const commitIndexBySha = this.getCommitIndexBySha(compareState)
 
     return commits.toSorted((a, b) =>
       compare(commitIndexBySha.get(b.sha), commitIndexBySha.get(a.sha))
@@ -7347,12 +7693,21 @@ export class AppStore extends TypedBaseStore<IAppState> {
     commits: ReadonlyArray<string>
   ) {
     const { compareState } = this.repositoryStateCache.get(repository)
-    const { commitSHAs } = compareState
-    const commitIndexBySha = new Map(commitSHAs.map((sha, i) => [sha, i]))
+    const commitIndexBySha = this.getCommitIndexBySha(compareState)
 
     return commits.toSorted((a, b) =>
       compare(commitIndexBySha.get(b), commitIndexBySha.get(a))
     )
+  }
+
+  private getCommitIndexBySha(
+    compareState: ICompareState
+  ): Map<string, number> {
+    const historyShas: [string, number][] =
+      compareState.allHistoryCommitSHAs.map((sha, i) => [sha, i])
+    const compareCommitShas: [string, number][] =
+      compareState.compareCommitSHAs.map((sha, i) => [sha, i])
+    return new Map([...historyShas, ...compareCommitShas])
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
@@ -7602,6 +7957,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public _setCustomShell(customShell: ICustomIntegration) {
     setObject(customShellKey, customShell)
     this.customShell = customShell
+    this.emitUpdate()
+  }
+
+  public _setBranchPresetScript(branchPresetScript: ICustomIntegration) {
+    setObject(branchPresetScriptKey, branchPresetScript)
+    this.branchPresetScript = branchPresetScript
     this.emitUpdate()
   }
 
@@ -7951,10 +8312,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
   }
 
   public _setShowCIStatusPopover(showCIStatusPopover: boolean) {
-    if (this.showCIStatusPopover !== showCIStatusPopover) {
-      this.showCIStatusPopover = showCIStatusPopover
-      this.emitUpdate()
+    if (this.showCIStatusPopover === showCIStatusPopover) {
+      showCIStatusPopover = false
     }
+    this.showCIStatusPopover = showCIStatusPopover
+    this.emitUpdate()
   }
 
   public _toggleCIStatusPopover() {

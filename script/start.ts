@@ -23,7 +23,15 @@ function getPortOrDefault() {
 }
 
 function startApp() {
-  const runningApp = run({ stdio: 'inherit' })
+  const useWayland =
+    process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland'
+  const launchArgs = useWayland
+    ? [
+        '--enable-features=UseOzonePlatform,WaylandWindowDecorations',
+        '--ozone-platform-hint=auto',
+      ]
+    : []
+  const runningApp = run({ stdio: 'inherit' }, launchArgs)
   if (runningApp == null) {
     console.error(
       "Couldn't launch the app. You probably need to build it first. Run `yarn build:dev`."
@@ -43,6 +51,11 @@ if (process.env.NODE_ENV === 'production') {
   const compiler = webpack(rendererConfig)
   const port = getPortOrDefault()
   const message = 'Could not find public path from configuration'
+
+  if (!compiler) {
+    console.error("Couldn't start the webpack compiler.")
+    process.exit(1)
+  }
 
   const devMiddleware = DevMiddleware(compiler, {
     publicPath: u(

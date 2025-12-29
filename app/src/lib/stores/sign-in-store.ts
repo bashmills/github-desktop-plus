@@ -1,6 +1,6 @@
 import { Disposable } from 'event-kit'
-import { Account, isDotComAccount } from '../../models/account'
-import { fatalError } from '../fatal-error'
+import { Account } from '../../models/account'
+import { assertNever, fatalError } from '../fatal-error'
 import {
   validateURL,
   InvalidURLErrorName,
@@ -13,6 +13,13 @@ import {
   getEnterpriseAPIURL,
   requestOAuthToken,
   getOAuthAuthorizationURL,
+  getBitbucketAPIEndpoint,
+  getBitbucketOAuthAuthorizationURL,
+  requestOAuthTokenBitbucket,
+  getGitLabAPIEndpoint,
+  getGitLabOAuthAuthorizationURL,
+  getGitLabOAuthRedirectUri,
+  requestOAuthTokenGitLab,
 } from '../../lib/api'
 
 import { TypedBaseStore } from './base-store'
@@ -22,6 +29,7 @@ import { shell } from '../app-shell'
 import noop from 'lodash/noop'
 import { AccountsStore } from './accounts-store'
 import { enableMultipleLoginAccounts } from '../feature-flag'
+import { RepoType } from '../../models/github-repository'
 
 /**
  * An enumeration of the possible steps that the sign in
@@ -128,6 +136,7 @@ export interface IAuthenticationState extends ISignInState {
   readonly oauthState?: {
     state: string
     endpoint: string
+    oauthProvider: OAuthProvider
     onAuthCompleted: (account: Account) => void
     onAuthError: (error: Error) => void
   }
@@ -147,6 +156,8 @@ export interface ISuccessState {
 interface IAuthenticationEvent {
   readonly account: Account
 }
+
+type OAuthProvider = RepoType
 
 export type SignInResult =
   | { kind: 'success'; account: Account }
@@ -233,7 +244,7 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       this.reset()
     }
 
-    const existingAccount = this.accounts.find(isDotComAccount)
+    const existingAccount = this.accounts.find(a => a.apiType === 'dotcom')
 
     if (existingAccount && !enableMultipleLoginAccounts()) {
       this.setState({
@@ -289,6 +300,7 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
     new Promise<Account>((resolve, reject) => {
       const { endpoint, resultCallback } = currentState
       log.info('[SignInStore] initializing OAuth flow')
+      const oauthProvider = this.getOAuthProvider(endpoint)
       this.setState({
         kind: SignInStep.Authentication,
         endpoint,
@@ -296,13 +308,21 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
         error: null,
         loading: true,
         oauthState: {
+          oauthProvider,
           state: csrfToken,
           endpoint,
           onAuthCompleted: resolve,
           onAuthError: reject,
         },
       })
-      shell.openExternal(getOAuthAuthorizationURL(endpoint, csrfToken))
+      if (oauthProvider === 'bitbucket') {
+        shell.openExternal(getBitbucketOAuthAuthorizationURL())
+      } else if (oauthProvider === 'gitlab') {
+        const redirectUri = getGitLabOAuthRedirectUri()
+        shell.openExternal(getGitLabOAuthAuthorizationURL(redirectUri))
+      } else {
+        shell.openExternal(getOAuthAuthorizationURL(endpoint, csrfToken))
+      }
     })
       .then(account => {
         if (!this.state || this.state.kind !== SignInStep.Authentication) {
@@ -332,6 +352,16 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       })
   }
 
+  private getOAuthProvider(endpoint: string): OAuthProvider {
+    if (endpoint === getBitbucketAPIEndpoint()) {
+      return 'bitbucket'
+    } else if (endpoint === getGitLabAPIEndpoint()) {
+      return 'gitlab'
+    } else {
+      return 'github'
+    }
+  }
+
   public async resolveOAuthRequest(action: IOAuthAction) {
     if (!this.state || this.state.kind !== SignInStep.Authentication) {
       return
@@ -341,7 +371,10 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       return
     }
 
-    if (this.state.oauthState.state !== action.state) {
+    if (
+      this.state.oauthState.oauthProvider === 'github' &&
+      this.state.oauthState.state !== action.state
+    ) {
       log.warn(
         'requestAuthenticatedUser was not called with valid OAuth state. This is likely due to a browser reloading the callback URL. Contact GitHub Support if you believe this is an error'
       )
@@ -349,15 +382,37 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
     }
 
     const { endpoint } = this.state
-    const token = await requestOAuthToken(endpoint, action.code)
+    const tokenData = await this.getOauthTokenData(
+      this.state.oauthState.oauthProvider,
+      endpoint,
+      action.code
+    )
 
-    if (token) {
-      const account = await fetchUser(endpoint, token)
+    if (tokenData) {
+      const [token, refreshToken, expiresAt] = tokenData
+      const account = await fetchUser(endpoint, token, refreshToken, expiresAt)
       this.state.oauthState.onAuthCompleted(account)
     } else {
       this.state.oauthState.onAuthError(
         new Error('Failed retrieving authenticated user')
       )
+    }
+  }
+
+  private async getOauthTokenData(
+    oauthProvider: OAuthProvider,
+    endpoint: string,
+    code: string
+  ) {
+    switch (oauthProvider) {
+      case 'github':
+        return await requestOAuthToken(endpoint, code)
+      case 'bitbucket':
+        return await requestOAuthTokenBitbucket(code)
+      case 'gitlab':
+        return await requestOAuthTokenGitLab(code, getGitLabOAuthRedirectUri())
+      default:
+        assertNever(oauthProvider, 'Unexpected oauth provider')
     }
   }
 
@@ -379,6 +434,60 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       loading: false,
       resultCallback: resultCallback ?? noop,
     })
+  }
+
+  public beginBitbucketSignIn(resultCallback?: (result: SignInResult) => void) {
+    if (this.state !== null) {
+      this.reset()
+    }
+
+    const endpoint = getBitbucketAPIEndpoint()
+    const existingAccount = this.accounts.find(a => a.apiType === 'bitbucket')
+    if (existingAccount) {
+      this.setState({
+        kind: SignInStep.ExistingAccountWarning,
+        endpoint,
+        existingAccount,
+        error: null,
+        loading: false,
+        resultCallback: resultCallback ?? noop,
+      })
+    } else {
+      this.setState({
+        kind: SignInStep.Authentication,
+        endpoint,
+        error: null,
+        loading: false,
+        resultCallback: resultCallback ?? noop,
+      })
+    }
+  }
+
+  public beginGitLabSignIn(resultCallback?: (result: SignInResult) => void) {
+    if (this.state !== null) {
+      this.reset()
+    }
+
+    const endpoint = getGitLabAPIEndpoint()
+    const existingAccount = this.accounts.find(a => a.apiType === 'gitlab')
+    if (existingAccount) {
+      this.setState({
+        kind: SignInStep.ExistingAccountWarning,
+        endpoint,
+        existingAccount,
+        error: null,
+        loading: false,
+        resultCallback: resultCallback ?? noop,
+      })
+    } else {
+      this.setState({
+        kind: SignInStep.Authentication,
+        endpoint,
+        error: null,
+        loading: false,
+        resultCallback: resultCallback ?? noop,
+      })
+    }
   }
 
   /**

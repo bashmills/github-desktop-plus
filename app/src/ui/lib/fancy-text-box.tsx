@@ -7,8 +7,10 @@ interface IFancyTextBoxProps extends ITextBoxProps {
   /** Icon to render */
   readonly symbol: OcticonSymbol
 
+  readonly symbolClassName?: string
+
   /** Callback used to get a reference to internal TextBox */
-  readonly onRef: (textbox: TextBox) => void
+  readonly onRef?: (textbox: TextBox) => void
 }
 
 interface IFancyTextBoxState {
@@ -32,11 +34,15 @@ export class FancyTextBox extends React.Component<
       { disabled: this.props.disabled },
       { focused: this.state.isFocused }
     )
-    const octiconCSS = classNames('fancy-octicon')
 
     return (
       <div className={componentCSS}>
-        <Octicon className={octiconCSS} symbol={this.props.symbol} />
+        <div className="fancy-octicon">
+          <Octicon
+            className={this.props.symbolClassName}
+            symbol={this.props.symbol}
+          />
+        </div>
         <TextBox
           ariaLabel={this.props.ariaLabel}
           value={this.props.value}

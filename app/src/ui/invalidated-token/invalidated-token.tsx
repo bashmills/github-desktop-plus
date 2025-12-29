@@ -2,9 +2,10 @@ import * as React from 'react'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Dispatcher } from '../dispatcher'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
-import { Account, isEnterpriseAccount } from '../../models/account'
+import { Account } from '../../models/account'
 import { getHTMLURL } from '../../lib/api'
 import { Ref } from '../lib/ref'
+import { assertNever } from '../../lib/fatal-error'
 
 interface IInvalidatedTokenProps {
   readonly dispatcher: Dispatcher
@@ -47,12 +48,24 @@ export class InvalidatedToken extends React.Component<IInvalidatedTokenProps> {
 
     onDismissed()
 
-    if (isEnterpriseAccount(account)) {
-      dispatcher.showEnterpriseSignInDialog(
-        getHTMLURL(this.props.account.endpoint)
-      )
-    } else {
-      dispatcher.showDotComSignInDialog()
+    switch (account.apiType) {
+      case 'dotcom':
+        dispatcher.showDotComSignInDialog()
+        break
+      case 'enterprise':
+        dispatcher.showEnterpriseSignInDialog(
+          getHTMLURL(this.props.account.endpoint)
+        )
+        break
+      case 'bitbucket':
+        dispatcher.showBitbucketSignInDialog()
+        break
+      case 'gitlab':
+        dispatcher.showGitLabSignInDialog()
+        break
+      default:
+        console.error('Unknown sign-in dialog for account:', account)
+        assertNever(account.apiType, 'Unknown sign-in dialog for account')
     }
   }
 }

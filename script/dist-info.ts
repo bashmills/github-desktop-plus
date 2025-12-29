@@ -25,7 +25,7 @@ export function getExecutableName() {
   if (process.platform === 'win32') {
     return `${getWindowsIdentifierName()}${suffix}`
   } else if (process.platform === 'linux') {
-    return 'desktop'
+    return `github-desktop-plus${suffix}`
   } else {
     return productName
   }
@@ -112,17 +112,16 @@ export const isPublishable = () =>
 export const getChannel = () =>
   process.env.RELEASE_CHANNEL ?? process.env.NODE_ENV ?? 'development'
 
-export function getDistArchitecture(): 'arm64' | 'x64' {
+export function getDistArchitecture(): 'arm64' | 'x64' | 'armv7l' {
   // If a specific npm_config_arch is set, we use that one instead of the OS arch (to support cross compilation)
-  if (
-    process.env.npm_config_arch === 'arm64' ||
-    process.env.npm_config_arch === 'x64'
-  ) {
-    return process.env.npm_config_arch
+  const arch = process.env.npm_config_arch || process.arch
+
+  if (arch === 'arm64' || arch === 'x64' || arch === 'armv7l') {
+    return arch
   }
 
-  if (process.arch === 'arm64') {
-    return 'arm64'
+  if (arch === 'arm') {
+    return 'armv7l'
   }
 
   // TODO: Check if it's x64 running on an arm64 Windows with IsWow64Process2
@@ -135,12 +134,8 @@ export function getDistArchitecture(): 'arm64' | 'x64' {
 }
 
 export function getUpdatesURL() {
-  // It is also possible to use a `x64/` path, but for now we'll leave the
-  // original URL without architecture in it (which will still work for
-  // compatibility reasons) in case anything goes wrong until we have everything
-  // sorted out.
-  const architecturePath = getDistArchitecture() === 'arm64' ? 'arm64/' : ''
-  return `https://central.github.com/api/deployments/desktop/desktop/${architecturePath}latest?version=${version}&env=${getChannel()}`
+  // Disable auto-updates so that the app doesn't revert to the desktop/desktop upstream whenever there is an update
+  return ''
 }
 
 export function shouldMakeDelta() {

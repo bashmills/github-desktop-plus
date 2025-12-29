@@ -45,4 +45,16 @@
   textarea.gitignore {
     height: 130px;
   }
+
+  .config-row {
+    margin-bottom: var(--spacing-double);
+  }
+
+  fieldset {
+    border: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
 }

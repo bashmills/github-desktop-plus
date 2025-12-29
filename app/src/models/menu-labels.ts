@@ -1,4 +1,5 @@
 import { Shell } from '../lib/shells'
+import { RepoType } from './github-repository'
 
 export type MenuLabelsEvent = {
   /**
@@ -60,6 +61,11 @@ export type MenuLabelsEvent = {
    * their existing stash or not.
    */
   readonly askForConfirmationWhenStashingAllChanges?: boolean
+
+  /**
+   * Text to display in the button for the "View on Browser" item.
+   */
+  readonly gitHubRepositoryType: RepoType | null
 
   /**
    * Whether or not the changes filter is visible in the current view.

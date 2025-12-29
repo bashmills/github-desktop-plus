@@ -19,6 +19,8 @@ import { SelectionDirection, ClickSource } from '../lib/list'
 import { generateBranchContextMenuItems } from './branch-list-item-context-menu'
 import { showContextualMenu } from '../../lib/menu-item'
 import { SectionFilterList } from '../lib/section-filter-list'
+import { Octicon } from '../octicons'
+import * as octicons from '../octicons/octicons.generated'
 import memoizeOne from 'memoize-one'
 import { getAuthors } from '../../lib/git/log'
 import { Repository } from '../../models/repository'
@@ -129,6 +131,9 @@ interface IBranchListProps {
 
   /** Optional: Callback for if rename context menu should exist */
   readonly onRenameBranch?: (branchName: string) => void
+
+  /** Optional: Callback for if make default branch context menu should exist */
+  readonly onMakeDefaultBranch?: (branchName: string) => void
 
   /** Optional: Callback for if delete context menu should exist */
   readonly onDeleteBranch?: (branchName: string) => void
@@ -278,19 +283,29 @@ export class BranchList extends React.Component<
   ) => {
     event.preventDefault()
 
-    const { onRenameBranch, onDeleteBranch } = this.props
+    const { onRenameBranch, onDeleteBranch, onMakeDefaultBranch } = this.props
 
-    if (onRenameBranch === undefined && onDeleteBranch === undefined) {
+    if (
+      onRenameBranch === undefined &&
+      onDeleteBranch === undefined &&
+      onMakeDefaultBranch === undefined
+    ) {
       return
     }
 
-    const { type, name } = item.branch
+    const { type, name, nameWithoutRemote } = item.branch
     const isLocal = type === BranchType.Local
 
     const items = generateBranchContextMenuItems({
       name,
+      nameWithoutRemote,
       isLocal,
+      repoType: this.props.repository.gitHubRepository?.type,
       onRenameBranch,
+      onMakeDefaultBranch:
+        nameWithoutRemote === this.props.defaultBranch?.name
+          ? undefined
+          : onMakeDefaultBranch,
       onDeleteBranch,
     })
 
@@ -397,7 +412,8 @@ export class BranchList extends React.Component<
 
   private onRenderNewButton = () => {
     return this.props.canCreateNewBranch ? (
-      <Button className="new-branch-button" onClick={this.onCreateNewBranch}>
+      <Button onClick={this.onCreateNewBranch}>
+        <Octicon symbol={octicons.plus} className="mr" />
         {__DARWIN__ ? 'New Branch' : 'New branch'}
       </Button>
     ) : null

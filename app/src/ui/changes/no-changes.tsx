@@ -1,7 +1,12 @@
 import * as React from 'react'
 
 import { encodePathAsUrl } from '../../lib/path'
-import { Repository } from '../../models/repository'
+import {
+  hasDefaultRemoteUrl,
+  isRepositoryWithGitHubRepository,
+  Repository,
+} from '../../models/repository'
+import { RepoType } from '../../models/github-repository'
 import { LinkButton } from '../lib/link-button'
 import { MenuIDs } from '../../models/menu-ids'
 import { IMenu, MenuItem } from '../../models/app-menu'
@@ -17,7 +22,7 @@ import {
   ForcePushBranchState,
   getCurrentBranchForcePushState,
 } from '../../lib/rebase'
-import { StashedChangesLoadStates } from '../../models/stash-entry'
+import { IStashEntry, StashedChangesLoadStates } from '../../models/stash-entry'
 import { Dispatcher } from '../dispatcher'
 import { SuggestedActionGroup } from '../suggested-actions'
 import { PreferencesTab } from '../../models/preferences'
@@ -31,6 +36,10 @@ import {
   isIdPullRequestSuggestedNextAction,
 } from '../../models/pull-request'
 import { KeyboardShortcut } from '../keyboard-shortcut/keyboard-shortcut'
+import * as octicons from '../octicons/octicons.generated'
+import { OcticonSymbol } from '../octicons/octicons.generated'
+import { stash } from '../octicons'
+import { assertNever } from '../../lib/fatal-error'
 
 function formatMenuItemLabel(text: string) {
   if (__WIN32__ || __LINUX__) {
@@ -239,6 +248,7 @@ export class NoChanges extends React.Component<
   private renderMenuBackedAction(
     itemId: MenuIDs,
     title: string,
+    icon: OcticonSymbol,
     description?: string | JSX.Element,
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
   ) {
@@ -256,6 +266,7 @@ export class NoChanges extends React.Component<
         discoverabilityContent={this.renderDiscoverabilityElements(menuItem)}
         menuItemId={itemId}
         buttonText={formatMenuItemLabel(menuItem.label)}
+        icon={icon}
         disabled={!menuItem.enabled}
         onClick={onClick}
       />
@@ -268,6 +279,7 @@ export class NoChanges extends React.Component<
     return this.renderMenuBackedAction(
       'open-working-directory',
       `View the files of your repository in ${fileManager}`,
+      octicons.fileDirectory,
       undefined,
       this.onShowInFileManagerClicked
     )
@@ -276,23 +288,37 @@ export class NoChanges extends React.Component<
   private onShowInFileManagerClicked = () =>
     this.props.dispatcher.incrementMetric('suggestedStepOpenWorkingDirectory')
 
-  private renderViewOnGitHub() {
-    const isGitHub = this.props.repository.gitHubRepository !== null
+  private renderViewInBrowser() {
+    const isGitHubOrBitbucket = isRepositoryWithGitHubRepository(
+      this.props.repository
+    )
+    const hasOriginUrl = hasDefaultRemoteUrl(this.props.repository)
 
-    if (!isGitHub) {
+    // early exit if not a GitHub repository and no default remote URL set
+    if (!isGitHubOrBitbucket && !hasOriginUrl) {
       return null
     }
 
+    const BROWSER_TARGETS: Record<RepoType | '_', [string, OcticonSymbol]> = {
+      github: ['on Github', octicons.markGithub],
+      bitbucket: ['on Bitbucket', octicons.repo],
+      gitlab: ['on GitLab', octicons.repo],
+      _: ['in your browser', octicons.globe],
+    }
+    const repoType = this.props.repository.gitHubRepository?.type ?? '_'
+    const [browserTarget, icon] = BROWSER_TARGETS[repoType]
+
     return this.renderMenuBackedAction(
-      'view-repository-on-github',
-      `Open the repository page on GitHub in your browser`,
+      'view-repository-in-browser',
+      'Open the repository page ' + browserTarget,
+      icon,
       undefined,
-      this.onViewOnGitHubClicked
+      this.onViewInBrowserClicked
     )
   }
 
-  private onViewOnGitHubClicked = () =>
-    this.props.dispatcher.incrementMetric('suggestedStepViewOnGitHub')
+  private onViewInBrowserClicked = () =>
+    this.props.dispatcher.incrementMetric('suggestedStepViewInBrowser')
 
   private openIntegrationPreferences = () => {
     this.props.dispatcher.showPopup({
@@ -335,6 +361,7 @@ export class NoChanges extends React.Component<
     return this.renderMenuBackedAction(
       itemId,
       title,
+      octicons.code,
       description,
       this.onOpenInExternalEditorClicked
     )
@@ -402,28 +429,20 @@ export class NoChanges extends React.Component<
       return null
     }
 
-    const { stashEntry } = changesState
-    if (stashEntry === null) {
+    const { stashEntries } = changesState
+    const descriptionText = this.getViewStashActionDescription(stashEntries)
+    if (descriptionText === null) {
       return null
     }
-
-    if (stashEntry.files.kind !== StashedChangesLoadStates.Loaded) {
-      return null
-    }
-
-    const numChanges = stashEntry.files.files.length
-    const description = (
-      <>
-        You have {numChanges} {numChanges === 1 ? 'change' : 'changes'} in
-        progress that you have not yet committed.
-      </>
-    )
+    const description = <>{descriptionText}</>
     const discoverabilityContent = (
       <>
         When a stash exists, access it at the bottom of the Changes tab to the
         left.
       </>
     )
+    const viewStashesText =
+      stashEntries.length === 1 ? 'View stash' : 'View stashes'
     const itemId: MenuIDs = 'toggle-stashed-changes'
     const menuItem = this.getMenuItemInfo(itemId)
     if (menuItem === undefined) {
@@ -438,12 +457,30 @@ export class NoChanges extends React.Component<
         menuItemId={itemId}
         description={description}
         discoverabilityContent={discoverabilityContent}
-        buttonText="View stash"
+        buttonText={viewStashesText}
+        icon={stash}
         type="primary"
         disabled={menuItem !== null && !menuItem.enabled}
         onClick={this.onViewStashClicked}
       />
     )
+  }
+
+  private getViewStashActionDescription(stashEntries: readonly IStashEntry[]) {
+    if (stashEntries.length === 0) {
+      return null
+    }
+    if (stashEntries.length > 1) {
+      return `You have ${stashEntries.length} stashes.`
+    }
+
+    const entry = stashEntries[0]
+    if (entry.files.kind !== StashedChangesLoadStates.Loaded) {
+      return null
+    }
+    const numChanges = entry.files.files.length
+    const changesPlural = numChanges === 1 ? 'change' : 'changes'
+    return `You have ${numChanges} ${changesPlural} in progress that you have not yet committed.`
   }
 
   private onViewStashClicked = () =>
@@ -469,13 +506,18 @@ export class NoChanges extends React.Component<
       </>
     )
 
+    const remoteName = this.getRemoteName(
+      this.props.repository.gitHubRepository?.type
+    )
+
     return (
       <MenuBackedSuggestedAction
         key="publish-repository-action"
-        title="Publish your repository to GitHub"
-        description="This repository is currently only available on your local machine. By publishing it on GitHub you can share it, and collaborate with others."
+        title={`Publish your repository to ${remoteName}`}
+        description={`This repository is currently only available on your local machine. By publishing it on ${remoteName} you can share it, and collaborate with others.`}
         discoverabilityContent={discoverabilityContent}
         buttonText="Publish repository"
+        icon={octicons.repoPush}
         menuItemId={itemId}
         type="primary"
         disabled={!menuItem.enabled}
@@ -501,11 +543,13 @@ export class NoChanges extends React.Component<
     }
 
     const isGitHub = this.props.repository.gitHubRepository !== null
+    const toRemoteName =
+      'to ' + this.getRemoteName(this.props.repository.gitHubRepository?.type)
 
     const description = (
       <>
         The current branch (<Ref>{tip.branch.name}</Ref>) hasn't been published
-        to the remote yet. By publishing it {isGitHub ? 'to GitHub' : ''} you
+        to the remote yet. By publishing it {isGitHub ? toRemoteName : ''} you
         can share it, {isGitHub ? 'open a pull request, ' : ''}
         and collaborate with others.
       </>
@@ -526,6 +570,7 @@ export class NoChanges extends React.Component<
         description={description}
         discoverabilityContent={discoverabilityContent}
         buttonText="Publish branch"
+        icon={octicons.gitBranch}
         type="primary"
         disabled={!menuItem.enabled}
         onClick={this.onPublishBranchClicked}
@@ -549,13 +594,11 @@ export class NoChanges extends React.Component<
       return null
     }
 
-    const isGitHub = this.props.repository.gitHubRepository !== null
-
     const description = (
       <>
         The current branch (<Ref>{tip.branch.name}</Ref>) has{' '}
         {aheadBehind.behind === 1 ? 'a commit' : 'commits'} on{' '}
-        {isGitHub ? 'GitHub' : 'the remote'} that{' '}
+        {this.getRemoteName(this.props.repository.gitHubRepository?.type)} that{' '}
         {aheadBehind.behind === 1 ? 'does not' : 'do not'} exist on your
         machine.
       </>
@@ -582,10 +625,26 @@ export class NoChanges extends React.Component<
         description={description}
         discoverabilityContent={discoverabilityContent}
         buttonText={buttonText}
+        icon={octicons.arrowDown}
         type="primary"
         disabled={!menuItem.enabled}
       />
     )
+  }
+
+  private getRemoteName(remoteType: RepoType | undefined) {
+    switch (remoteType) {
+      case 'github':
+        return 'GitHub'
+      case 'bitbucket':
+        return 'Bitbucket'
+      case 'gitlab':
+        return 'GitLab'
+      case undefined:
+        return 'the remote'
+      default:
+        assertNever(remoteType, `Unknown remote type: ${remoteType}`)
+    }
   }
 
   private renderPushBranchAction(
@@ -601,8 +660,6 @@ export class NoChanges extends React.Component<
       log.error(`Could not find matching menu item for ${itemId}`)
       return null
     }
-
-    const isGitHub = this.props.repository.gitHubRepository !== null
 
     const itemsToPushTypes = []
     const itemsToPushDescriptions = []
@@ -625,7 +682,9 @@ export class NoChanges extends React.Component<
 
     const description = `You have ${itemsToPushDescriptions.join(
       ' and '
-    )} waiting to be pushed to ${isGitHub ? 'GitHub' : 'the remote'}.`
+    )} waiting to be pushed to ${this.getRemoteName(
+      this.props.repository.gitHubRepository?.type
+    )}.`
 
     const discoverabilityContent = (
       <>
@@ -648,6 +707,7 @@ export class NoChanges extends React.Component<
         description={description}
         discoverabilityContent={discoverabilityContent}
         buttonText={buttonText}
+        icon={octicons.arrowUp}
         type="primary"
         disabled={!menuItem.enabled}
       />
@@ -670,8 +730,8 @@ export class NoChanges extends React.Component<
     const description = (
       <>
         The current branch (<Ref>{tip.branch.name}</Ref>) is already published
-        to GitHub. Create a pull request to propose and collaborate on your
-        changes.
+        to {this.getRemoteName(this.props.repository.gitHubRepository?.type)}.
+        Create a pull request to propose and collaborate on your changes.
       </>
     )
 
@@ -703,8 +763,9 @@ export class NoChanges extends React.Component<
       description: (
         <>
           The current branch (<Ref>{tip.branch.name}</Ref>) is already published
-          to GitHub. Preview the changes this pull request will have before
-          proposing your changes.
+          to {this.getRemoteName(this.props.repository.gitHubRepository?.type)}.
+          Preview the changes this pull request will have before proposing your
+          changes.
         </>
       ),
       id: PullRequestSuggestedNextAction.PreviewPullRequest,
@@ -741,7 +802,7 @@ export class NoChanges extends React.Component<
         <SuggestedActionGroup>
           {this.renderOpenInExternalEditor()}
           {this.renderShowInFileManager()}
-          {this.renderViewOnGitHub()}
+          {this.renderViewInBrowser()}
         </SuggestedActionGroup>
       </>
     )

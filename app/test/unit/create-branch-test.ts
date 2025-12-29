@@ -16,6 +16,7 @@ const stubTip: IBranchTip = {
 const defaultBranch: Branch = {
   name: 'my-default-branch',
   upstream: null,
+  isGone: false,
   tip: stubTip,
   type: BranchType.Local,
   remoteName: null,
@@ -31,6 +32,7 @@ const upstreamDefaultBranch = null
 const someOtherBranch: Branch = {
   name: 'some-other-branch',
   upstream: null,
+  isGone: false,
   tip: stubTip,
   type: BranchType.Local,
   remoteName: null,

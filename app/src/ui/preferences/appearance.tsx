@@ -4,23 +4,40 @@ import {
   supportsSystemThemeChanges,
   getCurrentlyAppliedTheme,
 } from '../lib/application-theme'
+import { TitleBarStyle } from '../lib/title-bar-style'
 import { Row } from '../lib/row'
 import { DialogContent } from '../dialog'
 import { RadioGroup } from '../lib/radio-group'
 import { Select } from '../lib/select'
 import { encodePathAsUrl } from '../../lib/path'
 import { tabSizeDefault } from '../../lib/stores/app-store'
+import { Checkbox, CheckboxValue } from '../lib/checkbox'
 
 interface IAppearanceProps {
   readonly selectedTheme: ApplicationTheme
   readonly onSelectedThemeChanged: (theme: ApplicationTheme) => void
   readonly selectedTabSize: number
   readonly onSelectedTabSizeChanged: (tabSize: number) => void
+  readonly titleBarStyle: TitleBarStyle
+  readonly onTitleBarStyleChanged: (titleBarStyle: TitleBarStyle) => void
+  readonly showRecentRepositories: boolean
+  readonly onShowRecentRepositoriesChanged: (show: boolean) => void
 }
 
 interface IAppearanceState {
   readonly selectedTheme: ApplicationTheme | null
   readonly selectedTabSize: number
+  readonly titleBarStyle: TitleBarStyle
+  readonly showRecentRepositories: boolean
+}
+
+function getTitleBarStyleDescription(titleBarStyle: TitleBarStyle): string {
+  switch (titleBarStyle) {
+    case 'custom':
+      return 'Uses the menu system provided by GitHub Desktop, hiding the default chrome provided by your window manager.'
+    case 'native':
+      return 'Uses the menu system and chrome provided by your window manager.'
+  }
 }
 
 export class Appearance extends React.Component<
@@ -37,6 +54,8 @@ export class Appearance extends React.Component<
     this.state = {
       selectedTheme: usePropTheme ? props.selectedTheme : null,
       selectedTabSize: props.selectedTabSize,
+      titleBarStyle: props.titleBarStyle,
+      showRecentRepositories: props.showRecentRepositories,
     }
 
     if (!usePropTheme) {
@@ -72,10 +91,24 @@ export class Appearance extends React.Component<
     this.props.onSelectedThemeChanged(theme)
   }
 
+  private onShowRecentRepositoriesChanged = (
+    event: React.FormEvent<HTMLInputElement>
+  ) => {
+    const show = event.currentTarget.checked
+    this.setState({ showRecentRepositories: show })
+    this.props.onShowRecentRepositoriesChanged(show)
+  }
+
   private onSelectedTabSizeChanged = (
     event: React.FormEvent<HTMLSelectElement>
   ) => {
     this.props.onSelectedTabSizeChanged(parseInt(event.currentTarget.value))
+  }
+
+  private onSelectChanged = (event: React.FormEvent<HTMLSelectElement>) => {
+    const titleBarStyle = event.currentTarget.value as TitleBarStyle
+    this.setState({ titleBarStyle })
+    this.props.onTitleBarStyleChanged(titleBarStyle)
   }
 
   public renderThemeSwatch = (theme: ApplicationTheme) => {
@@ -115,8 +148,31 @@ export class Appearance extends React.Component<
     }
   }
 
+  private renderTitleBarStyleDropdown() {
+    const { titleBarStyle } = this.state
+    const titleBarStyleDescription = getTitleBarStyleDescription(titleBarStyle)
+
+    return (
+      <div className="advanced-section">
+        <h2>Title bar style</h2>
+
+        <Select
+          value={this.state.titleBarStyle}
+          onChange={this.onSelectChanged}
+        >
+          <option value="native">Native</option>
+          <option value="custom">Custom</option>
+        </Select>
+
+        <div className="git-settings-description">
+          {titleBarStyleDescription}
+        </div>
+      </div>
+    )
+  }
+
   private renderSelectedTheme() {
-    const selectedTheme = this.state.selectedTheme
+    const { selectedTheme } = this.state
 
     if (selectedTheme == null) {
       return <Row>Loading system theme</Row>
@@ -129,16 +185,35 @@ export class Appearance extends React.Component<
     ]
 
     return (
-      <div className="appearance-section">
+      <div className="advanced-section">
         <h2 id="theme-heading">Theme</h2>
+        <Row>
+          <RadioGroup<ApplicationTheme>
+            ariaLabelledBy="theme-heading"
+            className="theme-selector"
+            selectedKey={selectedTheme}
+            radioButtonKeys={themes}
+            onSelectionChanged={this.onSelectedThemeChanged}
+            renderRadioButtonLabelContents={this.renderThemeSwatch}
+          />
+        </Row>
+      </div>
+    )
+  }
 
-        <RadioGroup<ApplicationTheme>
-          ariaLabelledBy="theme-heading"
-          className="theme-selector"
-          selectedKey={selectedTheme}
-          radioButtonKeys={themes}
-          onSelectionChanged={this.onSelectedThemeChanged}
-          renderRadioButtonLabelContents={this.renderThemeSwatch}
+  private renderRepositoryList() {
+    return (
+      <div className="advanced-section">
+        <h2 id="repository-list-heading">{'Repository list'}</h2>
+
+        <Checkbox
+          label="Show recent repositories"
+          value={
+            this.state.showRecentRepositories
+              ? CheckboxValue.On
+              : CheckboxValue.Off
+          }
+          onChange={this.onShowRecentRepositoriesChanged}
         />
       </div>
     )
@@ -148,7 +223,7 @@ export class Appearance extends React.Component<
     const availableTabSizes: number[] = [1, 2, 3, 4, 5, 6, 8, 10, 12]
 
     return (
-      <div className="appearance-section">
+      <div className="advanced-section">
         <h2 id="diff-heading">{'Diff'}</h2>
 
         <Select
@@ -170,7 +245,9 @@ export class Appearance extends React.Component<
     return (
       <DialogContent>
         {this.renderSelectedTheme()}
+        {this.renderRepositoryList()}
         {this.renderSelectedTabSize()}
+        {this.renderTitleBarStyleDropdown()}
       </DialogContent>
     )
   }

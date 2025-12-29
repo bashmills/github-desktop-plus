@@ -75,6 +75,7 @@ import {
   createBranch,
   updateRemoteHEAD,
   getRemoteHEAD,
+  memoizedGetRemotesFromPath,
 } from '../git'
 import { GitError as DugiteError } from '../../lib/git'
 import { GitError } from 'dugite'
@@ -100,9 +101,12 @@ import { getDefaultBranch } from '../helpers/default-branch'
 import { rm, stat } from 'fs/promises'
 import { findForkedRemotesToPrune } from './helpers/find-forked-remotes-to-prune'
 import { findDefaultBranch } from '../find-default-branch'
+import { cleanUntrackedFiles } from '../git/clean'
+import { dotGitPath } from '../helpers/git-dir'
 
 /** The number of commits to load from history per batch. */
 const CommitBatchSize = 100
+const CommitBatchSizeSearch = 500
 
 const LoadingHistoryRequestKey = 'history'
 
@@ -154,7 +158,7 @@ export class GitStore extends BaseStore {
 
   private _lastFetched: Date | null = null
 
-  private _desktopStashEntries = new Map<string, IStashEntry>()
+  private _desktopStashEntries = new Map<string, ReadonlyArray<IStashEntry>>()
 
   private _stashEntryCount = 0
 
@@ -214,7 +218,11 @@ export class GitStore extends BaseStore {
   }
 
   /** Load a batch of commits from the repository, using a given commitish object as the starting point */
-  public async loadCommitBatch(commitish: string, skip: number) {
+  public async loadCommitBatch(
+    commitish: string,
+    skip: number,
+    isSearching: boolean
+  ) {
     if (this.requestsInFight.has(LoadingHistoryRequestKey)) {
       return null
     }
@@ -226,8 +234,9 @@ export class GitStore extends BaseStore {
 
     this.requestsInFight.add(requestKey)
 
+    const batchSize = isSearching ? CommitBatchSizeSearch : CommitBatchSize
     const commits = await this.performFailableOperation(() =>
-      getCommits(this.repository, commitish, CommitBatchSize, skip)
+      getCommits(this.repository, commitish, batchSize, skip)
     )
 
     this.requestsInFight.delete(requestKey)
@@ -1149,7 +1158,8 @@ export class GitStore extends BaseStore {
           status.currentUpstreamBranch || null,
           branchTipCommit,
           BranchType.Local,
-          `refs/heads/${currentBranch}`
+          `refs/heads/${currentBranch}`,
+          false
         )
         this._tip = { kind: TipState.Valid, branch }
       } else if (currentTip) {
@@ -1194,23 +1204,28 @@ export class GitStore extends BaseStore {
    * Refreshes the list of GitHub Desktop created stash entries for the repository
    */
   public async loadStashEntries(): Promise<void> {
-    const map = new Map<string, IStashEntry>()
+    const map = new Map<string, IStashEntry[]>()
     const stash = await getStashes(this.repository)
 
     for (const entry of stash.desktopEntries) {
-      // we only want the first entry we find for each branch,
-      // so we skip all subsequent ones
-      if (!map.has(entry.branchName)) {
-        const existing = this._desktopStashEntries.get(entry.branchName)
+      const branchName = entry.branchName
 
-        // If we've already loaded the files for this stash there's
-        // no point in us doing it again. We know the contents haven't
-        // changed since the SHA is the same.
-        if (existing !== undefined && existing.stashSha === entry.stashSha) {
-          map.set(entry.branchName, { ...entry, files: existing.files })
-        } else {
-          map.set(entry.branchName, entry)
-        }
+      if (!map.has(branchName)) {
+        map.set(branchName, [])
+      }
+
+      const existingEntries = this._desktopStashEntries.get(branchName) || []
+      const existingEntry = existingEntries.find(
+        e => e.stashSha === entry.stashSha
+      )
+
+      // If we've already loaded the files for this stash there's
+      // no point in us doing it again. We know the contents haven't
+      // changed since the SHA is the same.
+      if (existingEntry !== undefined) {
+        map.get(branchName)?.push({ ...entry, files: existingEntry.files })
+      } else {
+        map.get(branchName)?.push(entry)
       }
     }
 
@@ -1218,20 +1233,23 @@ export class GitStore extends BaseStore {
     this._stashEntryCount = stash.stashEntryCount
     this.emitUpdate()
 
-    this.loadFilesForCurrentStashEntry()
+    this.loadFilesForCurrentStashEntries()
   }
 
   /**
-   * A GitHub Desktop created stash entries for the current branch or
-   * null if no entry exists
+   * GitHub Desktop created stash entries for the current branch or
+   * an empty array if no entries exist
    */
-  public get currentBranchStashEntry() {
+  public get currentBranchStashEntries(): ReadonlyArray<IStashEntry> {
     return this._tip && this._tip.kind === TipState.Valid
-      ? this._desktopStashEntries.get(this._tip.branch.name) || null
-      : null
+      ? this._desktopStashEntries.get(this._tip.branch.name) || []
+      : []
   }
 
-  public get desktopStashEntries(): ReadonlyMap<string, IStashEntry> {
+  public get desktopStashEntries(): ReadonlyMap<
+    string,
+    ReadonlyArray<IStashEntry>
+  > {
     return this._desktopStashEntries
   }
 
@@ -1242,48 +1260,70 @@ export class GitStore extends BaseStore {
 
   /** The number of stash entries created by Desktop */
   public get desktopStashEntryCount(): number {
-    return this._desktopStashEntries.size
+    let count = 0
+    for (const entries of this._desktopStashEntries.values()) {
+      count += entries.length
+    }
+    return count
   }
 
   /**
-   * Updates the latest stash entry with a list of files that it changes
+   * Updates the stash entries with a list of files that it changes
    */
-  private async loadFilesForCurrentStashEntry() {
-    const stashEntry = this.currentBranchStashEntry
+  private loadFilesForCurrentStashEntries() {
+    for (const stashEntry of this.currentBranchStashEntries) {
+      this.loadFilesForCurrentStashEntry(stashEntry)
+    }
+  }
 
-    if (
-      !stashEntry ||
-      stashEntry.files.kind !== StashedChangesLoadStates.NotLoaded
-    ) {
+  private async loadFilesForCurrentStashEntry(stashEntry: IStashEntry) {
+    if (stashEntry.files.kind !== StashedChangesLoadStates.NotLoaded) {
       return
     }
 
     const { branchName } = stashEntry
 
-    this._desktopStashEntries.set(branchName, {
-      ...stashEntry,
-      files: { kind: StashedChangesLoadStates.Loading },
-    })
+    // Update the specific stash entry in the array to show it's loading
+    const updatedEntries: IStashEntry[] = this.currentBranchStashEntries.map(
+      entry =>
+        entry.stashSha === stashEntry.stashSha
+          ? { ...entry, files: { kind: StashedChangesLoadStates.Loading } }
+          : entry
+    )
+    this._desktopStashEntries.set(branchName, updatedEntries)
     this.emitUpdate()
 
     const files = await getStashedFiles(this.repository, stashEntry.stashSha)
 
     // It's possible that we've refreshed the list of stash entries since we
-    // started getStashedFiles. Load the latest entry for the branch and make
+    // started getStashedFiles. Load the latest entries for the branch and make
     // sure the SHAs match up.
-    const currentEntry = this._desktopStashEntries.get(branchName)
+    const currentEntries = this._desktopStashEntries.get(branchName)
 
-    if (!currentEntry || currentEntry.stashSha !== stashEntry.stashSha) {
+    if (!currentEntries) {
       return
     }
 
-    this._desktopStashEntries.set(branchName, {
-      ...currentEntry,
-      files: {
-        kind: StashedChangesLoadStates.Loaded,
-        files,
-      },
-    })
+    const currentEntry = currentEntries.find(
+      e => e.stashSha === stashEntry.stashSha
+    )
+    if (!currentEntry) {
+      return
+    }
+
+    // Update only the specific stash entry with loaded files
+    const finalEntries = currentEntries.map(entry =>
+      entry.stashSha === stashEntry.stashSha
+        ? {
+            ...entry,
+            files: {
+              kind: StashedChangesLoadStates.Loaded,
+              files,
+            },
+          }
+        : entry
+    )
+    this._desktopStashEntries.set(branchName, finalEntries)
     this.emitUpdate()
   }
 
@@ -1465,7 +1505,7 @@ export class GitStore extends BaseStore {
 
   /** Update the last fetched date. */
   public async updateLastFetched() {
-    const fetchHeadPath = Path.join(this.repository.path, '.git', 'FETCH_HEAD')
+    const fetchHeadPath = dotGitPath(this.repository, 'FETCH_HEAD')
 
     try {
       const fstat = await stat(fetchHeadPath)
@@ -1521,6 +1561,11 @@ export class GitStore extends BaseStore {
       (await this.performFailableOperation(() =>
         setRemoteURL(this.repository, name, url)
       )) === true
+
+    // Reset memoization of getRemotes.
+    if (wasSuccessful) {
+      await memoizedGetRemotesFromPath.apply({}, [''])
+    }
     await this.loadRemotes()
 
     this.emitUpdate()
@@ -1530,7 +1575,8 @@ export class GitStore extends BaseStore {
   public async discardChanges(
     files: ReadonlyArray<WorkingDirectoryFileChange>,
     moveToTrash: boolean = true,
-    askForConfirmationOnDiscardChangesPermanently: boolean = false
+    askForConfirmationOnDiscardChangesPermanently: boolean = false,
+    cleanUntracked: boolean = false
   ): Promise<void> {
     const pathsToCheckout = new Array<string>()
     const pathsToReset = new Array<string>()
@@ -1634,6 +1680,12 @@ export class GitStore extends BaseStore {
       )
       await checkoutIndex(this.repository, necessaryPathsToCheckout)
     })
+
+    if (cleanUntracked) {
+      await this.performFailableOperation(() =>
+        cleanUntrackedFiles(this.repository)
+      )
+    }
   }
 
   public async discardChangesFromSelection(

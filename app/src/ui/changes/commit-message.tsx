@@ -27,7 +27,7 @@ import { LinkButton } from '../lib/link-button'
 import { Foldout, FoldoutType } from '../../lib/app-state'
 import { IAvatarUser, getAvatarUserFromAuthor } from '../../models/avatar'
 import { showContextualMenu } from '../../lib/menu-item'
-import { Account, isEnterpriseAccount } from '../../models/account'
+import { Account } from '../../models/account'
 import {
   CommitMessageAvatar,
   CommitMessageAvatarWarningType,
@@ -727,9 +727,7 @@ export class CommitMessage extends React.Component<
       <CommitMessageAvatar
         user={avatarUser}
         email={commitAuthor?.email}
-        isEnterpriseAccount={
-          repositoryAccount !== null && isEnterpriseAccount(repositoryAccount)
-        }
+        repositoryAccount={repositoryAccount}
         warningType={warningType}
         emailRuleFailures={this.state.repoRuleCommitAuthorFailures}
         branch={this.props.branch}
@@ -1374,8 +1372,7 @@ export class CommitMessage extends React.Component<
 
     return (
       <>
-        {action}
-        <strong>{branch}</strong>
+        <span>{action}</span> <strong>{branch}</strong>
       </>
     )
   }

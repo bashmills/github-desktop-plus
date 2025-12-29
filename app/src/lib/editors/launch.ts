@@ -1,5 +1,5 @@
-import { spawn, SpawnOptions } from 'child_process'
-import { pathExists } from '../../ui/lib/path-exists'
+import { ChildProcess, spawn, SpawnOptions } from 'child_process'
+import { pathExists } from '../helpers/linux'
 import { ExternalEditorError, FoundEditor } from './shared'
 import {
   expandTargetPathArgument,
@@ -31,9 +31,14 @@ async function launchEditor(
       stdio: 'ignore',
     }
 
-    const child = spawnAsDarwinApp
-      ? spawn('open', ['-a', editorPath, ...args], opts)
-      : spawn(editorPath, args, opts)
+    let child: ChildProcess
+    if (__FLATPAK__) {
+      child = spawn('flatpak-spawn', ['--host', editorPath, ...args], opts)
+    } else if (spawnAsDarwinApp) {
+      child = spawn('open', ['-a', editorPath, ...args], opts)
+    } else {
+      child = spawn(editorPath, args, opts)
+    }
 
     child.on('error', reject)
     child.on('spawn', resolve)
@@ -47,6 +52,36 @@ async function launchEditor(
       e && typeof e === 'object' && 'code' in e && e.code === 'EACCES'
         ? `GitHub Desktop doesn't have the proper permissions to start ${editorName}. Please open ${label} and try another editor.`
         : `Something went wrong while trying to start ${editorName}. Please open ${label} and try another editor.`,
+      { openPreferences: true }
+    )
+  })
+}
+
+async function launchExecutableAndReturnStdout(
+  path: string,
+  args: readonly string[]
+) {
+  const opts: SpawnOptions = {
+    stdio: ['ignore', 'pipe', 'inherit'],
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(path, args, opts)
+
+    let stdout = ''
+    child.stdout?.on('data', data => {
+      stdout += data.toString()
+    })
+
+    child.on('error', reject)
+    child.on('close', () => resolve(stdout))
+  }).catch((e: unknown) => {
+    log.error(
+      `Error while launching ${path}`,
+      e instanceof Error ? e : undefined
+    )
+    throw new ExternalEditorError(
+      `Something went wrong while trying to start ${path}. Please open Options and try another editor.`,
       { openPreferences: true }
     )
   })
@@ -83,4 +118,14 @@ export const launchCustomExternalEditor = (
   const editorName = `custom editor at path '${customEditor.path}'`
 
   return launchEditor(customEditor.path, args, editorName, spawnAsDarwinApp)
+}
+
+export async function launchAndReturnStdout(
+  fullPath: string,
+  executable: ICustomIntegration
+): Promise<string> {
+  const argv = parseCustomIntegrationArguments(executable.arguments)
+  const args = expandTargetPathArgument(argv, fullPath)
+
+  return launchExecutableAndReturnStdout(executable.path, args)
 }

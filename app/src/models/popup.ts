@@ -60,7 +60,6 @@ export enum PopupType {
   PushNeedsPull = 'PushNeedsPull',
   ConfirmForcePush = 'ConfirmForcePush',
   StashAndSwitchBranch = 'StashAndSwitchBranch',
-  ConfirmOverwriteStash = 'ConfirmOverwriteStash',
   ConfirmDiscardStash = 'ConfirmDiscardStash',
   ConfirmCheckoutCommit = 'ConfirmCheckoutCommit',
   CreateTutorialRepository = 'CreateTutorialRepository',
@@ -97,6 +96,7 @@ export enum PopupType {
   PullRequestComment = 'PullRequestComment',
   UnknownAuthors = 'UnknownAuthors',
   TestIcons = 'TestIcons',
+  ConfirmRestart = 'ConfirmRestart',
   ConfirmCommitFilteredChanges = 'ConfirmCommitFilteredChanges',
   TestAbout = 'TestAbout',
   PushProtectionError = 'PushProtectionError',
@@ -131,6 +131,7 @@ export type PopupDetail =
       files: ReadonlyArray<WorkingDirectoryFileChange>
       showDiscardChangesSetting?: boolean
       discardingAllChanges?: boolean
+      permanentlyDelete?: boolean
     }
   | {
       type: PopupType.ConfirmDiscardSelection
@@ -239,11 +240,6 @@ export type PopupDetail =
       type: PopupType.StashAndSwitchBranch
       repository: Repository
       branchToCheckout: Branch
-    }
-  | {
-      type: PopupType.ConfirmOverwriteStash
-      repository: Repository
-      branchToCheckout: Branch | null
     }
   | {
       type: PopupType.ConfirmDiscardStash
@@ -431,6 +427,7 @@ export type PopupDetail =
   | {
       type: PopupType.TestIcons
     }
+  | { type: PopupType.ConfirmRestart }
   | {
       type: PopupType.ConfirmCommitFilteredChanges
       onCommitAnyway: () => void

@@ -21,6 +21,7 @@ import {
 } from '../lib/identifier-rules'
 import { Appearance } from './appearance'
 import { ApplicationTheme } from '../lib/application-theme'
+import { TitleBarStyle } from '../lib/title-bar-style'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { Integrations } from './integrations'
 import {
@@ -77,7 +78,11 @@ interface IPreferencesProps {
   readonly customEditor: ICustomIntegration | null
   readonly useCustomShell: boolean
   readonly customShell: ICustomIntegration | null
+  readonly branchPresetScript: ICustomIntegration | null
+  readonly titleBarStyle: TitleBarStyle
+  readonly showRecentRepositories: boolean
   readonly repositoryIndicatorsEnabled: boolean
+  readonly hideWindowOnQuit: boolean
   readonly onEditGlobalGitConfig: () => void
   readonly underlineLinks: boolean
   readonly showDiffCheckMarks: boolean
@@ -112,10 +117,12 @@ interface IPreferencesState {
   readonly customEditor: ICustomIntegration
   readonly useCustomShell: boolean
   readonly customShell: ICustomIntegration
+  readonly branchPresetScript: ICustomIntegration
   readonly selectedExternalEditor: string | null
   readonly availableShells: ReadonlyArray<Shell>
   readonly selectedShell: Shell
-
+  readonly titleBarStyle: TitleBarStyle
+  readonly showRecentRepositories: boolean
   /**
    * If unable to save Git configuration values (name, email)
    * due to an existing configuration lock file this property
@@ -125,6 +132,7 @@ interface IPreferencesState {
    */
   readonly existingLockFilePath?: string
   readonly repositoryIndicatorsEnabled: boolean
+  readonly hideWindowOnQuit: boolean
 
   readonly initiallySelectedTheme: ApplicationTheme
   readonly initiallySelectedTabSize: number
@@ -168,6 +176,8 @@ export class Preferences extends React.Component<
       customEditor: this.props.customEditor ?? DefaultCustomIntegration,
       useCustomShell: this.props.useCustomShell,
       customShell: this.props.customShell ?? DefaultCustomIntegration,
+      branchPresetScript:
+        this.props.branchPresetScript ?? DefaultCustomIntegration,
       useWindowsOpenSSH: false,
       showCommitLengthWarning: false,
       notificationsEnabled: true,
@@ -186,7 +196,10 @@ export class Preferences extends React.Component<
       selectedExternalEditor: this.props.selectedExternalEditor,
       availableShells: [],
       selectedShell: this.props.selectedShell,
+      titleBarStyle: this.props.titleBarStyle,
+      showRecentRepositories: this.props.showRecentRepositories,
       repositoryIndicatorsEnabled: this.props.repositoryIndicatorsEnabled,
+      hideWindowOnQuit: this.props.hideWindowOnQuit,
       initiallySelectedTheme: this.props.selectedTheme,
       initiallySelectedTabSize: this.props.selectedTabSize,
       isLoadingGitConfig: true,
@@ -259,6 +272,8 @@ export class Preferences extends React.Component<
       customEditor: this.props.customEditor ?? DefaultCustomIntegration,
       useCustomShell: this.props.useCustomShell,
       customShell: this.props.customShell ?? DefaultCustomIntegration,
+      branchPresetScript:
+        this.props.branchPresetScript ?? DefaultCustomIntegration,
       isLoadingGitConfig: false,
     })
   }
@@ -374,6 +389,16 @@ export class Preferences extends React.Component<
     this.props.dispatcher.showEnterpriseSignInDialog()
   }
 
+  private onBitbucketSignIn = () => {
+    this.props.onDismissed()
+    this.props.dispatcher.showBitbucketSignInDialog()
+  }
+
+  private onGitLabSignIn = () => {
+    this.props.onDismissed()
+    this.props.dispatcher.showGitLabSignInDialog()
+  }
+
   private onLogout = (account: Account) => {
     this.props.dispatcher.removeAccount(account)
   }
@@ -397,6 +422,8 @@ export class Preferences extends React.Component<
             accounts={this.props.accounts}
             onDotComSignIn={this.onDotComSignIn}
             onEnterpriseSignIn={this.onEnterpriseSignIn}
+            onBitbucketSignIn={this.onBitbucketSignIn}
+            onGitLabSignIn={this.onGitLabSignIn}
             onLogout={this.onLogout}
           />
         )
@@ -413,11 +440,13 @@ export class Preferences extends React.Component<
             customEditor={this.state.customEditor}
             useCustomShell={this.state.useCustomShell}
             customShell={this.state.customShell}
+            branchPresetScript={this.state.branchPresetScript}
             onSelectedShellChanged={this.onSelectedShellChanged}
             onUseCustomEditorChanged={this.onUseCustomEditorChanged}
             onCustomEditorChanged={this.onCustomEditorChanged}
             onUseCustomShellChanged={this.onUseCustomShellChanged}
             onCustomShellChanged={this.onCustomShellChanged}
+            onBranchPresetScriptChanged={this.onBranchPresetScriptChanged}
           />
         )
         break
@@ -460,6 +489,12 @@ export class Preferences extends React.Component<
             onSelectedThemeChanged={this.onSelectedThemeChanged}
             selectedTabSize={this.props.selectedTabSize}
             onSelectedTabSizeChanged={this.onSelectedTabSizeChanged}
+            titleBarStyle={this.props.titleBarStyle}
+            onTitleBarStyleChanged={this.onTitleBarStyleChanged}
+            showRecentRepositories={this.props.showRecentRepositories}
+            onShowRecentRepositoriesChanged={
+              this.onShowRecentRepositoriesChanged
+            }
           />
         )
         break
@@ -525,6 +560,7 @@ export class Preferences extends React.Component<
             optOutOfUsageTracking={this.state.optOutOfUsageTracking}
             useExternalCredentialHelper={this.state.useExternalCredentialHelper}
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
+            hideWindowOnQuit={this.state.hideWindowOnQuit}
             onUseWindowsOpenSSHChanged={this.onUseWindowsOpenSSHChanged}
             onOptOutofReportingChanged={this.onOptOutofReportingChanged}
             onUseExternalCredentialHelperChanged={
@@ -533,6 +569,7 @@ export class Preferences extends React.Component<
             onRepositoryIndicatorsEnabledChanged={
               this.onRepositoryIndicatorsEnabledChanged
             }
+            onHideWindowOnQuitChanged={this.onHideWindowOnQuitChanged}
           />
         )
         break
@@ -566,6 +603,10 @@ export class Preferences extends React.Component<
     repositoryIndicatorsEnabled: boolean
   ) => {
     this.setState({ repositoryIndicatorsEnabled })
+  }
+
+  private onHideWindowOnQuitChanged = (hideWindowOnQuit: boolean) => {
+    this.setState({ hideWindowOnQuit })
   }
 
   private onLockFileDeleted = () => {
@@ -681,6 +722,12 @@ export class Preferences extends React.Component<
     this.setState({ customShell })
   }
 
+  private onBranchPresetScriptChanged = (
+    branchPresetScript: ICustomIntegration
+  ) => {
+    this.setState({ branchPresetScript })
+  }
+
   private onSelectedThemeChanged = (theme: ApplicationTheme) => {
     this.props.dispatcher.setSelectedTheme(theme)
   }
@@ -695,6 +742,16 @@ export class Preferences extends React.Component<
 
   private onSelectedTabSizeChanged = (tabSize: number) => {
     this.props.dispatcher.setSelectedTabSize(tabSize)
+  }
+
+  private onTitleBarStyleChanged = (titleBarStyle: TitleBarStyle) => {
+    this.setState({ titleBarStyle })
+  }
+
+  private onShowRecentRepositoriesChanged = (
+    showRecentRepositories: boolean
+  ) => {
+    this.setState({ showRecentRepositories })
   }
 
   private renderFooter() {
@@ -752,6 +809,16 @@ export class Preferences extends React.Component<
           this.state.repositoryIndicatorsEnabled
         )
       }
+
+      if (
+        this.state.showRecentRepositories !== this.props.showRecentRepositories
+      ) {
+        dispatcher.setShowRecentRepositories(this.state.showRecentRepositories)
+      }
+
+      if (this.state.hideWindowOnQuit !== this.props.hideWindowOnQuit) {
+        dispatcher.setHideWindowOnQuit(this.state.hideWindowOnQuit)
+      }
     } catch (e) {
       if (isConfigFileLockError(e)) {
         const lockFilePath = parseConfigLockFilePathFromError(e.result)
@@ -776,8 +843,13 @@ export class Preferences extends React.Component<
 
     await dispatcher.setStatsOptOut(this.state.optOutOfUsageTracking, false)
 
-    const { useCustomEditor, customEditor, useCustomShell, customShell } =
-      this.state
+    const {
+      useCustomEditor,
+      customEditor,
+      useCustomShell,
+      customShell,
+      branchPresetScript,
+    } = this.state
 
     const isValidCustomEditor =
       customEditor && (await isValidCustomIntegration(customEditor))
@@ -791,6 +863,12 @@ export class Preferences extends React.Component<
     dispatcher.setUseCustomShell(useCustomShell && isValidCustomShell)
     if (isValidCustomShell) {
       dispatcher.setCustomShell(customShell)
+    }
+
+    const isValidBranchPresetScript =
+      branchPresetScript && (await isValidCustomIntegration(branchPresetScript))
+    if (isValidBranchPresetScript) {
+      dispatcher.setBranchPresetScript(branchPresetScript)
     }
 
     if (
@@ -827,7 +905,9 @@ export class Preferences extends React.Component<
     if (this.state.selectedExternalEditor) {
       await dispatcher.setExternalEditor(this.state.selectedExternalEditor)
     }
+
     await dispatcher.setShell(this.state.selectedShell)
+    await dispatcher.setTitleBarStyle(this.state.titleBarStyle)
     await dispatcher.setConfirmDiscardChangesSetting(
       this.state.confirmDiscardChanges
     )

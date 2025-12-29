@@ -9,6 +9,7 @@ import {
 import { CICheckRunListItem } from './ci-check-run-list-item'
 import { FocusContainer } from '../lib/focus-container'
 import classNames from 'classnames'
+import { Dispatcher } from '../dispatcher'
 
 interface ICICheckRunListProps {
   /** List of check runs to display */
@@ -22,6 +23,8 @@ interface ICICheckRunListProps {
 
   /** Showing a condensed view */
   readonly isCondensedView?: boolean
+
+  readonly dispatcher: Dispatcher
 
   /** Whether the check run status has a tooltip */
   readonly hasStatusTooltip?: boolean
@@ -170,6 +173,7 @@ export class CICheckRunList extends React.PureComponent<
           onRerunJob={this.props.onRerunJob}
           isCondensedView={this.props.isCondensedView}
           isHeader={false}
+          dispatcher={this.props.dispatcher}
           hasStatusTooltip={this.props.hasStatusTooltip}
         />
       )

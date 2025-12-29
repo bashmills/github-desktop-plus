@@ -8,6 +8,10 @@ import {
 } from './workflow-preferences'
 import { assertNever, fatalError } from '../lib/fatal-error'
 import { createEqualityHash } from './equality-hash'
+import { getRemotes } from '../lib/git'
+import { findDefaultRemote } from '../lib/stores/helpers/find-default-remote'
+import { isTrustedRemoteHost } from '../lib/api'
+import { EditorOverride } from './editor-override'
 
 function getBaseName(path: string): string {
   const baseName = Path.basename(path)
@@ -43,6 +47,11 @@ export class Repository {
   public hash: string
 
   /**
+   * The URL of the default remote of the repository.
+   */
+  private _url: string | null = null
+
+  /**
    * @param path The working directory of this repository
    * @param missing Was the repository missing on disk last we checked?
    */
@@ -52,7 +61,9 @@ export class Repository {
     public readonly gitHubRepository: GitHubRepository | null,
     public readonly missing: boolean,
     public readonly alias: string | null = null,
+    public readonly defaultBranch: string | null = null,
     public readonly workflowPreferences: WorkflowPreferences = {},
+    public readonly customEditorOverride: EditorOverride | null = null,
     /**
      * True if the repository is a tutorial repository created as part of the
      * onboarding flow. Tutorial repositories trigger a tutorial user experience
@@ -69,6 +80,8 @@ export class Repository {
       gitHubRepository?.hash,
       this.missing,
       this.alias,
+      this.defaultBranch,
+      getCustomOverrideHash(this.customEditorOverride),
       this.workflowPreferences.forkContributionTarget,
       this.isTutorialRepository
     )
@@ -76,6 +89,25 @@ export class Repository {
 
   public get path(): string {
     return this.mainWorkTree.path
+  }
+
+  public get url(): string | null {
+    // Resolve the default remote URL if not yet done.
+    if (this._url === null) {
+      this.fetchUrl()
+    }
+
+    return this._url
+  }
+
+  private fetchUrl(): void {
+    // Get the URL of the default remote, if it exists.
+    getRemotes(this).then(remotes => {
+      const defaultRemote = findDefaultRemote(remotes)
+      if (defaultRemote) {
+        this._url = defaultRemote.url
+      }
+    })
   }
 }
 
@@ -138,6 +170,15 @@ export function isRepositoryWithForkedGitHubRepository(
 }
 
 /**
+ * Returns whether the passed repository has a default remote URL set.
+ *
+ * This function does not check the validity of the URL.
+ */
+export function hasDefaultRemoteUrl(repository: Repository): boolean {
+  return (getGitHubHtmlUrl(repository) ?? getNonGitHubUrl(repository)) !== null
+}
+
+/**
  * A snapshot for the local state for a given repository
  */
 export interface ILocalRepositoryState {
@@ -173,6 +214,33 @@ export function getGitHubHtmlUrl(repository: Repository): string | null {
   }
 
   return getNonForkGitHubRepository(repository).htmlURL
+}
+
+/**
+ * Get the html URL for a non-GitHub repository, if it has one.
+ * Will return the origin repository's URL if it has one and the URL is trusted.
+ * Otherwise, returns null.
+ */
+export function getNonGitHubUrl(repository: Repository): string | null {
+  // Usually, this method will not be called for GitHub repositories, but better be safe than sorry.
+  if (isRepositoryWithGitHubRepository(repository)) {
+    return null
+  }
+
+  if (!repository.url) {
+    return null
+  }
+
+  const httpsUrl = repository.url.startsWith('git@')
+    ? repository.url.replace(/^git@([^:]+):/, 'https://$1/')
+    : repository.url
+
+  // Only return URLs that belong to trusted hosts.
+  if (isTrustedRemoteHost(httpsUrl)) {
+    return httpsUrl
+  }
+
+  return null
 }
 
 /**
@@ -223,5 +291,16 @@ export function isForkedRepositoryContributingToParent(
   return (
     isRepositoryWithForkedGitHubRepository(repository) &&
     getForkContributionTarget(repository) === ForkContributionTarget.Parent
+  )
+}
+
+function getCustomOverrideHash(
+  customEditorOverride: EditorOverride | null
+): string {
+  return createEqualityHash(
+    customEditorOverride?.selectedExternalEditor,
+    customEditorOverride?.useCustomEditor,
+    customEditorOverride?.customEditor?.path,
+    customEditorOverride?.customEditor?.arguments
   )
 }

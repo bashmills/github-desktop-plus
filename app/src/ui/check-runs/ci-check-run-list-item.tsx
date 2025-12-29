@@ -14,6 +14,7 @@ import { TooltipDirection } from '../lib/tooltip'
 import { Button } from '../lib/button'
 import { CICheckRunNoStepItem } from './ci-check-run-no-steps'
 import { CICheckRunStepListHeader } from './ci-check-run-step-list-header'
+import { Dispatcher } from '../dispatcher'
 
 interface ICICheckRunListItemProps {
   /** The check run to display **/
@@ -42,6 +43,8 @@ interface ICICheckRunListItemProps {
    **/
   readonly isHeader?: false
 
+  readonly dispatcher: Dispatcher
+
   /** Whether the check run status has a tooltip */
   readonly hasStatusTooltip?: boolean
 
@@ -69,6 +72,7 @@ export class CICheckRunListItem extends React.PureComponent<ICICheckRunListItemP
 
   private onViewCheckExternally = () => {
     this.props.onViewCheckExternally?.(this.props.checkRun)
+    this.props.dispatcher.setShowCIStatusPopover(true)
   }
 
   private onViewJobStep = (step: IAPIWorkflowJobStep) => {
@@ -105,10 +109,25 @@ export class CICheckRunListItem extends React.PureComponent<ICICheckRunListItemP
   }
 
   private renderCheckJobStepToggle = (): JSX.Element | null => {
-    const { isCheckRunExpanded, selectable, notExpandable } = this.props
+    const { isCheckRunExpanded, selectable, notExpandable, checkRun } =
+      this.props
 
     if (selectable || notExpandable) {
       return null
+    }
+
+    const areNoSteps = checkRun.actionJobSteps === undefined
+    if (areNoSteps && this.props.onViewCheckExternally) {
+      return (
+        <Button
+          className="button-with-icon"
+          onClick={this.onViewCheckExternally}
+          role="link"
+        >
+          View details
+          <Octicon symbol={octicons.linkExternal} />
+        </Button>
+      )
     }
 
     return (

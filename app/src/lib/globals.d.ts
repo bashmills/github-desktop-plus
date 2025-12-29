@@ -11,6 +11,18 @@ declare const __OAUTH_CLIENT_ID__: string | undefined
 /** The OAuth secret the app should use. */
 declare const __OAUTH_SECRET__: string | undefined
 
+/** The OAuth client id the app should use for Bitbucket */
+declare const __OAUTH_CLIENT_ID_BITBUCKET__: string | undefined
+
+/** The OAuth secret the app should use for Bitbucket */
+declare const __OAUTH_SECRET_BITBUCKET__: string | undefined
+
+/** The OAuth client id the app should use for GitLab */
+declare const __OAUTH_CLIENT_ID_GITLAB__: string | undefined
+
+/** The OAuth secret the app should use for GitLab */
+declare const __OAUTH_SECRET_GITLAB__: string | undefined
+
 /** Is the app being built to run on Darwin? */
 declare const __DARWIN__: boolean
 
@@ -19,6 +31,9 @@ declare const __WIN32__: boolean
 
 /** Is the app being built to run on Linux? */
 declare const __LINUX__: boolean
+
+/** Is the app being built to run on Flatpak? */
+declare const __FLATPAK__: boolean
 
 /**
  * The product name of the app, this is intended to be a compile-time

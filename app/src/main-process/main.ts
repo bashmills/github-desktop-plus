@@ -44,6 +44,10 @@ import {
 import { buildSpellCheckMenu } from './menu/build-spell-check-menu'
 import { getMainGUID, saveGUIDFile } from '../lib/get-main-guid'
 import {
+  readTitleBarConfigFileSync,
+  saveTitleBarConfigFile,
+} from '../lib/get-title-bar-config'
+import {
   getNotificationsPermission,
   requestNotificationsPermission,
   showNotification,
@@ -245,7 +249,7 @@ async function handleCommandLineArguments(argv: string[]) {
   // line arguments might be added by Chromium
   // (https://electronjs.org/docs/api/app#event-second-instance).
 
-  if (__WIN32__ && args['protocol-launcher'] === true) {
+  if (__LINUX__ || (__WIN32__ && args['protocol-launcher'] === true)) {
     // On Windows we'll end up getting called with something like
     // `--protocol-launcher --allow-file-access-from-files x-github-client://..`
     // which minimist naturally interprets as
@@ -271,12 +275,13 @@ async function handleCommandLineArguments(argv: string[]) {
 
     if (matchingUrl) {
       handleAppURL(matchingUrl)
-    } else {
+      return
+    } else if (__WIN32__) {
       log.error(`Encountered --protocol-launcher without app url`)
+      return
     }
     // If --protocol-launcher is present we always want to bail and not
     // risk a smuggled cli switch
-    return
   }
 
   if (typeof args['cli-open'] === 'string') {
@@ -355,6 +360,7 @@ app.on('ready', () => {
       selectedExternalEditor: null,
       askForConfirmationOnRepositoryRemoval: false,
       askForConfirmationOnForcePush: false,
+      gitHubRepositoryType: null,
     })
   )
 
@@ -518,6 +524,11 @@ app.on('ready', () => {
   ipcMain.on('quit-and-install-updates', () =>
     mainWindow?.quitAndInstallUpdate()
   )
+
+  ipcMain.on('restart-app', () => {
+    app.relaunch()
+    app.exit()
+  })
 
   ipcMain.on('quit-app', () => app.quit())
 
@@ -706,6 +717,16 @@ app.on('ready', () => {
   ipcMain.handle('get-guid', () => getMainGUID())
 
   ipcMain.handle('save-guid', (_, guid) => saveGUIDFile(guid))
+
+  ipcMain.handle(
+    'get-title-bar-style',
+    async () => readTitleBarConfigFileSync().titleBarStyle
+  )
+
+  ipcMain.handle(
+    'save-title-bar-style',
+    async (_, titleBarStyle) => await saveTitleBarConfigFile({ titleBarStyle })
+  )
 
   ipcMain.handle('show-notification', async (_, title, body, userInfo) =>
     showNotification(title, body, userInfo)

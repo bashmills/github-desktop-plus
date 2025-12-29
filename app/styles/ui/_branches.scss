@@ -188,6 +188,10 @@
       flex-shrink: 0;
     }
 
+    &.local-only {
+      color: var(--dialog-warning-color);
+    }
+
     .name {
       flex-grow: 2;
       @include ellipsis;

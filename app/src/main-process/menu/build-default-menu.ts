@@ -1,21 +1,17 @@
-import { Menu, shell, app, BrowserWindow } from 'electron'
+import { Menu, shell, BrowserWindow } from 'electron'
 import { ensureItemIds } from './ensure-item-ids'
 import { MenuEvent } from './menu-event'
 import { truncateWithEllipsis } from '../../lib/truncate-with-ellipsis'
 import { getLogDirectoryPath } from '../../lib/logging/get-log-path'
 import { UNSAFE_openDirectory } from '../shell'
 import { MenuLabelsEvent } from '../../models/menu-labels'
+import { RepoType } from '../../models/github-repository'
 import * as ipcWebContents from '../ipc-webcontents'
 import { mkdir } from 'fs/promises'
 import { buildTestMenu } from './build-test-menu'
 import { enableFilteredChangesList } from '../../lib/feature-flag'
+import { assertNever } from '../../lib/fatal-error'
 
-const createPullRequestLabel = __DARWIN__
-  ? 'Create Pull Request'
-  : 'Create &pull request'
-const showPullRequestLabel = __DARWIN__
-  ? 'View Pull Request on GitHub'
-  : 'View &pull request on GitHub'
 const defaultBranchNameValue = __DARWIN__ ? 'Default Branch' : 'default branch'
 const confirmRepositoryRemovalLabel = __DARWIN__ ? 'Remove…' : '&Remove…'
 const repositoryRemovalLabel = __DARWIN__ ? 'Remove' : '&Remove'
@@ -46,6 +42,7 @@ export function buildDefaultMenu({
   isForcePushForCurrentRepository = false,
   isStashedChangesVisible = false,
   askForConfirmationWhenStashingAllChanges = true,
+  gitHubRepositoryType,
   isChangesFilterVisible = true,
 }: MenuLabelsEvent): Electron.Menu {
   contributionTargetDefaultBranch = truncateWithEllipsis(
@@ -56,6 +53,13 @@ export function buildDefaultMenu({
   const removeRepoLabel = askForConfirmationOnRepositoryRemoval
     ? confirmRepositoryRemovalLabel
     : repositoryRemovalLabel
+
+  const createPullRequestLabel = __DARWIN__
+    ? 'Create Pull Request'
+    : 'Create &pull request'
+  const showPullRequestLabel =
+    (__DARWIN__ ? 'View Pull Request ' : 'View &pull request ') +
+    onGithubLabel(gitHubRepositoryType)
 
   const pullRequestLabel = hasCurrentPullRequest
     ? showPullRequestLabel
@@ -186,6 +190,12 @@ export function buildDefaultMenu({
         id: 'show-history',
         accelerator: 'CmdOrCtrl+2',
         click: emit('show-history'),
+      },
+      {
+        label: __DARWIN__ ? 'Show Compare' : 'Compare',
+        id: 'show-compare',
+        accelerator: 'CmdOrCtrl+3',
+        click: emit('show-compare'),
       },
       {
         label: __DARWIN__ ? 'Show Repository List' : 'Repository &list',
@@ -334,10 +344,12 @@ export function buildDefaultMenu({
       },
       separator,
       {
-        id: 'view-repository-on-github',
-        label: __DARWIN__ ? 'View on GitHub' : '&View on GitHub',
+        id: 'view-repository-in-browser',
+        label:
+          (__DARWIN__ ? 'View ' : '&View ') +
+          onGithubLabel(gitHubRepositoryType),
         accelerator: 'CmdOrCtrl+Shift+G',
-        click: emit('view-repository-on-github'),
+        click: emit('view-repository-in-browser'),
       },
       {
         label: __DARWIN__
@@ -368,9 +380,9 @@ export function buildDefaultMenu({
       separator,
       {
         id: 'create-issue-in-repository-on-github',
-        label: __DARWIN__
-          ? 'Create Issue on GitHub'
-          : 'Create &issue on GitHub',
+        label:
+          (__DARWIN__ ? 'Create Issue ' : 'Create &issue ') +
+          onGithubLabel(gitHubRepositoryType),
         accelerator: 'CmdOrCtrl+I',
         click: emit('create-issue-in-repository-on-github'),
       },
@@ -408,6 +420,13 @@ export function buildDefaultMenu({
       id: 'discard-all-changes',
       accelerator: 'CmdOrCtrl+Shift+Backspace',
       click: emit('discard-all-changes'),
+    },
+    {
+      label: __DARWIN__
+        ? 'Permanently Discard All Changes…'
+        : 'Permanently discard all changes…',
+      id: 'permanently-discard-all-changes',
+      click: emit('permanently-discard-all-changes'),
     },
     {
       label: askForConfirmationWhenStashingAllChanges
@@ -456,13 +475,15 @@ export function buildDefaultMenu({
     },
     separator,
     {
-      label: __DARWIN__ ? 'Compare on GitHub' : 'Compare on &GitHub',
+      label: 'Compare ' + onGithubLabel(gitHubRepositoryType),
       id: 'compare-on-github',
       accelerator: 'CmdOrCtrl+Shift+C',
       click: emit('compare-on-github'),
     },
     {
-      label: __DARWIN__ ? 'View Branch on GitHub' : 'View branch on GitHub',
+      label:
+        (__DARWIN__ ? 'View Branch ' : 'View branch ') +
+        onGithubLabel(gitHubRepositoryType),
       id: 'branch-on-github',
       accelerator: 'CmdOrCtrl+Alt+B',
       click: emit('branch-on-github'),
@@ -506,19 +527,10 @@ export function buildDefaultMenu({
     label: __DARWIN__ ? 'Report Issue…' : 'Report issue…',
     click() {
       shell
-        .openExternal('https://github.com/desktop/desktop/issues/new/choose')
-        .catch(err => log.error('Failed opening issue creation page', err))
-    },
-  }
-
-  const contactSupportItem: Electron.MenuItemConstructorOptions = {
-    label: __DARWIN__ ? 'Contact GitHub Support…' : '&Contact GitHub support…',
-    click() {
-      shell
         .openExternal(
-          `https://github.com/contact?from_desktop_app=1&app_version=${app.getVersion()}`
+          'https://github.com/pol-rivero/github-desktop-plus/issues/new/choose'
         )
-        .catch(err => log.error('Failed opening contact support page', err))
+        .catch(err => log.error('Failed opening issue creation page', err))
     },
   }
 
@@ -560,7 +572,6 @@ export function buildDefaultMenu({
 
   const helpItems = [
     submitIssueItem,
-    contactSupportItem,
     showUserGuides,
     showKeyboardShortcuts,
     showLogsItem,
@@ -657,6 +668,21 @@ function findClosestValue(arr: Array<number>, value: number) {
       ? current
       : previous
   })
+}
+
+function onGithubLabel(gitHubRepositoryType: RepoType | null) {
+  switch (gitHubRepositoryType) {
+    case 'github':
+      return 'on GitHub'
+    case 'bitbucket':
+      return 'on Bitbucket'
+    case 'gitlab':
+      return 'on GitLab'
+    case null:
+      return 'in your browser'
+    default:
+      assertNever(gitHubRepositoryType, `Unknown type: ${gitHubRepositoryType}`)
+  }
 }
 
 /**

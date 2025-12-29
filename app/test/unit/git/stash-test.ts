@@ -54,6 +54,33 @@ describe('git/stash', () => {
       assert.equal(entries[0].branchName, 'master')
       assert.equal(entries[0].name, 'refs/stash@{0}')
     })
+
+    it('returns multiple stash entries for the same branch', async t => {
+      const repository = await setupEmptyRepository(t)
+      const readme = path.join(repository.path, 'README.md')
+      await FSE.writeFile(readme, '')
+      await exec(['add', 'README.md'], repository.path)
+      await exec(['commit', '-m', 'initial commit'], repository.path)
+
+      // Create three Desktop stash entries on the same branch
+      await generateTestStashEntry(repository, 'master', true)
+      await generateTestStashEntry(repository, 'master', true)
+      await generateTestStashEntry(repository, 'master', true)
+
+      const stash = await getStashes(repository)
+      const entries = stash.desktopEntries
+      assert.equal(entries.length, 3)
+
+      // Verify all entries are for the same branch
+      assert.equal(entries[0].branchName, 'master')
+      assert.equal(entries[1].branchName, 'master')
+      assert.equal(entries[2].branchName, 'master')
+
+      // Verify they are in LIFO order (most recent first)
+      assert.equal(entries[0].name, 'refs/stash@{0}')
+      assert.equal(entries[1].name, 'refs/stash@{1}')
+      assert.equal(entries[2].name, 'refs/stash@{2}')
+    })
   })
 
   describe('createDesktopStashEntry', () => {
@@ -74,7 +101,7 @@ describe('git/stash', () => {
         'just testing stuff'
       )
 
-      await createDesktopStashEntry(repository, 'master', [])
+      await createDesktopStashEntry(repository, 'master', [], null)
 
       const stash = await getStashes(repository)
       const entries = stash.desktopEntries
@@ -98,7 +125,7 @@ describe('git/stash', () => {
         f => f.status.kind === AppFileStatusKind.Untracked
       )
 
-      await createDesktopStashEntry(repository, 'master', untrackedFiles)
+      await createDesktopStashEntry(repository, 'master', untrackedFiles, null)
 
       status = await getStatusOrThrow(repository)
       files = status.workingDirectory.files

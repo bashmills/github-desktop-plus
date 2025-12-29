@@ -1,4 +1,228 @@
-# [GitHub Desktop](https://desktop.github.com)
+# GitHub Desktop Plus
+
+This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) for Linux with additional features and improvements.
+
+<img src="docs/assets/github-desktop-plus-demo.webp" alt="Demo" style="max-width:1000px;">
+
+## Highlights
+| <h4>Commit history search</h4> | <h4>Multiple stashes per branch</h4> |
+| :---: | :---: |
+| ![Commit search](docs/assets/github-desktop-plus-demo-search.webp) | ![Multiple stashes](docs/assets/github-desktop-plus-demo-stashes.webp) |
+| <h4>Indicator for missing branches in the remote</h4> | <h4>Buttons optimized for visual recognition</h4> |
+| ![Push indicator](docs/assets/github-desktop-plus-demo-push-indicator.webp) | ![Stash header](docs/assets/github-desktop-plus-demo-stash-header.webp) |
+| <h4>Bitbucket & GitLab integration</h4> | <h4>Indicator for merge commits</h4> |
+| ![Bitbucket integration](docs/assets/github-desktop-plus-demo-bitbucket-integration.webp) | ![Merge commits](docs/assets/github-desktop-plus-demo-merge-commits.webp) |
+
+## Additional Features in GitHub Desktop Plus
+
+### General:
+
+- Red color for destructive action buttons.
+- Add **icons** to some similar-looking buttons for faster visual recognition.
+- Allow generating **branch name presets** by calling an external script (e.g. fetching ticket numbers from an issue tracker). [Click here for more details](docs/branch-name-presets.md).
+- Allow using a **different text editor for a given repo**, by overriding it in the repository settings.
+- **Bitbucket** and **GitLab** integration:
+  - Preview and create pull requests.
+  - View pull requests status, including checks.
+  - Display a commit or PR in Bitbucket/GitLab (web browser).
+  - Correctly set repository owner (instead of displaying "Other").
+
+### Repositories list:
+
+- "**Pull all**" button to fetch and pull all your repositories at once.
+- Allow **hiding** the "**Recent**" repositories section.
+
+### Branches list:
+
+- Add warning indicator to **local-only branches** (branches that have not been pushed to the remote, or that have been deleted automatically after a PR).
+- Allow manually setting which is the **default branch** for a repository (even if it doesn't match the one configured in the remote).
+
+### History tab:
+
+- **Search commits** by title, message, tag, or hash.
+- Use a different font style for **merge commits** in order to make them visually distinct, since most of the time they are not as relevant.
+- If a commit modifies only 1 file, allow double-clicking the commit to open the file. For other commits, you can still double-click the file as usual.
+
+### Changes tab:
+
+- Context menu option to **permanently discard changes** without sending to trash (useful when the there are many changed files and the regular "Discard" is extremely slow).
+
+## Download and Installation
+
+### Arch Linux / Manjaro (AUR)
+
+<details>
+<summary>Click to expand</summary>
+
+Simply install `github-desktop-plus-bin` from the AUR.
+
+You can also build from source by installing `github-desktop-plus` or `github-desktop-plus-git` from the AUR.
+
+> `gnome-keyring` is required and the daemon must be launched either at login or when the X server / Wayland compositor is started. Normally this is handled by a display manager, but in other cases following the instructions found on the [Arch Wiki](https://wiki.archlinux.org/index.php/GNOME/Keyring#Using_the_keyring_outside_GNOME) will fix the issue of not being able to save login credentials.
+
+</details>
+
+### Debian / Ubuntu (APT)
+
+<details>
+
+<summary>Click to expand</summary>
+
+Create the repository file:
+
+```bash
+curl https://gpg.polrivero.com/public.key | sudo gpg --dearmor -o /usr/share/keyrings/polrivero.gpg
+echo "deb [signed-by=/usr/share/keyrings/polrivero.gpg] https://deb.github-desktop.polrivero.com/ stable main" | sudo tee /etc/apt/sources.list.d/github-desktop-plus.list
+```
+
+Update the package list and install:
+```bash
+sudo apt update
+sudo apt install github-desktop-plus
+```
+
+</details>
+
+
+### Fedora / RHEL / CentOS (RPM)
+
+<details>
+<summary>Click to expand</summary>
+
+Create the repository file:
+
+```bash
+sudo rpm --import https://gpg.polrivero.com/public.key
+echo -e "[github-desktop-plus]\nname=GitHub Desktop Plus\nbaseurl=https://rpm.github-desktop.polrivero.com/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://gpg.polrivero.com/public.key" | sudo tee /etc/yum.repos.d/github-desktop-plus.repo
+```
+
+Update the package list and install:
+
+```bash
+sudo dnf check-update
+sudo dnf install github-desktop-plus
+```
+
+</details>
+
+
+### Flatpak (any distro)
+
+<details>
+<summary>Click to expand</summary>
+
+You can install GitHub Desktop Plus from Flathub by following the instructions at https://flathub.org/en/apps/io.github.pol_rivero.github-desktop-plus or by running the following command:
+
+```bash
+flatpak install flathub io.github.pol_rivero.github-desktop-plus
+```
+
+</details>
+
+### AppImage (any distro)
+
+<details>
+<summary>Click to expand</summary>
+
+Download the AppImage from the [releases page](https://github.com/pol-rivero/github-desktop-plus/releases/latest) and make it executable:
+
+```bash
+chmod +x GitHub-Desktop-Plus-*-linux-*.AppImage
+# Just double-click the file to run it
+```
+
+| **64-bit x86** | **64-bit ARM** | **32-bit ARM** |
+| --- | --- | --- |
+| `-linux-x86_64.AppImage` | `-linux-arm64.AppImage` | `-linux-armv7l.AppImage` |
+
+</details>
+
+### Windows
+
+<details>
+<summary>Click to expand</summary>
+
+Download and execute the installer from the [releases page](https://github.com/pol-rivero/github-desktop-plus/releases/latest).
+
+| | **64-bit x86** | **64-bit ARM** |
+| --- | --- | --- |
+| **.EXE Installer** | `-win-x64.exe` | `-win-arm64.exe` |
+| **.MSI Installer** | `-win-x64.msi` | `-win-arm64.msi` |
+
+</details>
+
+### macOS
+
+<details>
+<summary>Click to expand</summary>
+
+Download and extract the ZIP file from the [releases page](https://github.com/pol-rivero/github-desktop-plus/releases/latest). Click the app file to run it.  
+If you encounter the error "Apple could not verify this app is free of malware", go to "System Settings" > "Privacy & Security", scroll down to "Security" and click "Open Anyway" on "GitHub Desktop Plus".
+
+| **64-bit x86** | **64-bit ARM (Apple Silicon)** |
+| --- | --- |
+| `-macOS-x64.zip` | `-macOS-arm64.zip` |
+
+</details>
+
+## Running the app locally
+
+### From the terminal
+
+```bash
+corepack enable  # Install yarn if needed
+yarn             # Install dependencies
+yarn build:dev   # Initial build
+yarn start       # Start the app for development and watch for changes
+```
+
+- It's normal for the app to take a while to start up, especially the first time.
+
+- While starting up, this error is normal: `UnhandledPromiseRejectionWarning: Error: Invalid header: Does not start with Cr24`
+
+- You don't need to restart the app to apply changes. Just reload the window (`Ctrl + Alt + R` / `Cmd + Alt + R`).
+
+- Changes to the code inside `main-process` do require a full rebuild. Stop the app and run `yarn build:dev` again.
+
+- [Read this document](docs/contributing/setup.md) for more information on how to set up your development environment.
+
+### From VSCode
+
+The first time you open the project, install the dependencies by running:
+```bash
+corepack enable
+yarn
+```
+
+Then, you can simply build and run the app by pressing `F5`.  
+Breakpoints should be set in the developer tools, not the VSCode editor.
+
+### Running tests
+
+I recommend running the tests in a Docker container for reproducibility and to avoid conflicts with your git configuration.  
+After installing the dependencies with `yarn`, make sure you have Docker installed and run:
+
+```bash
+yarn test:docker
+```
+
+## Why this fork?
+
+First of all, because shiftkey's fork is currently unmaintained (last commit was in February 2025), so it's not getting the latest features and fixes from the official GitHub Desktop repository.
+
+Secondly, I think the official GitHub Desktop app is very slow in terms of updates and lacks some advanced features that I'd like. This fork has low code quality requirements compared to the official repo, so I (and hopefully you as well) can add features and improvements quickly.  
+This fork also focuses on integrating nicely with Bitbucket, since I use it for work and haven't found a good Linux GUI client for it.
+
+Keep in mind that this version is not endorsed by GitHub, and it's aimed at power users with technical knowledge. If you're looking for a polished and stable product, I recommend using the official GitHub Desktop app instead.
+
+---
+
+<details>
+<summary>See original README</summary>
+
+# [GitHub Desktop](https://desktop.github.com) - The Linux Fork
+
+[![CI](https://github.com/shiftkey/desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/shiftkey/desktop/actions/workflows/ci.yml)
 
 [GitHub Desktop](https://desktop.github.com/) is an open-source [Electron](https://www.electronjs.org/)-based
 GitHub app. It is written in [TypeScript](https://www.typescriptlang.org) and
@@ -16,81 +240,142 @@ uses [React](https://reactjs.org/).
   />
 </picture>
 
-## Where can I get it?
+## What is this repository for?
 
-Download the official installer for your operating system:
+This repository contains specific patches on top of the upstream
+`desktop/desktop` repository to support Linux usage.
 
- - [macOS](https://central.github.com/deployments/desktop/desktop/latest/darwin)
- - [macOS (Apple silicon)](https://central.github.com/deployments/desktop/desktop/latest/darwin-arm64)
- - [Windows](https://central.github.com/deployments/desktop/desktop/latest/win32)
- - [Windows machine-wide install](https://central.github.com/deployments/desktop/desktop/latest/win32?format=msi)
+It also publishes [releases](https://github.com/shiftkey/desktop/releases) for various Linux distributions:
 
-Linux is not officially supported; however, you can find installers created for Linux from a fork of GitHub Desktop in the [Community Releases](https://github.com/desktop/desktop#community-releases) section.
+ - AppImage (`.AppImage`)
+ - Debian (`.deb`)
+ - RPM (`.rpm`)
 
-### Beta Channel
+## Installation via package manager
 
-Want to test out new features and get fixes before everyone else? Install the
-beta channel to get access to early builds of Desktop:
+You can use your operating system's package manager to install `github-desktop` and
+keep it up to date on Debian and RPM-based distributions.
 
- - [macOS](https://central.github.com/deployments/desktop/desktop/latest/darwin?env=beta)
- - [macOS (Apple silicon)](https://central.github.com/deployments/desktop/desktop/latest/darwin-arm64?env=beta)
- - [Windows](https://central.github.com/deployments/desktop/desktop/latest/win32?env=beta)
- - [Windows (ARM64)](https://central.github.com/deployments/desktop/desktop/latest/win32-arm64?env=beta)
+### Debian/Ubuntu
 
-The release notes for the latest beta versions are available [here](https://desktop.github.com/release-notes/?env=beta).
+There are two APT package feeds available, both hosted in the US. You only need
+to add one or the other here, as both of these are generated based on the
+releases from this repository.
 
-### Past Releases
-You can find past releases at https://desktop.githubusercontent.com. After installation of a past version, the auto update functionality will attempt to download the latest version. 
+#### [@shiftkey](https://github.com/shiftkey) package feed
 
-### Community Releases
+```sh
+wget -qO - https://apt.packages.shiftkey.dev/gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/shiftkey-packages.gpg > /dev/null
+sudo sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/shiftkey-packages.gpg] https://apt.packages.shiftkey.dev/ubuntu/ any main" > /etc/apt/sources.list.d/shiftkey-packages.list'
+```
 
-There are several community-supported package managers that can be used to
-install GitHub Desktop:
- - Windows users can install using [winget](https://docs.microsoft.com/en-us/windows/package-manager/winget/) `c:\> winget install github-desktop` or [Chocolatey](https://chocolatey.org/) `c:\> choco install github-desktop`
- - macOS users can install using [Homebrew](https://brew.sh/) package manager:
-      `$ brew install --cask github`
+#### [@mwt](https://github.com/mwt) package feed
 
-Installers for various Linux distributions can be found on the
-[`shiftkey/desktop`](https://github.com/shiftkey/desktop) fork.
+```sh
+wget -qO - https://mirror.mwt.me/shiftkey-desktop/gpgkey | gpg --dearmor | sudo tee /usr/share/keyrings/mwt-desktop.gpg > /dev/null
+sudo sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/mwt-desktop.gpg] https://mirror.mwt.me/shiftkey-desktop/deb/ any main" > /etc/apt/sources.list.d/mwt-desktop.list'
+```
 
-## Is GitHub Desktop right for me? What are the primary areas of focus?
+#### Installation
 
-[This document](https://github.com/desktop/desktop/blob/development/docs/process/what-is-desktop.md) describes the focus of GitHub Desktop and who the product is most useful for.
+Once you have a feed configured, run this command to install the application:
 
-## I have a problem with GitHub Desktop
+```sh
+sudo apt update && sudo apt install github-desktop
+```
 
-Note: The [GitHub Desktop Code of Conduct](https://github.com/desktop/desktop/blob/development/CODE_OF_CONDUCT.md) applies in all interactions relating to the GitHub Desktop project.
+### Red Hat/CentOS/Fedora
 
-First, please search the [open issues](https://github.com/desktop/desktop/issues?q=is%3Aopen)
-and [closed issues](https://github.com/desktop/desktop/issues?q=is%3Aclosed)
-to see if your issue hasn't already been reported (it may also be fixed).
+There are two RPM package feeds available, both hosted in the US. You only need
+to add one or the other here, as both of these are generated based on the
+releases from this repository.
 
-There is also a list of [known issues](https://github.com/desktop/desktop/blob/development/docs/known-issues.md)
-that are being tracked against Desktop, and some of these issues have workarounds.
+#### [@shiftkey](https://github.com/shiftkey) package feed
 
-If you can't find an issue that matches what you're seeing, open a [new issue](https://github.com/desktop/desktop/issues/new/choose),
-choose the right template and provide us with enough information to investigate
-further.
+```sh
+sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
+sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/yum.repos.d/shiftkey-packages.repo'
+```
 
-## The issue I reported isn't fixed yet. What can I do?
+#### [@mwt](https://github.com/mwt) package feed
 
-If nobody has responded to your issue in a few days, you're welcome to respond to it with a friendly ping in the issue. Please do not respond more than a second time if nobody has responded. The GitHub Desktop maintainers are constrained in time and resources, and diagnosing individual configurations can be difficult and time consuming. While we'll try to at least get you pointed in the right direction, we can't guarantee we'll be able to dig too deeply into any one person's issue.
+```sh
+sudo rpm --import https://mirror.mwt.me/shiftkey-desktop/gpgkey
+sudo sh -c 'echo -e "[mwt-packages]\nname=GitHub Desktop\nbaseurl=https://mirror.mwt.me/shiftkey-desktop/rpm\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://mirror.mwt.me/shiftkey-desktop/gpgkey" > /etc/yum.repos.d/mwt-packages.repo'
+```
 
-## How can I contribute to GitHub Desktop?
+#### Installation
 
-The [CONTRIBUTING.md](./.github/CONTRIBUTING.md) document will help you get setup and
-familiar with the source. The [documentation](docs/) folder also contains more
-resources relevant to the project.
+Once you have a feed configured, run this command to install the application:
 
-If you're looking for something to work on, check out the [help wanted](https://github.com/desktop/desktop/issues?q=is%3Aissue+is%3Aopen+label%3A%22help%20wanted%22) label.
+```sh
+# if yum is your package manager
+sudo yum install github-desktop
 
-## Building Desktop
+# if dnf is your package manager
+sudo dnf install github-desktop
 
-To setup your development environment for building Desktop, check out: [`setup.md`](./docs/contributing/setup.md).
+# if zypper is your package manager
+sudo zypper ref && sudo zypper in github-desktop
+```
 
-## More Resources
+#### OpenSUSE
 
-See [desktop.github.com](https://desktop.github.com) for more product-oriented
+There are two RPM package feeds available, both hosted in the US. You only need
+to add one or the other here, as both of these are generated based on the
+releases from this repository.
+
+#### [@shiftkey](https://github.com/shiftkey) package feed
+
+```sh
+sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
+sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/zypp/repos.d/shiftkey-packages.repo'
+```
+
+#### [@mwt](https://github.com/mwt) package feed
+
+```sh
+sudo rpm --import https://mirror.mwt.me/shiftkey-desktop/gpgkey
+sudo sh -c 'echo -e "[mwt-packages]\nname=GitHub Desktop\nbaseurl=https://mirror.mwt.me/shiftkey-desktop/rpm\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://mirror.mwt.me/shiftkey-desktop/gpgkey" > /etc/zypp/repos.d/mwt-packages.repo'
+```
+
+#### Installation
+
+```sh
+sudo zypper ref && sudo zypper in github-desktop
+```
+
+
+## Other Distributions
+
+### Arch Linux
+
+Arch Linux users can install GitHub Desktop from the [AUR](https://aur.archlinux.org/packages/github-desktop-bin/).
+
+`gnome-keyring` is required and the daemon must be launched either at login or when the X server is started. Normally this is handled by a display manager, but in other cases following the instructions found on the [Arch Wiki](https://wiki.archlinux.org/index.php/GNOME/Keyring#Using_the_keyring_outside_GNOME) will fix the issue of not being able to save login credentials.
+
+### Cross-Distribution Packages
+
+GitHub Desktop is also available cross-platform as a [Flatpak](https://github.com/flathub/io.github.shiftey.Desktop) and [AppImage](https://appimage.github.io/GitHubDesktop/).
+
+### deb-get
+
+Debian/Ubuntu users can also install directly from this repository using [`deb-get`](https://github.com/wimpysworld/deb-get): `deb-get install github-desktop`.
+
+## Known issues
+
+If you're having troubles with Desktop, please refer to the [Known issues](docs/known-issues.md#linux)
+document for guidance and workarounds for common limitations.
+
+If your package manager is still trying to reach PackageCloud, refer to the
+[cleanup instructions](docs/known-issues.md#the-packagecloud-package-feed-is-no-longer-working)
+for details about migrating away.
+
+## More information
+
+Please check out the [README](https://github.com/desktop/desktop#github-desktop)
+on the upstream [GitHub Desktop project](https://github.com/desktop/desktop) and
+[desktop.github.com](https://desktop.github.com) for more product-oriented
 information about GitHub Desktop.
 
 See our [getting started documentation](https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop) for more information on how to set up, authenticate, and configure GitHub Desktop.
@@ -108,3 +393,5 @@ folder: [logos](app/static/logos).
 GitHub® and its stylized versions and the Invertocat mark are GitHub's
 Trademarks or registered Trademarks. When using GitHub's logos, be sure to
 follow the GitHub [logo guidelines](https://github.com/logos).
+
+</details>

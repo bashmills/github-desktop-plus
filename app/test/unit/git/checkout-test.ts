@@ -23,6 +23,7 @@ describe('git/checkout', () => {
       name: '..',
       nameWithoutRemote: '..',
       upstream: null,
+      isGone: false,
       upstreamWithoutRemote: null,
       type: BranchType.Local,
       tip: { sha: '' },

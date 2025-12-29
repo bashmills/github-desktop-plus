@@ -88,6 +88,7 @@ import { TipState, IValidBranch } from '../../models/tip'
 import { Banner, BannerType } from '../../models/banner'
 
 import { ApplicationTheme } from '../lib/application-theme'
+import { TitleBarStyle } from '../lib/title-bar-style'
 import { installCLI } from '../lib/install-cli'
 import {
   executeMenuItem,
@@ -125,7 +126,9 @@ import { SignInResult } from '../../lib/stores/sign-in-store'
 import { ICustomIntegration } from '../../lib/custom-integration'
 import { isAbsolute } from 'path'
 import { CLIAction } from '../../lib/cli-action'
+import { IBranchNamePreset } from '../../models/branch-preset'
 import { BypassReasonType } from '../secret-scanning/bypass-push-protection-dialog'
+import { EditorOverride } from '../../models/editor-override'
 
 /**
  * An error handler function.
@@ -223,7 +226,15 @@ export class Dispatcher {
 
   /** Load the next batch of history for the repository. */
   public loadNextCommitBatch(repository: Repository): Promise<void> {
-    return this.appStore._loadNextCommitBatch(repository)
+    return this.appStore._loadNextCommitBatch(repository, 0)
+  }
+
+  /** Update the commit search filter text. */
+  public setCommitSearchQuery(
+    repository: Repository,
+    text: string
+  ): Promise<void> {
+    return this.appStore._updateCommitSearchQuery(repository, text)
   }
 
   /** Load the changed files for the current history selection. */
@@ -310,17 +321,19 @@ export class Dispatcher {
 
   /**
    * Changes the selection in the changes view to the stash entry view and
-   * optionally selects a particular file from the current stash entry.
+   * optionally selects a particular file from a stash entry.
    *
+   *  @param stashEntry The stash entry to view (if undefined, uses most recent stash)
    *  @param file  A file to select when showing the stash entry.
    *               If undefined this method will preserve the previously selected
    *               file or pick the first changed file if no selection exists.
    */
   public selectStashedFile(
     repository: Repository,
+    stashEntry?: IStashEntry,
     file?: CommittedFileChange | null
   ): Promise<void> {
-    return this.appStore._selectStashedFile(repository, file)
+    return this.appStore._selectStashedFile(repository, stashEntry, file)
   }
 
   /**
@@ -843,6 +856,24 @@ export class Dispatcher {
     return this.appStore._changeRepositoryAlias(repository, newAlias)
   }
 
+  /** Changes the repository's default branch */
+  public updateRepositoryDefaultBranch(
+    repository: Repository,
+    branch: string | null
+  ): Promise<void> {
+    return this.appStore._updateRepositoryDefaultBranch(repository, branch)
+  }
+
+  public updateRepositoryEditorOverride(
+    repository: Repository,
+    customEditorOverride: EditorOverride | null
+  ): Promise<void> {
+    return this.appStore._updateRepositoryEditorOverride(
+      repository,
+      customEditorOverride
+    )
+  }
+
   /** Rename the branch to a new name. */
   public renameBranch(
     repository: Repository,
@@ -878,9 +909,15 @@ export class Dispatcher {
   public discardChanges(
     repository: Repository,
     files: ReadonlyArray<WorkingDirectoryFileChange>,
-    moveToTrash: boolean = true
+    moveToTrash: boolean = true,
+    cleanUntracked: boolean = false
   ): Promise<void> {
-    return this.appStore._discardChanges(repository, files, moveToTrash)
+    return this.appStore._discardChanges(
+      repository,
+      files,
+      moveToTrash,
+      cleanUntracked
+    )
   }
 
   /** Discard the changes from the given diff selection. */
@@ -896,6 +933,14 @@ export class Dispatcher {
       diff,
       selection
     )
+  }
+
+  /** Stash the changes to the given files. */
+  public stashChanges(
+    repository: Repository,
+    files: ReadonlyArray<WorkingDirectoryFileChange>
+  ): Promise<void> {
+    return this.appStore._stashChanges(repository, files)
   }
 
   /** Start amending the most recent commit. */
@@ -944,6 +989,14 @@ export class Dispatcher {
   /** Revert the commit with the given SHA */
   public revertCommit(repository: Repository, commit: Commit): Promise<void> {
     return this.appStore._revertCommit(repository, commit)
+  }
+
+  /** Get the changed files for a given commit. */
+  public async getCommitChangedFiles(
+    repository: Repository,
+    commit: Commit
+  ): Promise<ReadonlyArray<CommittedFileChange>> {
+    return this.appStore._getCommitChangedFiles(repository, commit)
   }
 
   /**
@@ -1429,6 +1482,13 @@ export class Dispatcher {
     return this.appStore._openInBrowser(url)
   }
 
+  public async getBranchNamePresets(
+    repository: Repository
+  ): Promise<ReadonlyArray<IBranchNamePreset>> {
+    const repoPath = repository.path
+    return this.appStore._getBranchNamePresets(repoPath)
+  }
+
   /** Add the pattern to the repository's gitignore. */
   public appendIgnoreRule(
     repository: Repository,
@@ -1468,8 +1528,11 @@ export class Dispatcher {
   /**
    * Opens a path in the external editor selected by the user.
    */
-  public async openInExternalEditor(fullPath: string): Promise<void> {
-    return this.appStore._openInExternalEditor(fullPath)
+  public async openInExternalEditor(
+    repository: Repository | null,
+    fullPath: string
+  ): Promise<void> {
+    return this.appStore._openInExternalEditor(repository, fullPath)
   }
 
   /**
@@ -1617,6 +1680,24 @@ export class Dispatcher {
       this.appStore._setSignInEndpoint(endpoint)
     }
 
+    this.appStore._showPopup({ type: PopupType.SignIn })
+  }
+
+  /**
+   * Launch a sign in dialog for authenticating a user with
+   * Bitbucket
+   */
+  public async showBitbucketSignInDialog(
+    resultCallback?: (result: SignInResult) => void
+  ): Promise<void> {
+    this.appStore._beginBitbucketSignIn(resultCallback)
+    this.appStore._showPopup({ type: PopupType.SignIn })
+  }
+
+  public async showGitLabSignInDialog(
+    resultCallback?: (result: SignInResult) => void
+  ): Promise<void> {
+    this.appStore._beginGitLabSignIn(resultCallback)
     this.appStore._showPopup({ type: PopupType.SignIn })
   }
 
@@ -2180,6 +2261,8 @@ export class Dispatcher {
           retryAction.files,
           false
         )
+      case RetryActionType.StashChanges:
+        return this.stashChanges(retryAction.repository, retryAction.files)
       default:
         return assertNever(retryAction, `Unknown retry action: ${retryAction}`)
     }
@@ -2501,6 +2584,19 @@ export class Dispatcher {
   public setSelectedTabSize(tabSize: number) {
     return this.appStore._setSelectedTabSize(tabSize)
   }
+  /*
+   * Set the title bar style for the application
+   */
+  public async setTitleBarStyle(titleBarStyle: TitleBarStyle) {
+    const existingState = this.appStore.getState()
+    const { titleBarStyle: existingTitleBarStyle } = existingState
+
+    await this.appStore._setTitleBarStyle(titleBarStyle)
+
+    if (titleBarStyle !== existingTitleBarStyle) {
+      this.showPopup({ type: PopupType.ConfirmRestart })
+    }
+  }
 
   /**
    * Increments either the `repoWithIndicatorClicked` or
@@ -2646,17 +2742,9 @@ export class Dispatcher {
    * override any stash that already exists for the current branch.
    *
    * @param repository
-   * @param showConfirmationDialog  Whether to show a confirmation dialog if an
-   *                                existing stash exists (defaults to true).
    */
-  public createStashForCurrentBranch(
-    repository: Repository,
-    showConfirmationDialog: boolean = true
-  ) {
-    return this.appStore._createStashForCurrentBranch(
-      repository,
-      showConfirmationDialog
-    )
+  public createStashForCurrentBranch(repository: Repository) {
+    return this.appStore._createStashForCurrentBranch(repository)
   }
 
   /** Drops the given stash in the given repository */
@@ -2734,6 +2822,14 @@ export class Dispatcher {
 
   public setRepositoryIndicatorsEnabled(repositoryIndicatorsEnabled: boolean) {
     this.appStore._setRepositoryIndicatorsEnabled(repositoryIndicatorsEnabled)
+  }
+
+  public setShowRecentRepositories(showRecentRepositories: boolean) {
+    this.appStore._setShowRecentRepositories(showRecentRepositories)
+  }
+
+  public setHideWindowOnQuit(hideWindowOnQuit: boolean) {
+    this.appStore._setHideWindowOnQuit(hideWindowOnQuit)
   }
 
   public setCommitSpellcheckEnabled(commitSpellcheckEnabled: boolean) {
@@ -3266,6 +3362,10 @@ export class Dispatcher {
   /** Set the custom shell info */
   public setCustomShell(customShell: ICustomIntegration) {
     this.appStore._setCustomShell(customShell)
+  }
+
+  public setBranchPresetScript(branchPresetScript: ICustomIntegration) {
+    this.appStore._setBranchPresetScript(branchPresetScript)
   }
 
   public async reorderCommits(

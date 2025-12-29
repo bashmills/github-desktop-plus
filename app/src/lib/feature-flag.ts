@@ -27,7 +27,7 @@ function enableDevelopmentFeatures(): boolean {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 //@ts-ignore: this will be used again in the future
 function enableBetaFeatures(): boolean {
-  return enableDevelopmentFeatures() || __RELEASE_CHANNEL__ === 'beta'
+  return true
 }
 
 /**
@@ -91,13 +91,17 @@ export function enablePreviousTagSuggestions(): boolean {
 
 /** Should we show a pull-requests quick view? */
 export function enablePullRequestQuickView(): boolean {
-  return enableDevelopmentFeatures()
+  return enableBetaFeatures()
 }
 
 /** Should we support image previews for dds files? */
 export function enableImagePreviewsForDDSFiles(): boolean {
   return enableBetaFeatures()
 }
+
+export const enableBitbucketIntegration = enableBetaFeatures
+
+export const enableGitLabIntegration = enableBetaFeatures
 
 export const enableCustomIntegration = () => true
 

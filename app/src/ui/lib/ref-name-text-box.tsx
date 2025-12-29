@@ -1,6 +1,9 @@
 import * as React from 'react'
 
-import { sanitizedRefName } from '../../lib/sanitize-ref-name'
+import {
+  almostSanitizedRefName,
+  sanitizedRefName,
+} from '../../lib/sanitize-ref-name'
 import { TextBox } from './text-box'
 import { Ref } from './ref'
 import { InputWarning } from './input-description/input-warning'
@@ -35,6 +38,11 @@ interface IRefNameProps {
    * A sanitized value for the ref name is passed.
    */
   readonly onValueChange?: (sanitizedValue: string) => void
+
+  /**
+   * Called when the user presses a key in the text box.
+   */
+  readonly onKeyDown?: (event: React.KeyboardEvent) => void
 
   /**
    * Optional verb for the warning message.
@@ -94,6 +102,16 @@ export class RefNameTextBox extends React.Component<
     }
   }
 
+  public setValue(value: string) {
+    this.setState({
+      proposedValue: value,
+      sanitizedValue: sanitizedRefName(value),
+    })
+    if (this.props.onValueChange !== undefined) {
+      this.props.onValueChange(this.state.sanitizedValue)
+    }
+  }
+
   public render() {
     return (
       <div className="ref-name-text-box">
@@ -108,6 +126,7 @@ export class RefNameTextBox extends React.Component<
             ` branch-name-error`
           }
           onValueChanged={this.onValueChange}
+          onKeyDown={this.props.onKeyDown}
           onBlur={this.onBlur}
         />
 
@@ -127,20 +146,17 @@ export class RefNameTextBox extends React.Component<
   }
 
   private onValueChange = (proposedValue: string) => {
+    const almostSanitizedValue = almostSanitizedRefName(proposedValue)
     const sanitizedValue = sanitizedRefName(proposedValue)
     const previousSanitizedValue = this.state.sanitizedValue
 
-    this.setState({ proposedValue, sanitizedValue })
+    this.setState({ proposedValue: almostSanitizedValue, sanitizedValue })
 
     if (sanitizedValue === previousSanitizedValue) {
       return
     }
 
-    if (this.props.onValueChange === undefined) {
-      return
-    }
-
-    this.props.onValueChange(sanitizedValue)
+    this.props.onValueChange?.(sanitizedValue)
   }
 
   private onBlur = (proposedValue: string) => {

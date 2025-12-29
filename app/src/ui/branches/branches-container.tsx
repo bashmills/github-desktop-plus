@@ -49,6 +49,7 @@ interface IBranchesContainerProps {
   readonly recentBranches: ReadonlyArray<Branch>
   readonly pullRequests: ReadonlyArray<PullRequest>
   readonly onRenameBranch: (branchName: string) => void
+  readonly onMakeDefaultBranch: (branchName: string) => void
   readonly onDeleteBranch: (branchName: string) => void
 
   /** The pull request associated with the current branch. */
@@ -181,7 +182,8 @@ export class BranchesContainer extends React.Component<
           tooltip={`Choose a branch to merge into ${currentBranch.name}`}
         >
           <Octicon className="icon" symbol={octicons.gitMerge} />
-          Choose a branch to merge into <strong>{currentBranch.name}</strong>
+          <span>Choose a branch to merge into</span>
+          <strong>{currentBranch.name}</strong>
         </Button>
       </Row>
     )
@@ -288,6 +290,7 @@ export class BranchesContainer extends React.Component<
             )}
             renderPreList={this.renderPreList}
             onRenameBranch={this.props.onRenameBranch}
+            onMakeDefaultBranch={this.props.onMakeDefaultBranch}
             onDeleteBranch={this.props.onDeleteBranch}
           />
         )

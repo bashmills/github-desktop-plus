@@ -1,7 +1,6 @@
 import * as React from 'react'
 
 import { Row } from '../lib/row'
-import { Button } from '../lib/button'
 import {
   Dialog,
   DialogError,
@@ -13,7 +12,7 @@ import { IUpdateState, UpdateStatus } from '../lib/update-store'
 import { Loading } from '../lib/loading'
 import { RelativeTime } from '../relative-time'
 import { assertNever } from '../../lib/fatal-error'
-import { ReleaseNotesUri } from '../lib/releases'
+import { ReleaseNotesUri, LinuxReleasesUri } from '../lib/releases'
 import { encodePathAsUrl } from '../../lib/path'
 import { isOSNoLongerSupportedByElectron } from '../../lib/get-os'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
@@ -46,14 +45,10 @@ interface IAboutProps {
    */
   readonly applicationArchitecture: string
 
-  /** A function to call to kick off a non-staggered update check. */
-  readonly onCheckForNonStaggeredUpdates: () => void
-
   readonly onShowAcknowledgements: () => void
 
   /** A function to call when the user wants to see Terms and Conditions. */
   readonly onShowTermsAndConditions: () => void
-  readonly onQuitAndInstall: () => void
 
   readonly updateState: IUpdateState
 
@@ -96,54 +91,23 @@ export class About extends React.Component<IAboutProps> {
   }
 
   private renderUpdateButton() {
-    if (!this.canCheckForUpdates) {
-      return null
-    }
-
-    const updateStatus = this.props.updateState.status
-
-    switch (updateStatus) {
-      case UpdateStatus.UpdateReady:
-        return (
-          <Row>
-            <Button onClick={this.props.onQuitAndInstall}>
-              Quit and Install Update
-            </Button>
-          </Row>
-        )
-      case UpdateStatus.UpdateNotAvailable:
-      case UpdateStatus.CheckingForUpdates:
-      case UpdateStatus.UpdateAvailable:
-      case UpdateStatus.UpdateNotChecked:
-        const disabled =
-          ![
-            UpdateStatus.UpdateNotChecked,
-            UpdateStatus.UpdateNotAvailable,
-          ].includes(updateStatus) || isOSNoLongerSupportedByElectron()
-
-        const buttonTitle = 'Check for Updates'
-
-        return (
-          <Row>
-            <Button
-              disabled={disabled}
-              onClick={this.props.onCheckForNonStaggeredUpdates}
-            >
-              {buttonTitle}
-            </Button>
-          </Row>
-        )
-      default:
-        return assertNever(
-          updateStatus,
-          `Unknown update status ${updateStatus}`
-        )
-    }
+    return (
+      <Row>
+        <p className="no-padding">
+          <LinkButton uri={LinuxReleasesUri}>View Releases</LinkButton>
+        </p>
+      </Row>
+    )
   }
 
   private renderUpdateDetails() {
     if (__LINUX__) {
-      return null
+      return (
+        <p>
+          Please visit the GitHub Desktop Plus release page for release notes
+          and to download the latest version.
+        </p>
+      )
     }
 
     if (!this.canCheckForUpdates) {
@@ -232,6 +196,10 @@ export class About extends React.Component<IAboutProps> {
 
   private renderBetaLink() {
     if (__RELEASE_CHANNEL__ === 'beta') {
+      return
+    }
+
+    if (__LINUX__) {
       return
     }
 

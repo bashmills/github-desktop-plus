@@ -32,6 +32,7 @@ import { WindowState } from './window-state'
 import { Shell } from './shells'
 
 import { ApplicableTheme, ApplicationTheme } from '../ui/lib/application-theme'
+import { TitleBarStyle } from '../ui/lib/title-bar-style'
 import { IAccountRepositories } from './stores/api-repositories-store'
 import { ManualConflictResolution } from '../models/manual-conflict-resolution'
 import { Banner } from '../models/banner'
@@ -299,6 +300,12 @@ export interface IAppState {
   /** The selected tab size preference */
   readonly selectedTabSize: number
 
+  /** The selected title bar style for the application */
+  readonly titleBarStyle: TitleBarStyle
+
+  /** Whether or not recent repositories should be shown in the repo list */
+  readonly showRecentRepositories: boolean
+
   /**
    * A map keyed on a user account (GitHub.com or GitHub Enterprise)
    * containing an object with repositories that the authenticated
@@ -328,6 +335,12 @@ export interface IAppState {
   readonly repositoryIndicatorsEnabled: boolean
 
   /**
+   * Whether or not the app window should be hidden instead of closed when the
+   * user quits the app. This is always true on macOS
+   */
+  readonly hideWindowOnQuit: boolean
+
+  /**
    * Whether or not the app should use spell check on commit summary and description
    */
   readonly commitSpellcheckEnabled: boolean
@@ -349,6 +362,8 @@ export interface IAppState {
 
   /** Info needed to launch a custom shell chosen by the user. */
   readonly customShell: ICustomIntegration | null
+
+  readonly branchPresetScript: ICustomIntegration | null
 
   /**
    * Whether or not the CI status popover is visible.
@@ -419,6 +434,7 @@ export type Foldout =
 export enum RepositorySectionTab {
   Changes,
   History,
+  Compare,
 }
 
 /**
@@ -713,6 +729,9 @@ export type ChangesWorkingDirectorySelection = {
 export type ChangesStashSelection = {
   readonly kind: ChangesSelectionKind.Stash
 
+  /** The stash entry currently being viewed */
+  readonly selectedStashEntry: IStashEntry | null
+
   /** Currently selected file in the stash diff viewer UI (aka the file we want to show the diff for) */
   readonly selectedStashedFile: CommittedFileChange | null
 
@@ -753,10 +772,10 @@ export interface IChangesState {
   readonly conflictState: ConflictState | null
 
   /**
-   * The latest GitHub Desktop stash entry for the current branch, or `null`
-   * if no stash exists for the current branch.
+   * The GitHub Desktop stash entries for the current branch, or an empty array
+   * if no stashes exist for the current branch.
    */
-  readonly stashEntry: IStashEntry | null
+  readonly stashEntries: ReadonlyArray<IStashEntry>
 
   /**
    * The current selection state in the Changes view. Can be either
@@ -859,11 +878,18 @@ export interface ICompareState {
   /** The text entered into the compare branch filter text box */
   readonly filterText: string
 
+  /** The search query in the history tab (commit list) */
+  readonly commitSearchQuery: string
+
   /** The SHA associated with the most recent history state */
   readonly tip: string | null
 
   /** The SHAs of commits to render in the compare list */
-  readonly commitSHAs: ReadonlyArray<string>
+  readonly filteredHistoryCommitSHAs: ReadonlyArray<string>
+
+  readonly allHistoryCommitSHAs: ReadonlyArray<string>
+
+  readonly compareCommitSHAs: ReadonlyArray<string>
 
   /** The SHAs of commits to highlight in the compare list */
   readonly shasToHighlight: ReadonlyArray<string>
@@ -898,6 +924,9 @@ export interface ICompareState {
 export interface ICompareFormUpdate {
   /** The updated filter text to set */
   readonly filterText: string
+
+  /** The updated commit search query to set */
+  readonly commitSearchQuery: string
 
   /** Thew new state of the branches list */
   readonly showBranchList: boolean
