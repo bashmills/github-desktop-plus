@@ -43,7 +43,7 @@ type AffiliationFilter =
   | 'owner'
   | 'collaborator'
   | 'organization_member'
-  | 'owner,collabor'
+  | 'owner,collaborator'
   | 'owner,organization_member'
   | 'collaborator,organization_member'
   | 'owner,collaborator,organization_member'
@@ -302,13 +302,14 @@ export interface IBitbucketAPIRepository
   }
 }
 function toIAPIRepository(repo: IBitbucketAPIRepository): IAPIRepository {
+  const sshUrl =
+    repo.links.clone.filter(c => c.name === 'ssh')[0]?.href ||
+    `git@bitbucket.org:${repo.full_name}.git`
   return {
-    clone_url:
-      repo.links.clone.filter(c => c.name === 'https')[0]?.href ||
-      `https://bitbucket.org/${repo.full_name}.git`,
-    ssh_url:
-      repo.links.clone.filter(c => c.name === 'ssh')[0]?.href ||
-      `git@bitbucket.org:${repo.full_name}.git`,
+    // The Bitbucket integration does not currently provide repository access, users need to set up SSH keys.
+    // For this reason, clone using SSH instead of HTTP.
+    clone_url: sshUrl,
+    ssh_url: sshUrl,
     html_url: repo.links.html.href,
     name: repo.name,
     login: repo.login,
@@ -1415,6 +1416,11 @@ export interface IAPICreatePushProtectionBypassResponse {
   reason: BypassReasonType
   expire_at: string
   token_type: string
+}
+
+interface IBitbucketAPIWorkspace {
+  uuid: string
+  name: string
 }
 
 /**
@@ -3191,6 +3197,49 @@ export class BitbucketAPI extends API {
     }
   }
 
+  public override async fetchRepositoryCloneInfo(
+    owner: string,
+    name: string,
+    protocol: GitProtocol | undefined
+  ): Promise<IAPIRepositoryCloneInfo | null> {
+    const response = await this.request(
+      this.endpoint,
+      'GET',
+      `repositories/${owner}/${name}`
+    )
+
+    if (response.status === HttpStatusCode.NotFound) {
+      return null
+    }
+
+    const bitbucketRepo = await parsedResponse<IBitbucketAPIRepository>(
+      response
+    )
+    const repo = toIAPIRepository(bitbucketRepo)
+    return {
+      url: protocol === 'ssh' ? repo.ssh_url : repo.clone_url,
+      defaultBranch: repo.default_branch,
+    }
+  }
+
+  public override async streamUserRepositories(
+    callback: (repos: ReadonlyArray<IAPIRepository>) => void
+  ) {
+    try {
+      const workspaces = await this.getAllWorkspaces()
+      for (const workspace of workspaces) {
+        const path = `repositories/${workspace.uuid}`
+        const repos = await this.fetchAll<IBitbucketAPIRepository>(path)
+        callback(repos.map(toIAPIRepository))
+      }
+    } catch (error) {
+      log.warn(
+        `streamUserRepositories: failed with endpoint ${this.endpoint}`,
+        error
+      )
+    }
+  }
+
   public override async fetchRefCheckRuns(): Promise<IAPIRefCheckRuns | null> {
     return null
   }
@@ -3201,6 +3250,16 @@ export class BitbucketAPI extends API {
 
   public override async fetchFeatureFlags(): Promise<undefined> {
     return undefined
+  }
+
+  private async getAllWorkspaces(): Promise<IBitbucketAPIWorkspace[]> {
+    try {
+      const path = 'workspaces'
+      return await this.fetchAll<IBitbucketAPIWorkspace>(path)
+    } catch (err) {
+      log.debug(`Failed fetching workspaces`, err)
+      return []
+    }
   }
 }
 
@@ -3498,6 +3557,45 @@ export class GitLabAPI extends API {
         err
       )
       return null
+    }
+  }
+
+  public override async fetchRepositoryCloneInfo(
+    owner: string,
+    name: string,
+    protocol: GitProtocol | undefined
+  ): Promise<IAPIRepositoryCloneInfo | null> {
+    const projectPath = encodeURIComponent(`${owner}/${name}`)
+    const response = await this.request(
+      this.endpoint,
+      'GET',
+      `projects/${projectPath}`
+    )
+
+    if (response.status === HttpStatusCode.NotFound) {
+      return null
+    }
+
+    const gitLabRepo = await parsedResponse<IGitLabAPIRepository>(response)
+    const repo = toIAPIRepositoryFromGitLab(gitLabRepo)
+    return {
+      url: protocol === 'ssh' ? repo.ssh_url : repo.clone_url,
+      defaultBranch: repo.default_branch,
+    }
+  }
+
+  public override async streamUserRepositories(
+    callback: (repos: ReadonlyArray<IAPIRepository>) => void
+  ) {
+    try {
+      const path = `projects?membership=true`
+      const repos = await this.fetchAll<IGitLabAPIRepository>(path)
+      callback(repos.map(toIAPIRepositoryFromGitLab))
+    } catch (error) {
+      log.warn(
+        `streamUserRepositories: failed with endpoint ${this.endpoint}`,
+        error
+      )
     }
   }
 
