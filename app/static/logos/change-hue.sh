@@ -18,13 +18,16 @@ function modulate_icns() {
     icon_name="${filename%.*}"
 
     iconset_path="$icon_name.iconset"
-    out_path="$icon_name-$modulate_arg.icns"
+    out_path="$icon_name.icns"
 
     # Unpack the ICNS as individual images
     iconutil --convert iconset --output "$iconset_path" "$icns_path"
 
     # Apply the -modulate transformation to every individual image
     find "$iconset_path" -type f -exec magick '{}' -modulate "$modulate_arg" '{}' \;
+
+    # Create ICO file from available sizes
+    magick "$iconset_path"/icon_*.png "$icon_name.ico"
 
     # Join the images back together into a single ICNS file
     iconutil --convert icns --output "$out_path" "$iconset_path"
