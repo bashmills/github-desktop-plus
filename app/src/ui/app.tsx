@@ -8,6 +8,7 @@ import {
   FoldoutType,
   SelectionType,
   HistoryTabMode,
+  CommitOptions,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
 import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
@@ -194,6 +195,8 @@ import {
   BypassReason,
   BypassReasonType,
 } from './secret-scanning/bypass-push-protection-dialog'
+import { HookFailed } from './hook-failed/hook-failed'
+import { CommitProgress } from './commit-progress/commit-progress'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2174,6 +2177,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             onSubmitCommitMessage={popup.onSubmitCommitMessage}
             repositoryAccount={repositoryAccount}
             accounts={this.state.accounts}
+            hasCommitHooks={repositoryState.hasCommitHooks}
+            skipCommitHooks={repositoryState.skipCommitHooks}
+            onUpdateCommitOptions={this.onUpdateCommitOptions}
           />
         )
       case PopupType.MultiCommitOperation: {
@@ -2579,9 +2585,36 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
+      case PopupType.HookFailed: {
+        return (
+          <HookFailed
+            key="hook-failure-dialog"
+            hookName={popup.hookName}
+            terminalOutput={popup.terminalOutput}
+            resolve={popup.resolve}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.CommitProgress: {
+        return (
+          <CommitProgress
+            key="commit-progress-dialog"
+            subscribeToCommitOutput={popup.subscribeToCommitOutput}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
       default:
         return assertNever(popup, `Unknown popup type: ${popup}`)
     }
+  }
+
+  private onUpdateCommitOptions = (
+    repository: Repository,
+    options: CommitOptions
+  ) => {
+    this.props.dispatcher.updateCommitOptions(repository, options)
   }
 
   private onSecretDelegatedBypassLinkClick = () => {
@@ -3441,6 +3474,9 @@ export class App extends React.Component<IAppProps, IAppState> {
           shouldShowGenerateCommitMessageCallOut={
             !this.state.commitMessageGenerationButtonClicked
           }
+          hasCommitHooks={selectedState.state.hasCommitHooks}
+          skipCommitHooks={selectedState.state.skipCommitHooks}
+          onUpdateCommitOptions={this.onUpdateCommitOptions}
         />
       )
     } else if (selectedState.type === SelectionType.CloningRepository) {

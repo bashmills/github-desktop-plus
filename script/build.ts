@@ -1,10 +1,12 @@
 /* eslint-disable no-sync */
 /// <reference path="./globals.d.ts" />
 
-import * as path from 'path'
 import * as cp from 'child_process'
 import packager, { OsxNotarizeOptions } from 'electron-packager'
 import frontMatter from 'front-matter'
+import * as path from 'path'
+import { getPrintenvzPath } from 'printenvz'
+import { getProxyCommandPath } from 'process-proxy'
 import { externals } from '../app/webpack.common'
 
 interface IChooseALicense {
@@ -27,18 +29,16 @@ import {
   getProductName,
 } from '../app/package-info'
 
+import { isGitHubActions } from './build-platforms'
 import {
   getChannel,
+  getDistArchitecture,
   getDistRoot,
   getExecutableName,
-  isPublishable,
   getIconFileName,
-  getDistArchitecture,
+  isPublishable,
 } from './dist-info'
-import { isGitHubActions } from './build-platforms'
 
-import { updateLicenseDump } from './licenses/update-license-dump'
-import { verifyInjectedSassVariables } from './validate-sass/validate-all'
 import {
   existsSync,
   mkdirSync,
@@ -49,6 +49,8 @@ import {
   writeFileSync,
 } from 'fs'
 import { copySync } from 'fs-extra'
+import { updateLicenseDump } from './licenses/update-license-dump'
+import { verifyInjectedSassVariables } from './validate-sass/validate-all'
 
 // Always use ad-hoc code signing ('-'), even for published builds, to avoid "app is damaged" error.
 // This is the friendliest non-paid option.
@@ -377,6 +379,24 @@ function copyDependencies() {
       appPathMain
     )
   }
+
+  console.log('  Copying process-proxy binary')
+  copySync(
+    getProxyCommandPath(),
+    path.resolve(
+      outRoot,
+      process.platform === 'win32' ? 'process-proxy.exe' : 'process-proxy'
+    )
+  )
+
+  console.log('  Copying printenvz binary')
+  copySync(
+    getPrintenvzPath(),
+    path.resolve(
+      outRoot,
+      process.platform === 'win32' ? 'printenvz.exe' : 'printenvz'
+    )
+  )
 }
 
 function generateLicenseMetadata(outRoot: string) {

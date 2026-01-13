@@ -8,6 +8,7 @@ import {
   RebaseConflictState,
   isRebaseConflictState,
   ChangesSelectionKind,
+  CommitOptions,
 } from '../../lib/app-state'
 import { Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
@@ -33,6 +34,7 @@ import { IAheadBehind } from '../../models/branch'
 import { Emoji } from '../../lib/emoji'
 import { enableFilteredChangesList } from '../../lib/feature-flag'
 import { FilterChangesList } from './filter-changes-list'
+import { HookProgress } from '../../lib/git'
 
 /**
  * The timeout for the animation of the enter/leave animation for Undo.
@@ -56,6 +58,8 @@ interface IChangesSidebarProps {
   readonly issuesStore: IssuesStore
   readonly availableWidth: number
   readonly isCommitting: boolean
+  readonly hookProgress: HookProgress | null
+  readonly onShowCommitProgress: (() => void) | undefined
   readonly isGeneratingCommitMessage: boolean
   readonly shouldShowGenerateCommitMessageCallOut: boolean
   readonly commitToAmend: Commit | null
@@ -94,6 +98,24 @@ interface IChangesSidebarProps {
 
   /** Whether or not to show the changes filter */
   readonly showChangesFilter: boolean
+
+  /**
+   * Whether there are any hooks in the repository that could be
+   * skipped during commit with the --no-verify flag
+   */
+  readonly hasCommitHooks: boolean
+
+  /**
+   * Whether or not to skip blocking commit hooks when creating commits
+   * by means of passing the `--no-verify` flag to git commit
+   */
+  readonly skipCommitHooks: boolean
+
+  /** Callback to set commit options for the given repository */
+  readonly onUpdateCommitOptions: (
+    repository: Repository,
+    options: CommitOptions
+  ) => void
 }
 
 export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
@@ -452,6 +474,8 @@ export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
           onIgnoreFile={this.onIgnoreFile}
           onIgnorePattern={this.onIgnorePattern}
           isCommitting={this.props.isCommitting}
+          hookProgress={this.props.hookProgress}
+          onShowCommitProgress={this.props.onShowCommitProgress}
           isGeneratingCommitMessage={this.props.isGeneratingCommitMessage}
           shouldShowGenerateCommitMessageCallOut={
             this.props.shouldShowGenerateCommitMessageCallOut
@@ -479,6 +503,9 @@ export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
           accounts={this.props.accounts}
           fileListFilter={this.props.changes.fileListFilter}
           showChangesFilter={this.props.showChangesFilter}
+          hasCommitHooks={this.props.hasCommitHooks}
+          skipCommitHooks={this.props.skipCommitHooks}
+          onUpdateCommitOptions={this.props.onUpdateCommitOptions}
         />
         {this.renderUndoCommit(rebaseConflictState)}
       </div>
