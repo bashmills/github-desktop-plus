@@ -12,7 +12,6 @@
           '-Werror',
           '-fPIC',
           '-pie',
-          '-D_FORTIFY_SOURCE=1',
           '-fstack-protector-strong',
           '-Werror=format-security',
         ],
@@ -33,6 +32,11 @@
             ],
             "MACOSX_DEPLOYMENT_TARGET": "10.7"
           }
+        }],
+        ["OS=='win'", {
+          "cflags": [
+            '-D_FORTIFY_SOURCE=1'
+          ]
         }]
       ]
     }
