@@ -72,6 +72,7 @@ import { AppMenuBar } from './app-menu'
 import { UpdateAvailable, renderBanner } from './banners'
 import { Preferences } from './preferences'
 import { ConfirmRestart } from './preferences/confirm-restart'
+import { OpenWithExternalEditor } from './open-with-external-editor/open-with-external-editor'
 import { RepositorySettings } from './repository-settings'
 import { AppError } from './app-error'
 import { MissingRepository } from './missing-repository'
@@ -166,6 +167,7 @@ import { showContextualMenu } from '../lib/menu-item'
 import { UnreachableCommitsDialog } from './history/unreachable-commits-dialog'
 import { OpenPullRequestDialog } from './open-pull-request/open-pull-request-dialog'
 import { sendNonFatalException } from '../lib/helpers/non-fatal-exception'
+import { ICustomIntegration } from '../lib/custom-integration'
 import { createCommitURL } from '../lib/commit-url'
 import { InstallingUpdate } from './installing-update/installing-update'
 import { DialogStackContext } from './dialog'
@@ -521,6 +523,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return uninstallWindowsCLI()
       case 'open-external-editor':
         return this.openCurrentRepositoryInExternalEditor()
+      case 'open-with-external-editor':
+        return this.showOpenWithExternalEditor()
       case 'select-all':
         return this.selectAll()
       case 'show-stashed-changes':
@@ -1843,6 +1847,13 @@ export class App extends React.Component<IAppProps, IAppState> {
             suggestDefaultEditor={suggestDefaultEditor}
           />
         )
+      case PopupType.OpenWithExternalEditor:
+        return (
+          <OpenWithExternalEditor
+            onDismissed={onPopupDismissedFn}
+            onOpenWithEditor={this.openRepositoryInSelectedEditor}
+          />
+        )
       case PopupType.OpenShellFailed:
         return (
           <ShellError
@@ -2778,6 +2789,12 @@ export class App extends React.Component<IAppProps, IAppState> {
     })
   }
 
+  private showOpenWithExternalEditor = () => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.OpenWithExternalEditor,
+    })
+  }
+
   private onBranchCreatedFromCommit = () => {
     const repositoryView = this.repositoryViewRef.current
     if (repositoryView !== null) {
@@ -2970,6 +2987,22 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
 
     this.props.dispatcher.openInExternalEditor(repository, repository.path)
+  }
+
+  private openRepositoryInSelectedEditor = async (
+    selectedEditor: string | null,
+    customEditor: ICustomIntegration | null
+  ) => {
+    const repository = this.getRepository()
+    if (!(repository instanceof Repository)) {
+      return
+    }
+
+    await this.props.dispatcher.openInSelectedExternalEditor(
+      repository.path,
+      selectedEditor,
+      customEditor
+    )
   }
 
   private onOpenInExternalEditor = (path: string) => {
