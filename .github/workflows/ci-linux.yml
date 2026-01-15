@@ -53,7 +53,7 @@ jobs:
           ref: ${{ inputs.ref }}
           submodules: recursive
       - name: Package and test application in container
-        uses: pol-rivero/desktop-ubuntu-arm-packaging@94707924afc670f3dfaac3f73efe3f67cede07cc
+        uses: pol-rivero/desktop-ubuntu-arm-packaging@2d4df8604295eb7bf767101c365435e7e029e3df
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
