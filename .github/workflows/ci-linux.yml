@@ -29,7 +29,7 @@ jobs:
           ref: ${{ inputs.ref }}
           submodules: recursive
       - name: Package and test application in container
-        uses: shiftkey/desktop-ubuntu-arm64-packaging@9be09c4b945873e6509baaf690d457aae08cf901
+        uses: pol-rivero/desktop-ubuntu-arm64-packaging@268f378f0fcea447cbb773ccf5bdc82f7389dcce
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -53,7 +53,7 @@ jobs:
           ref: ${{ inputs.ref }}
           submodules: recursive
       - name: Package and test application in container
-        uses: shiftkey/desktop-ubuntu-arm-packaging@dd75ebc57f69fdb9319ab2b0fe11b253bb1ff2a4
+        uses: pol-rivero/desktop-ubuntu-arm-packaging@94707924afc670f3dfaac3f73efe3f67cede07cc
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
