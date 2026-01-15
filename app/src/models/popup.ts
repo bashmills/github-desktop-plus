@@ -64,6 +64,7 @@ export enum PopupType {
   StashAndSwitchBranch = 'StashAndSwitchBranch',
   ConfirmDiscardStash = 'ConfirmDiscardStash',
   ConfirmCheckoutCommit = 'ConfirmCheckoutCommit',
+  ConfirmDeletePushedTag = 'ConfirmDeletePushedTag',
   CreateTutorialRepository = 'CreateTutorialRepository',
   ConfirmExitTutorial = 'ConfirmExitTutorial',
   PushRejectedDueToMissingWorkflowScope = 'PushRejectedDueToMissingWorkflowScope',
@@ -255,6 +256,11 @@ export type PopupDetail =
       type: PopupType.ConfirmCheckoutCommit
       repository: Repository
       commit: CommitOneLine
+    }
+  | {
+      type: PopupType.ConfirmDeletePushedTag
+      repository: Repository
+      tagName: string
     }
   | {
       type: PopupType.CreateTutorialRepository

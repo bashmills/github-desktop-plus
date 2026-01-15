@@ -118,8 +118,8 @@ interface ICommitListProps {
   /** Callback to fire to open the dialog to create a new tag on the given commit */
   readonly onCreateTag?: (targetCommitSha: string) => void
 
-  /** Callback to fire to delete an unpushed tag */
-  readonly onDeleteTag?: (tagName: string) => void
+  /** Callback to fire to delete a tag */
+  readonly onDeleteTag?: (tagName: string, unpushed: boolean) => void
 
   /**
    * A handler called whenever the user drops commits on the list to be inserted.
@@ -944,10 +944,10 @@ export class CommitList extends React.Component<
     if (commit.tags.length === 1) {
       const tagName = commit.tags[0]
 
+      const unpushed = unpushedTags.includes(tagName)
       return {
         label: `Delete tag ${tagName}`,
-        action: () => onDeleteTag(tagName),
-        enabled: unpushedTags.includes(tagName),
+        action: () => onDeleteTag(tagName, unpushed),
       }
     }
 
@@ -957,10 +957,10 @@ export class CommitList extends React.Component<
     return {
       label: 'Delete tag…',
       submenu: commit.tags.map(tagName => {
+        const unpushed = unpushedTagsSet.has(tagName)
         return {
           label: tagName,
-          action: () => onDeleteTag(tagName),
-          enabled: unpushedTagsSet.has(tagName),
+          action: () => onDeleteTag(tagName, unpushed),
         }
       }),
     }
