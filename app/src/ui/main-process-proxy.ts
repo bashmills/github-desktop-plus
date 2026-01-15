@@ -386,8 +386,11 @@ export const saveGUID = invokeProxy('save-guid', 1)
 export const getGUID = invokeProxy('get-guid', 0)
 
 /** Tell the main process read/save the the title bar style */
-export const saveTitleBarStyle = invokeProxy('save-title-bar-style', 1)
-export const getTitleBarStyle = invokeProxy('get-title-bar-style', 0)
+export const updateMainProcessConfig = invokeProxy(
+  'update-main-process-config',
+  1
+)
+export const getMainProcessConfig = invokeProxy('get-main-process-config', 0)
 
 /** Tell the main process to show a notification */
 export const showNotification = invokeProxy('show-notification', 3)

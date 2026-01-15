@@ -13,11 +13,11 @@ import { Architecture } from './get-architecture'
 import { EndpointToken } from './endpoint-token'
 import { PathType } from '../ui/lib/app-proxy'
 import { ThemeSource } from '../ui/lib/theme-source'
-import { TitleBarStyle } from '../ui/lib/title-bar-style'
 import { DesktopNotificationPermission } from 'desktop-notifications'
 import { NotificationCallback } from 'desktop-notifications'
 import { DesktopAliveEvent } from './stores/alive-store'
 import { CLIAction } from './cli-action'
+import { MainProcessConfig } from './main-process-config'
 
 /**
  * Defines the simplex IPC channel names we use from the renderer
@@ -128,8 +128,10 @@ export type RequestResponseChannels = {
   'should-use-dark-colors': () => Promise<boolean>
   'save-guid': (guid: string) => Promise<void>
   'get-guid': () => Promise<string>
-  'save-title-bar-style': (titleBarStyle: TitleBarStyle) => Promise<void>
-  'get-title-bar-style': () => Promise<TitleBarStyle>
+  'update-main-process-config': (
+    configDiff: Partial<MainProcessConfig>
+  ) => Promise<void>
+  'get-main-process-config': () => Promise<MainProcessConfig>
   'show-notification': (
     title: string,
     body: string,

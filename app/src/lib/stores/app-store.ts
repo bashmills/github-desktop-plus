@@ -85,10 +85,10 @@ import {
   getAppMenu,
   getCurrentWindowState,
   getCurrentWindowZoomFactor,
-  getTitleBarStyle,
+  getMainProcessConfig,
   onShowInstallingUpdate,
   quitApp,
-  saveTitleBarStyle,
+  updateMainProcessConfig,
   sendCancelQuittingSync,
   sendWillQuitEvenIfUpdatingSync,
   setWindowZoomFactor,
@@ -144,7 +144,6 @@ import { assertNever, fatalError, forceUnwrap } from '../fatal-error'
 
 import { GitError as DugiteError } from 'dugite'
 import { parseRemote } from '../../lib/remote-parsing'
-import { getStore } from '../../main-process/settings-store'
 import { Banner, BannerType } from '../../models/banner'
 import {
   IBranchNamePreset,
@@ -442,7 +441,6 @@ const shellKey = 'shell'
 
 const showRecentRepositoriesKey = 'show-recent-repositories'
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
-const hideWindowOnQuitKey = 'hide-window-on-quit'
 
 // background fetching should occur hourly when Desktop is active, but this
 // lower interval ensures user interactions like switching repositories and
@@ -711,8 +709,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
       getBoolean(repositoryIndicatorsEnabledKey) ?? true
 
     this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
-
-    this.hideWindowOnQuit = getBoolean(hideWindowOnQuitKey) ?? false
 
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
       this.getRepositoriesForIndicatorRefresh,
@@ -2498,7 +2494,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.emitUpdate()
     })
 
-    this.titleBarStyle = await getTitleBarStyle()
+    const mainProcessConfig = await getMainProcessConfig()
+    this.titleBarStyle = mainProcessConfig.titleBarStyle
+    this.hideWindowOnQuit = mainProcessConfig.hideWindowOnQuit
 
     this.lastThankYou = getObject<ILastThankYou>(lastThankYouKey)
 
@@ -4039,16 +4037,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     setBoolean(showRecentRepositoriesKey, showRecentRepositories)
     this.showRecentRepositories = showRecentRepositories
     this.emitUpdate()
-  }
-
-  public _setHideWindowOnQuit(hideWindowOnQuit: boolean) {
-    if (this.hideWindowOnQuit === hideWindowOnQuit) {
-      return
-    }
-    setBoolean(hideWindowOnQuitKey, hideWindowOnQuit)
-    this.hideWindowOnQuit = hideWindowOnQuit
-    this.emitUpdate()
-    getStore().set('hideWindowOnQuit', hideWindowOnQuit)
   }
 
   public _setCommitSpellcheckEnabled(commitSpellcheckEnabled: boolean) {
@@ -7420,8 +7408,20 @@ export class AppStore extends TypedBaseStore<IAppState> {
    * Set the title bar style for the application
    */
   public _setTitleBarStyle(titleBarStyle: TitleBarStyle) {
+    if (this.titleBarStyle === titleBarStyle) {
+      return
+    }
     this.titleBarStyle = titleBarStyle
-    return saveTitleBarStyle(titleBarStyle)
+    return updateMainProcessConfig({ titleBarStyle })
+  }
+
+  public _setHideWindowOnQuit(hideWindowOnQuit: boolean) {
+    if (this.hideWindowOnQuit === hideWindowOnQuit) {
+      return
+    }
+    this.hideWindowOnQuit = hideWindowOnQuit
+    this.emitUpdate()
+    return updateMainProcessConfig({ hideWindowOnQuit })
   }
 
   public async _resolveCurrentEditor() {
