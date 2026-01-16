@@ -41,6 +41,8 @@
     </ul>
   </description>
   <url type="homepage">https://github.com/pol-rivero/github-desktop-plus</url>
+  <url type="vcs-browser">https://github.com/pol-rivero/github-desktop-plus</url>
+  <url type="bugtracker">https://github.com/pol-rivero/github-desktop-plus/issues</url>
   <launchable type="desktop-id">io.github.pol_rivero.github-desktop-plus.desktop</launchable>
   <screenshots>
     <screenshot type="default">
