@@ -72,7 +72,7 @@ export function buildDefaultMenu({
       label: 'GitHub Desktop',
       submenu: [
         {
-          label: 'About GitHub Desktop',
+          label: 'About GitHub Desktop Plus',
           click: emit('show-about'),
           id: 'about',
         },
@@ -597,7 +597,7 @@ export function buildDefaultMenu({
         ...helpItems,
         separator,
         {
-          label: '&About GitHub Desktop',
+          label: '&About GitHub Desktop Plus',
           click: emit('show-about'),
           id: 'about',
         },
