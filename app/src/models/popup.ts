@@ -25,6 +25,7 @@ import { UnreachableCommitsTab } from '../ui/history/unreachable-commits-dialog'
 import { IAPIComment } from '../lib/api'
 import { ISecretScanResult } from '../ui/secret-scanning/push-protection-error-dialog'
 import { BypassReasonType } from '../ui/secret-scanning/bypass-push-protection-dialog'
+import { TerminalOutput, TerminalOutputListener } from '../lib/git'
 
 export enum PopupType {
   RenameBranch = 'RenameBranch',
@@ -49,6 +50,7 @@ export enum PopupType {
   CLIInstalled = 'CLIInstalled',
   GenericGitAuthentication = 'GenericGitAuthentication',
   ExternalEditorFailed = 'ExternalEditorFailed',
+  OpenWithExternalEditor = 'OpenWithExternalEditor',
   OpenShellFailed = 'OpenShellFailed',
   InitializeLFS = 'InitializeLFS',
   LFSAttributeMismatch = 'LFSAttributeMismatch',
@@ -62,6 +64,7 @@ export enum PopupType {
   StashAndSwitchBranch = 'StashAndSwitchBranch',
   ConfirmDiscardStash = 'ConfirmDiscardStash',
   ConfirmCheckoutCommit = 'ConfirmCheckoutCommit',
+  ConfirmDeletePushedTag = 'ConfirmDeletePushedTag',
   CreateTutorialRepository = 'CreateTutorialRepository',
   ConfirmExitTutorial = 'ConfirmExitTutorial',
   PushRejectedDueToMissingWorkflowScope = 'PushRejectedDueToMissingWorkflowScope',
@@ -103,6 +106,8 @@ export enum PopupType {
   BypassPushProtection = 'BypassPushProtection',
   GenerateCommitMessageOverrideWarning = 'GenerateCommitMessageOverrideWarning',
   GenerateCommitMessageDisclaimer = 'GenerateCommitMessageDisclaimer',
+  HookFailed = 'HookFailed',
+  CommitProgress = 'CommitProgress',
 }
 
 interface IBasePopup {
@@ -188,6 +193,7 @@ export type PopupDetail =
       onSubmit: (username: string, password: string) => void
       onDismiss: () => void
     }
+  | { type: PopupType.OpenWithExternalEditor }
   | {
       type: PopupType.ExternalEditorFailed
       message: string
@@ -250,6 +256,11 @@ export type PopupDetail =
       type: PopupType.ConfirmCheckoutCommit
       repository: Repository
       commit: CommitOneLine
+    }
+  | {
+      type: PopupType.ConfirmDeletePushedTag
+      repository: Repository
+      tagName: string
     }
   | {
       type: PopupType.CreateTutorialRepository
@@ -461,5 +472,14 @@ export type PopupDetail =
       repository: Repository
       filesSelected: ReadonlyArray<WorkingDirectoryFileChange>
     }
-
+  | {
+      type: PopupType.HookFailed
+      hookName: string
+      terminalOutput: TerminalOutput
+      resolve: (value: 'abort' | 'ignore') => void
+    }
+  | {
+      type: PopupType.CommitProgress
+      subscribeToCommitOutput: TerminalOutputListener
+    }
 export type Popup = IBasePopup & PopupDetail

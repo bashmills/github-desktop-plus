@@ -72,7 +72,7 @@ export function buildDefaultMenu({
       label: 'GitHub Desktop',
       submenu: [
         {
-          label: 'About GitHub Desktop',
+          label: 'About GitHub Desktop Plus',
           click: emit('show-about'),
           id: 'about',
         },
@@ -377,6 +377,12 @@ export function buildDefaultMenu({
         accelerator: 'CmdOrCtrl+Shift+A',
         click: emit('open-external-editor'),
       },
+      {
+        label: __DARWIN__ ? 'Open With…' : 'Open &with…',
+        id: 'open-with-external-editor',
+        accelerator: 'CmdOrCtrl+Shift+Alt+A',
+        click: emit('open-with-external-editor'),
+      },
       separator,
       {
         id: 'create-issue-in-repository-on-github',
@@ -591,7 +597,7 @@ export function buildDefaultMenu({
         ...helpItems,
         separator,
         {
-          label: '&About GitHub Desktop',
+          label: '&About GitHub Desktop Plus',
           click: emit('show-about'),
           id: 'about',
         },

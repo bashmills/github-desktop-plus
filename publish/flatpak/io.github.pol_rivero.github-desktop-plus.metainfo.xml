@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.pol_rivero.github-desktop-plus</id>
   <name>Desktop Plus</name>
-  <summary>Git client with advanced functionality and Bitbucket integration</summary>
+  <summary>Git client with advanced functionality and Bitbucket, GitLab integration</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <developer id="io.github.pol_rivero">
@@ -17,7 +17,7 @@
       <li>Red color for destructive action buttons.</li>
       <li>Add icons to some similar-looking buttons for faster visual recognition.</li>
       <li>Allow generating branch name presets by calling an external script (e.g. fetching ticket numbers from an issue tracker).</li>
-      <li>Bitbucket integration: preview and create pull requests, view pull requests status (including checks), display a commit or PR in Bitbucket (web browser), andcorrectly set repository owner (instead of displaying "Other").</li>
+      <li>Bitbucket and GitLab integration: preview and create pull requests, view pull requests status (including checks), display a commit or PR in Bitbucket/GitLab (web browser), and correctly set repository owner (instead of displaying "Other").</li>
     </ul>
     <p>Repositories list:</p>
     <ul>
@@ -41,15 +41,25 @@
     </ul>
   </description>
   <url type="homepage">https://github.com/pol-rivero/github-desktop-plus</url>
+  <url type="vcs-browser">https://github.com/pol-rivero/github-desktop-plus</url>
+  <url type="bugtracker">https://github.com/pol-rivero/github-desktop-plus/issues</url>
   <launchable type="desktop-id">io.github.pol_rivero.github-desktop-plus.desktop</launchable>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/ad55a7eb97ae78b65cb3714db4ab7d29ca30d0d5/docs/assets/flathub/image1.png</image>
-      <caption>Search bar in commit history</caption>
+      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/search.webp</image>
+      <caption>Search for commits by title, message, tag, or hash</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/ad55a7eb97ae78b65cb3714db4ab7d29ca30d0d5/docs/assets/flathub/image2.png</image>
-      <caption>Branch list with "unpushed branch" indicator</caption>
+      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/stashes.webp</image>
+      <caption>Create several stashes per branch</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/push.webp</image>
+      <caption>Easily identify unpushed branches</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/pol-rivero/github-desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/up-to-date.webp</image>
+      <caption>...and always up to date with the upstream, ensuring you get the latest features from the official GitHub Desktop app.</caption>
     </screenshot>
   </screenshots>
   <content_rating type="oars-1.1" />

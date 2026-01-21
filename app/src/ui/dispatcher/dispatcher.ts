@@ -24,6 +24,7 @@ import {
   CherryPickConflictState,
   MultiCommitOperationConflictState,
   IMultiCommitOperationState,
+  CommitOptions,
 } from '../../lib/app-state'
 import { assertNever, fatalError } from '../../lib/fatal-error'
 import {
@@ -232,6 +233,10 @@ export class Dispatcher {
     missing: boolean
   ): Promise<Repository> {
     return this.appStore._updateRepositoryMissing(repository, missing)
+  }
+
+  public updateCommitOptions(repository: Repository, options: CommitOptions) {
+    this.appStore._updateCommitOptions(repository, options)
   }
 
   /** Load the next batch of history for the repository. */
@@ -1579,6 +1584,21 @@ export class Dispatcher {
     fullPath: string
   ): Promise<void> {
     return this.appStore._openInExternalEditor(repository, fullPath)
+  }
+
+  /**
+   * Opens a path in a selected external editor without changing preferences.
+   */
+  public async openInSelectedExternalEditor(
+    fullPath: string,
+    selectedEditor: string | null,
+    customEditor: ICustomIntegration | null
+  ): Promise<void> {
+    return this.appStore._openInSelectedExternalEditor(
+      fullPath,
+      selectedEditor,
+      customEditor
+    )
   }
 
   /**

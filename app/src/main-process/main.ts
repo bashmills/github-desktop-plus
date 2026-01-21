@@ -44,9 +44,9 @@ import {
 import { buildSpellCheckMenu } from './menu/build-spell-check-menu'
 import { getMainGUID, saveGUIDFile } from '../lib/get-main-guid'
 import {
-  readTitleBarConfigFileSync,
-  saveTitleBarConfigFile,
-} from '../lib/get-title-bar-config'
+  readMainProcessConfig,
+  updateMainProcessConfig,
+} from '../lib/main-process-config'
 import {
   getNotificationsPermission,
   requestNotificationsPermission,
@@ -718,14 +718,11 @@ app.on('ready', () => {
 
   ipcMain.handle('save-guid', (_, guid) => saveGUIDFile(guid))
 
-  ipcMain.handle(
-    'get-title-bar-style',
-    async () => readTitleBarConfigFileSync().titleBarStyle
-  )
+  ipcMain.handle('get-main-process-config', async () => readMainProcessConfig())
 
   ipcMain.handle(
-    'save-title-bar-style',
-    async (_, titleBarStyle) => await saveTitleBarConfigFile({ titleBarStyle })
+    'update-main-process-config',
+    async (_, configDiff) => await updateMainProcessConfig(configDiff)
   )
 
   ipcMain.handle('show-notification', async (_, title, body, userInfo) =>

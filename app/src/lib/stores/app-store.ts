@@ -85,10 +85,10 @@ import {
   getAppMenu,
   getCurrentWindowState,
   getCurrentWindowZoomFactor,
-  getTitleBarStyle,
+  getMainProcessConfig,
   onShowInstallingUpdate,
   quitApp,
-  saveTitleBarStyle,
+  updateMainProcessConfig,
   sendCancelQuittingSync,
   sendWillQuitEvenIfUpdatingSync,
   setWindowZoomFactor,
@@ -132,6 +132,7 @@ import {
   PossibleSelections,
   RepositorySectionTab,
   SelectionType,
+  CommitOptions,
 } from '../app-state'
 import {
   findEditorOrDefault,
@@ -144,7 +145,6 @@ import { assertNever, fatalError, forceUnwrap } from '../fatal-error'
 
 import { GitError as DugiteError } from 'dugite'
 import { parseRemote } from '../../lib/remote-parsing'
-import { getStore } from '../../main-process/settings-store'
 import { Banner, BannerType } from '../../models/banner'
 import {
   IBranchNamePreset,
@@ -363,6 +363,7 @@ import {
   updateConflictState,
 } from './updates/changes-state'
 import { updateRemoteUrl } from './updates/update-remote-url'
+import { getRepoHooks } from '../hooks/get-repo-hooks'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -441,7 +442,6 @@ const shellKey = 'shell'
 
 const showRecentRepositoriesKey = 'show-recent-repositories'
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
-const hideWindowOnQuitKey = 'hide-window-on-quit'
 
 // background fetching should occur hourly when Desktop is active, but this
 // lower interval ensures user interactions like switching repositories and
@@ -710,8 +710,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
       getBoolean(repositoryIndicatorsEnabledKey) ?? true
 
     this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
-
-    this.hideWindowOnQuit = getBoolean(hideWindowOnQuitKey) ?? false
 
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
       this.getRepositoriesForIndicatorRefresh,
@@ -2515,7 +2513,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.emitUpdate()
     })
 
-    this.titleBarStyle = await getTitleBarStyle()
+    const mainProcessConfig = await getMainProcessConfig()
+    this.titleBarStyle = mainProcessConfig.titleBarStyle
+    this.hideWindowOnQuit = mainProcessConfig.hideWindowOnQuit
 
     this.lastThankYou = getObject<ILastThankYou>(lastThankYouKey)
 
@@ -3546,10 +3546,44 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const gitStore = this.gitStoreCache.get(repository)
 
     return this.withIsCommitting(repository, async () => {
-      const result = await gitStore.performFailableOperation(async () => {
-        const message = await formatCommitMessage(repository, context)
-        return createCommit(repository, message, selectedFiles, context.amend)
-      })
+      const result = await gitStore.performFailableOperation(
+        async () => {
+          const message = await formatCommitMessage(repository, context)
+          let aborted = false
+          return createCommit(repository, message, selectedFiles, {
+            amend: context.amend,
+            onHookProgress: hookProgress => {
+              this.repositoryStateCache.update(repository, state => ({
+                ...state,
+                hookProgress,
+              }))
+              this.emitUpdate()
+            },
+            onHookFailure: (hookName, terminalOutput) =>
+              new Promise(resolve => {
+                this._showPopup({
+                  type: PopupType.HookFailed,
+                  hookName,
+                  terminalOutput,
+                  resolve: resolution => {
+                    if (resolution === 'abort') {
+                      aborted = true
+                    }
+                    resolve(resolution)
+                  },
+                })
+              }),
+            onTerminalOutputAvailable: subscribeToCommitOutput => {
+              this.repositoryStateCache.update(repository, state => ({
+                ...state,
+                subscribeToCommitOutput,
+              }))
+            },
+            skipCommitHooks: state.skipCommitHooks,
+          }).catch(err => (aborted ? undefined : Promise.reject(err)))
+        },
+        { gitContext: { kind: 'commit' }, repository }
+      )
 
       if (result !== undefined) {
         await this._recordCommitStats(
@@ -3849,6 +3883,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       gitStore.updateLastFetched(),
       gitStore.loadStashEntries(),
       this._refreshAuthor(repository),
+      this._refreshHasCommitHooks(repository),
       refreshSectionPromise,
     ])
 
@@ -4024,16 +4059,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdate()
   }
 
-  public _setHideWindowOnQuit(hideWindowOnQuit: boolean) {
-    if (this.hideWindowOnQuit === hideWindowOnQuit) {
-      return
-    }
-    setBoolean(hideWindowOnQuitKey, hideWindowOnQuit)
-    this.hideWindowOnQuit = hideWindowOnQuit
-    this.emitUpdate()
-    getStore().set('hideWindowOnQuit', hideWindowOnQuit)
-  }
-
   public _setCommitSpellcheckEnabled(commitSpellcheckEnabled: boolean) {
     if (this.commitSpellcheckEnabled === commitSpellcheckEnabled) {
       return
@@ -4121,6 +4146,25 @@ export class AppStore extends TypedBaseStore<IAppState> {
       commitAuthor,
     }))
     this.emitUpdate()
+  }
+
+  public _updateCommitOptions(
+    repository: Repository,
+    commitOptions: CommitOptions
+  ): void {
+    this.repositoryStateCache.update(repository, () => commitOptions)
+    this.emitUpdate()
+  }
+
+  private async _refreshHasCommitHooks(repository: Repository): Promise<void> {
+    const hooks = ['pre-commit', 'commit-msg']
+    // Break early if we find either one of the hooks
+    for await (const {} of getRepoHooks(repository.path, hooks)) {
+      const hasCommitHooks = true
+      this.repositoryStateCache.update(repository, () => ({ hasCommitHooks }))
+      this.emitUpdate()
+      return
+    }
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
@@ -5068,6 +5112,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     this.repositoryStateCache.update(repository, () => ({
       isCommitting: true,
+      hookProgress: null,
+      subscribeToCommitOutput: null,
     }))
     this.emitUpdate()
 
@@ -5076,6 +5122,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     } finally {
       this.repositoryStateCache.update(repository, () => ({
         isCommitting: false,
+        hookProgress: null,
+        subscribeToCommitOutput: null,
       }))
       this.emitUpdate()
     }
@@ -6266,6 +6314,39 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
   }
 
+  /** Open a path using a selected editor without changing preferences. */
+  public async _openInSelectedExternalEditor(
+    fullPath: string,
+    selectedEditor: string | null,
+    customEditor: ICustomIntegration | null
+  ): Promise<void> {
+    try {
+      if (customEditor && customEditor.path) {
+        await launchCustomExternalEditor(fullPath, customEditor)
+        return
+      }
+
+      if (!selectedEditor) {
+        return
+      }
+
+      const match = await findEditorOrDefault(selectedEditor)
+      if (match === null) {
+        this.emitError(
+          new ExternalEditorError(
+            `No suitable editors installed for GitHub Desktop to launch. Install ${suggestedExternalEditor.name} for your platform and restart GitHub Desktop to try again.`,
+            { suggestDefaultEditor: true }
+          )
+        )
+        return
+      }
+
+      await launchExternalEditor(fullPath, match)
+    } catch (error) {
+      this.emitError(error)
+    }
+  }
+
   /** This shouldn't be called directly. See `Dispatcher`. */
   public async _saveGitIgnore(
     repository: Repository,
@@ -7395,8 +7476,20 @@ export class AppStore extends TypedBaseStore<IAppState> {
    * Set the title bar style for the application
    */
   public _setTitleBarStyle(titleBarStyle: TitleBarStyle) {
+    if (this.titleBarStyle === titleBarStyle) {
+      return
+    }
     this.titleBarStyle = titleBarStyle
-    return saveTitleBarStyle(titleBarStyle)
+    return updateMainProcessConfig({ titleBarStyle })
+  }
+
+  public _setHideWindowOnQuit(hideWindowOnQuit: boolean) {
+    if (this.hideWindowOnQuit === hideWindowOnQuit) {
+      return
+    }
+    this.hideWindowOnQuit = hideWindowOnQuit
+    this.emitUpdate()
+    return updateMainProcessConfig({ hideWindowOnQuit })
   }
 
   public async _resolveCurrentEditor() {

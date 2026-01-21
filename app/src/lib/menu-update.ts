@@ -132,6 +132,7 @@ const allMenuIds: ReadonlyArray<MenuIDs> = [
   'open-working-directory',
   'show-repository-settings',
   'open-external-editor',
+  'open-with-external-editor',
   'remove-repository',
   'new-repository',
   'add-local-repository',
@@ -140,6 +141,7 @@ const allMenuIds: ReadonlyArray<MenuIDs> = [
   'create-pull-request',
   'preview-pull-request',
   'squash-and-merge-branch',
+  'toggle-stashed-changes',
 ]
 
 function getAllMenusDisabledBuilder(): MenuStateBuilder {
@@ -248,6 +250,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     'show-compare',
     'show-branches-list',
     'open-external-editor',
+    'open-with-external-editor',
     'compare-to-branch',
     'toggle-changes-filter',
   ]
@@ -345,6 +348,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       selectedState.type === SelectionType.MissingRepository
     ) {
       menuStateBuilder.disable('open-external-editor')
+      menuStateBuilder.disable('open-with-external-editor')
     }
   } else {
     for (const id of repositoryScopedIDs) {

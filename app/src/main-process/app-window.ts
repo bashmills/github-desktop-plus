@@ -14,7 +14,7 @@ import {
   getWindowState,
   registerWindowStateChangedEvents,
 } from '../lib/window-state'
-import { readTitleBarConfigFileSync } from '../lib/get-title-bar-config'
+import { readMainProcessConfig } from '../lib/main-process-config'
 import { MenuEvent } from './menu'
 import { URLActionType } from '../lib/parse-app-url'
 import { ILaunchStats } from '../lib/stats'
@@ -30,7 +30,6 @@ import {
 import { addTrustedIPCSender } from './trusted-ipc-sender'
 import { getUpdaterGUID } from '../lib/get-updater-guid'
 import { CLIAction } from '../lib/cli-action'
-import { getStore } from './settings-store'
 
 export class AppWindow {
   private window: Electron.BrowserWindow
@@ -45,8 +44,6 @@ export class AppWindow {
 
   // See https://github.com/desktop/desktop/pull/11162
   private shouldMaximizeOnShow = false
-
-  private store = getStore()
 
   public constructor() {
     const savedWindowState = windowStateKeeper({
@@ -82,7 +79,7 @@ export class AppWindow {
     } else if (__WIN32__) {
       windowOptions.frame = false
     } else if (__LINUX__) {
-      if (readTitleBarConfigFileSync().titleBarStyle === 'custom') {
+      if (readMainProcessConfig().titleBarStyle === 'custom') {
         windowOptions.frame = false
       }
       windowOptions.icon = join(__dirname, 'static', 'logos', '512x512.png')
@@ -126,9 +123,8 @@ export class AppWindow {
     })
 
     this.window.on('close', e => {
-      const hideWindowOnQuitSetting = this.store.get('hideWindowOnQuit', false)
       const hideInsteadOfClose =
-        (__DARWIN__ || hideWindowOnQuitSetting) && !quitting
+        (__DARWIN__ || readMainProcessConfig().hideWindowOnQuit) && !quitting
       // On macOS, closing the window doesn't mean the app is quitting. If the
       // app is updating, we will prevent the window from closing only when the
       // app is also quitting.

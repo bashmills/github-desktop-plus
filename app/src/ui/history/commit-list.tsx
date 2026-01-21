@@ -9,10 +9,6 @@ import { DragData, DragType } from '../../models/drag-drop'
 import classNames from 'classnames'
 import memoizeOne from 'memoize-one'
 import { IMenuItem, showContextualMenu } from '../../lib/menu-item'
-import {
-  enableCheckoutCommit,
-  enableResetToCommit,
-} from '../../lib/feature-flag'
 import { getDotComAPIEndpoint } from '../../lib/api'
 import { clipboard } from 'electron'
 import { RowIndexPath } from '../lib/list/list-row-index-path'
@@ -118,8 +114,8 @@ interface ICommitListProps {
   /** Callback to fire to open the dialog to create a new tag on the given commit */
   readonly onCreateTag?: (targetCommitSha: string) => void
 
-  /** Callback to fire to delete an unpushed tag */
-  readonly onDeleteTag?: (tagName: string) => void
+  /** Callback to fire to delete a tag */
+  readonly onDeleteTag?: (tagName: string, unpushed: boolean) => void
 
   /**
    * A handler called whenever the user drops commits on the list to be inserted.
@@ -789,27 +785,23 @@ export class CommitList extends React.Component<
       })
     }
 
-    if (enableResetToCommit()) {
-      items.push({
-        label: __DARWIN__ ? 'Reset to Commit…' : 'Reset to commit…',
-        action: () => {
-          if (this.props.onResetToCommit) {
-            this.props.onResetToCommit(commit)
-          }
-        },
-        enabled: canBeResetTo && this.props.onResetToCommit !== undefined,
-      })
-    }
+    items.push({
+      label: __DARWIN__ ? 'Reset to Commit…' : 'Reset to commit…',
+      action: () => {
+        if (this.props.onResetToCommit) {
+          this.props.onResetToCommit(commit)
+        }
+      },
+      enabled: canBeResetTo && this.props.onResetToCommit !== undefined,
+    })
 
-    if (enableCheckoutCommit()) {
-      items.push({
-        label: __DARWIN__ ? 'Checkout Commit' : 'Checkout commit',
-        action: () => {
-          this.props.onCheckoutCommit?.(commit)
-        },
-        enabled: canBeCheckedOut && this.props.onCheckoutCommit !== undefined,
-      })
-    }
+    items.push({
+      label: __DARWIN__ ? 'Checkout Commit' : 'Checkout commit',
+      action: () => {
+        this.props.onCheckoutCommit?.(commit)
+      },
+      enabled: canBeCheckedOut && this.props.onCheckoutCommit !== undefined,
+    })
 
     items.push({
       label: __DARWIN__ ? 'Reorder Commit' : 'Reorder commit',
@@ -944,10 +936,10 @@ export class CommitList extends React.Component<
     if (commit.tags.length === 1) {
       const tagName = commit.tags[0]
 
+      const unpushed = unpushedTags.includes(tagName)
       return {
         label: `Delete tag ${tagName}`,
-        action: () => onDeleteTag(tagName),
-        enabled: unpushedTags.includes(tagName),
+        action: () => onDeleteTag(tagName, unpushed),
       }
     }
 
@@ -957,10 +949,10 @@ export class CommitList extends React.Component<
     return {
       label: 'Delete tag…',
       submenu: commit.tags.map(tagName => {
+        const unpushed = unpushedTagsSet.has(tagName)
         return {
           label: tagName,
-          action: () => onDeleteTag(tagName),
-          enabled: unpushedTagsSet.has(tagName),
+          action: () => onDeleteTag(tagName, unpushed),
         }
       }),
     }

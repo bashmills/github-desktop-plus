@@ -9,8 +9,6 @@ import { DialogContent, DialogPreferredFocusClassName } from '../dialog'
 import { Avatar } from '../lib/avatar'
 import { CallToAction } from '../lib/call-to-action'
 import {
-  enableMultipleEnterpriseAccounts,
-  enableMultipleLoginAccounts,
   enableBitbucketIntegration,
   enableGitLabIntegration,
 } from '../../lib/feature-flag'
@@ -42,14 +40,10 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
     return (
       <DialogContent className="accounts-tab">
         <h2>GitHub.com</h2>
-        {enableMultipleLoginAccounts()
-          ? this.renderMultipleDotComAccounts()
-          : this.renderSingleDotComAccount()}
+        {this.renderMultipleDotComAccounts()}
 
         <h2>GitHub Enterprise</h2>
-        {enableMultipleEnterpriseAccounts()
-          ? this.renderMultipleEnterpriseAccounts()
-          : this.renderSingleEnterpriseAccount()}
+        {this.renderMultipleEnterpriseAccounts()}
 
         {enableBitbucketIntegration() && (
           <>
@@ -72,14 +66,6 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
     )
   }
 
-  private renderSingleDotComAccount() {
-    const dotComAccount = this.props.accounts.find(isDotComAccount)
-
-    return dotComAccount
-      ? this.renderAccount(dotComAccount, SignInType.DotCom)
-      : this.renderSignIn(SignInType.DotCom)
-  }
-
   private renderMultipleDotComAccounts() {
     const dotComAccounts = this.props.accounts.filter(isDotComAccount)
 
@@ -99,16 +85,6 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
     )
   }
 
-  private renderSingleEnterpriseAccount() {
-    const enterpriseAccount = this.props.accounts.find(
-      a => a.apiType === 'enterprise'
-    )
-
-    return enterpriseAccount
-      ? this.renderAccount(enterpriseAccount, SignInType.Enterprise)
-      : this.renderSignIn(SignInType.Enterprise)
-  }
-
   private renderMultipleEnterpriseAccounts() {
     const enterpriseAccounts = this.props.accounts.filter(
       a => a.apiType === 'enterprise'
@@ -123,7 +99,7 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
           this.renderSignIn(SignInType.Enterprise)
         ) : (
           <Button onClick={this.props.onEnterpriseSignIn}>
-            Add GitHub Enteprise account
+            Add GitHub Enterprise account
           </Button>
         )}
       </>
@@ -151,8 +127,7 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
         <div className="user-info-container">
           <Avatar accounts={this.props.accounts} user={avatarUser} />
           <div className="user-info">
-            {enableMultipleEnterpriseAccounts() &&
-            account.apiType === 'enterprise' ? (
+            {account.apiType === 'enterprise' ? (
               <>
                 <div className="account-title">
                   {account.name === account.login

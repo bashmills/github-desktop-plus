@@ -238,7 +238,7 @@ export class About extends React.Component<IAboutProps> {
           <Row className="logo">
             <img
               src={DesktopLogo}
-              alt="GitHub Desktop"
+              alt="GitHub Desktop Plus"
               width="64"
               height="64"
             />

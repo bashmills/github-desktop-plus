@@ -48,6 +48,15 @@ import {
   TargetPathArgument,
   isValidCustomIntegration,
 } from '../../lib/custom-integration'
+import {
+  defaultGitHookEnvShell,
+  getCacheHooksEnv,
+  getGitHookEnvShell,
+  getHooksEnvEnabled,
+  setCacheHooksEnv,
+  setGitHookEnvShell,
+  setHooksEnvEnabled,
+} from '../../lib/hooks/config'
 
 interface IPreferencesProps {
   readonly dispatcher: Dispatcher
@@ -142,6 +151,13 @@ interface IPreferencesState {
   readonly underlineLinks: boolean
 
   readonly showDiffCheckMarks: boolean
+
+  readonly selectedGitTabIndex?: number
+  readonly enableGitHookEnv: boolean | undefined
+  readonly cacheGitHookEnv: boolean | undefined
+  readonly selectedGitHookEnvShell: string | undefined
+  // Whether the preferences related to Git hooks environment have been changed
+  readonly hooksPreferencesDirty: boolean
 }
 
 /**
@@ -205,6 +221,10 @@ export class Preferences extends React.Component<
       isLoadingGitConfig: true,
       underlineLinks: this.props.underlineLinks,
       showDiffCheckMarks: this.props.showDiffCheckMarks,
+      enableGitHookEnv: getHooksEnvEnabled(),
+      cacheGitHookEnv: getCacheHooksEnv(),
+      selectedGitHookEnvShell: getGitHookEnvShell(),
+      hooksPreferencesDirty: false,
     }
   }
 
@@ -412,6 +432,25 @@ export class Preferences extends React.Component<
     }
   }
 
+  private onSelectedGitTabIndexChanged = (index: number) => {
+    this.setState({ selectedGitTabIndex: index })
+  }
+
+  private onEnableGitHookEnvChanged = (enableGitHookEnv: boolean) => {
+    this.setState({ enableGitHookEnv, hooksPreferencesDirty: true })
+  }
+
+  private onCacheGitHookEnvChanged = (cacheGitHookEnv: boolean) => {
+    this.setState({ cacheGitHookEnv, hooksPreferencesDirty: true })
+  }
+
+  private onSelectedGitHookEnvShellChanged = (selectedShell: string) => {
+    this.setState({
+      selectedGitHookEnvShell: selectedShell,
+      hooksPreferencesDirty: true,
+    })
+  }
+
   private renderActiveTab() {
     const index = this.state.selectedIndex
     let View
@@ -477,6 +516,16 @@ export class Preferences extends React.Component<
               onDefaultBranchChanged={this.onDefaultBranchChanged}
               isLoadingGitConfig={this.state.isLoadingGitConfig}
               onEditGlobalGitConfig={this.props.onEditGlobalGitConfig}
+              selectedTabIndex={this.state.selectedGitTabIndex}
+              onSelectedTabIndexChanged={this.onSelectedGitTabIndexChanged}
+              onEnableGitHookEnvChanged={this.onEnableGitHookEnvChanged}
+              onCacheGitHookEnvChanged={this.onCacheGitHookEnvChanged}
+              onSelectedShellChanged={this.onSelectedGitHookEnvShellChanged}
+              enableGitHookEnv={this.state.enableGitHookEnv ?? false}
+              cacheGitHookEnv={this.state.cacheGitHookEnv ?? true}
+              selectedShell={
+                this.state.selectedGitHookEnvShell ?? defaultGitHookEnvShell
+              }
             />
           </>
         )
@@ -818,6 +867,20 @@ export class Preferences extends React.Component<
 
       if (this.state.hideWindowOnQuit !== this.props.hideWindowOnQuit) {
         dispatcher.setHideWindowOnQuit(this.state.hideWindowOnQuit)
+      }
+
+      if (this.state.hooksPreferencesDirty) {
+        if (this.state.enableGitHookEnv) {
+          setHooksEnvEnabled(this.state.enableGitHookEnv)
+        }
+
+        if (this.state.cacheGitHookEnv !== undefined) {
+          setCacheHooksEnv(this.state.cacheGitHookEnv)
+        }
+
+        if (this.state.selectedGitHookEnvShell !== undefined) {
+          setGitHookEnvShell(this.state.selectedGitHookEnvShell)
+        }
       }
     } catch (e) {
       if (isConfigFileLockError(e)) {
