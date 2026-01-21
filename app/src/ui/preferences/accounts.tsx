@@ -9,9 +9,8 @@ import { DialogContent, DialogPreferredFocusClassName } from '../dialog'
 import { Avatar } from '../lib/avatar'
 import { CallToAction } from '../lib/call-to-action'
 import {
-  enableMultipleEnterpriseAccounts,
   enableBitbucketIntegration,
-  enableGitLabIntegration,
+  enableGitLabIntegration
 } from '../../lib/feature-flag'
 import { getHTMLURL } from '../../lib/api'
 
@@ -47,9 +46,7 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
           : this.renderSignIn(SignInType.DotCom)}
 
         <h2>GitHub Enterprise</h2>
-        {enableMultipleEnterpriseAccounts()
-          ? this.renderMultipleEnterpriseAccounts()
-          : this.renderSingleEnterpriseAccount()}
+        {this.renderMultipleEnterpriseAccounts()}
 
         {enableBitbucketIntegration() && (
           <>
@@ -70,16 +67,6 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
         )}
       </DialogContent>
     )
-  }
-
-  private renderSingleEnterpriseAccount() {
-    const enterpriseAccount = this.props.accounts.find(
-      a => a.apiType === 'enterprise'
-    )
-
-    return enterpriseAccount
-      ? this.renderAccount(enterpriseAccount, SignInType.Enterprise)
-      : this.renderSignIn(SignInType.Enterprise)
   }
 
   private renderMultipleEnterpriseAccounts() {
@@ -121,8 +108,7 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
         <div className="user-info-container">
           <Avatar accounts={this.props.accounts} user={avatarUser} />
           <div className="user-info">
-            {enableMultipleEnterpriseAccounts() &&
-            account.apiType === 'enterprise' ? (
+            {account.apiType === 'enterprise' ? (
               <>
                 <div className="account-title">
                   {account.name === account.login
