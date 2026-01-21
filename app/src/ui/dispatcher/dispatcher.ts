@@ -8,6 +8,8 @@ import {
   IAPIRepoRuleset,
   getDotComAPIEndpoint,
   IAPICreatePushProtectionBypassResponse,
+  getAccountForEndpoint,
+  getEndpointForRepository,
 } from '../../lib/api'
 import { shell } from '../../lib/app-shell'
 import {
@@ -35,6 +37,7 @@ import {
   getBranches,
   getRebaseSnapshot,
   getRepositoryType,
+  setConfigValue,
 } from '../../lib/git'
 import { isGitOnPath } from '../../lib/is-git-on-path'
 import {
@@ -168,9 +171,10 @@ export class Dispatcher {
    * this will post an error to that affect.
    */
   public addRepositories(
-    paths: ReadonlyArray<string>
+    paths: ReadonlyArray<string>,
+    login?: string
   ): Promise<ReadonlyArray<Repository>> {
-    return this.appStore._addRepositories(paths)
+    return this.appStore._addRepositories(paths, login)
   }
 
   /**
@@ -187,9 +191,15 @@ export class Dispatcher {
   public addTutorialRepository(
     path: string,
     endpoint: string,
-    apiRepository: IAPIFullRepository
+    apiRepository: IAPIFullRepository,
+    login: string
   ) {
-    return this.appStore._addTutorialRepository(path, endpoint, apiRepository)
+    return this.appStore._addTutorialRepository(
+      path,
+      endpoint,
+      apiRepository,
+      login
+    )
   }
 
   /** Resume an already started onboarding tutorial */
@@ -809,18 +819,24 @@ export class Dispatcher {
    * Clone a missing repository to the previous path, and update it's
    * state in the repository list if the clone completes without error.
    */
-  public cloneAgain(url: string, path: string): Promise<void> {
-    return this.appStore._cloneAgain(url, path)
+  public cloneAgain(url: string, path: string, login?: string): Promise<void> {
+    return this.appStore._cloneAgain(url, path, login)
   }
 
   /** Clone the repository to the path. */
   public async clone(
     url: string,
     path: string,
-    options?: { branch?: string; defaultBranch?: string }
+    options?: { branch?: string; defaultBranch?: string },
+    login?: string
   ): Promise<Repository | null> {
     return this.appStore._completeOpenInDesktop(async () => {
-      const { promise, repository } = this.appStore._clone(url, path, options)
+      const { promise, repository } = this.appStore._clone(
+        url,
+        path,
+        options,
+        login
+      )
       await this.selectRepository(repository)
       const success = await promise
       // TODO: this exit condition is not great, bob
@@ -828,13 +844,35 @@ export class Dispatcher {
         return null
       }
 
-      const addedRepositories = await this.addRepositories([path])
+      const addedRepositories = await this.addRepositories([path], login)
 
       if (addedRepositories.length < 1) {
         return null
       }
 
       const addedRepository = addedRepositories[0]
+
+      if (login) {
+        const state = this.appStore.getState()
+        const accounts = state.accounts
+        const endpoint = getEndpointForRepository(url)
+        const account = getAccountForEndpoint(accounts, endpoint, login)
+
+        if (account) {
+          const verifiedEmails = account.emails
+            .filter(x => x.verified)
+            .map(x => x.email)
+          if (verifiedEmails && verifiedEmails.length > 0) {
+            await setConfigValue(addedRepository, 'user.name', account.name)
+            await setConfigValue(
+              addedRepository,
+              'user.email',
+              verifiedEmails[0]
+            )
+          }
+        }
+      }
+
       await this.selectRepository(addedRepository)
 
       if (isRepositoryWithForkedGitHubRepository(addedRepository)) {
@@ -862,6 +900,14 @@ export class Dispatcher {
     branch: string | null
   ): Promise<void> {
     return this.appStore._updateRepositoryDefaultBranch(repository, branch)
+  }
+
+  /** Changes the repository's account */
+  public updateRepositoryAccount(
+    repository: Repository,
+    account: Account | null
+  ): Promise<void> {
+    return this.appStore._updateRepositoryAccount(repository, account)
   }
 
   public updateRepositoryEditorOverride(
@@ -1859,12 +1905,12 @@ export class Dispatcher {
   }
 
   private async openRepositoryFromUrl(action: IOpenRepositoryFromURLAction) {
-    const { url, pr, branch, filepath } = action
+    const { url, pr, branch, filepath, login } = action
 
     let repository: Repository | null
 
     if (pr !== null) {
-      repository = await this.openPullRequestFromUrl(url, pr)
+      repository = await this.openPullRequestFromUrl(url, pr, login)
     } else if (branch !== null) {
       repository = await this.openBranchNameFromUrl(url, branch)
     } else {
@@ -1918,9 +1964,10 @@ export class Dispatcher {
 
   private async openPullRequestFromUrl(
     url: string,
-    pr: string
+    pr: string,
+    login?: string
   ): Promise<RepositoryWithGitHubRepository | null> {
-    const pullRequest = await this.appStore.fetchPullRequest(url, pr)
+    const pullRequest = await this.appStore.fetchPullRequest(url, pr, login)
 
     if (pullRequest === null) {
       return null
@@ -2204,7 +2251,12 @@ export class Dispatcher {
         return this.fetch(retryAction.repository, FetchType.UserInitiatedTask)
 
       case RetryActionType.Clone:
-        await this.clone(retryAction.url, retryAction.path, retryAction.options)
+        await this.clone(
+          retryAction.url,
+          retryAction.path,
+          retryAction.options,
+          retryAction.login
+        )
         break
 
       case RetryActionType.Checkout:

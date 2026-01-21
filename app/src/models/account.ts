@@ -5,7 +5,7 @@ import {
   getHTMLURL,
   IAPIEmail,
 } from '../lib/api'
-
+import { enableMultipleLoginAccounts } from '../lib/feature-flag'
 /**
  * Returns a value indicating whether two account instances
  * can be considered equal. Equality is determined by comparing
@@ -14,11 +14,18 @@ import {
  * while still maintaining the association between repositories
  * and a particular account.
  */
-export function accountEquals(x: Account, y: Account) {
-  return x.endpoint === y.endpoint && x.id === y.id
+export function accountEquals(x: Account | null, y: Account | null) {
+  return (
+    (x === null && y === null) ||
+    (x !== null &&
+      y !== null &&
+      x.endpoint === y.endpoint &&
+      x.id === y.id &&
+      (enableMultipleLoginAccounts() || x.login === y.login))
+  )
 }
 
-type AccountAPIType = 'dotcom' | 'enterprise' | 'bitbucket' | 'gitlab'
+export type AccountAPIType = 'dotcom' | 'enterprise' | 'bitbucket' | 'gitlab'
 
 /**
  * A GitHub account, representing the user found on GitHub The Website or GitHub Enterprise.
@@ -43,6 +50,8 @@ export class Account {
   }
 
   private _friendlyEndpoint: string | undefined = undefined
+
+  private _apiType: AccountAPIType | undefined = undefined
 
   /**
    * Create an instance of an account
@@ -141,6 +150,10 @@ export class Account {
   }
 
   public get apiType(): AccountAPIType {
+    return (this._apiType ??= this.computeApiType())
+  }
+
+  private computeApiType(): AccountAPIType {
     if (this.endpoint === getDotComAPIEndpoint()) {
       return 'dotcom'
     } else if (this.endpoint === getBitbucketAPIEndpoint()) {

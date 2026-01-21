@@ -29,6 +29,7 @@ import { clearTagsToPush } from './helpers/tags-to-push-storage'
 import { IMatchedGitHubRepository } from '../repository-matching'
 import { shallowEquals } from '../equality'
 import { EditorOverride } from '../../models/editor-override'
+import { Account } from '../../models/account'
 
 type AddRepositoryOptions = {
   missing?: boolean
@@ -71,13 +72,14 @@ export class RepositoriesStore extends TypedBaseStore<
    */
   public async upsertGitHubRepositoryLight(
     endpoint: string,
-    apiRepository: IAPIRepository
+    apiRepository: IAPIRepository,
+    login?: string
   ) {
     return this.db.transaction(
       'rw',
       this.db.gitHubRepositories,
       this.db.owners,
-      () => this._upsertGitHubRepository(endpoint, apiRepository, true)
+      () => this._upsertGitHubRepository(endpoint, apiRepository, true, login)
     )
   }
 
@@ -87,13 +89,14 @@ export class RepositoriesStore extends TypedBaseStore<
    */
   public async upsertGitHubRepository(
     endpoint: string,
-    apiRepository: IAPIFullRepository
+    apiRepository: IAPIFullRepository,
+    login?: string
   ): Promise<GitHubRepository> {
     return this.db.transaction(
       'rw',
       this.db.gitHubRepositories,
       this.db.owners,
-      () => this._upsertGitHubRepository(endpoint, apiRepository, false)
+      () => this._upsertGitHubRepository(endpoint, apiRepository, false, login)
     )
   }
 
@@ -126,6 +129,7 @@ export class RepositoriesStore extends TypedBaseStore<
 
     const isBitbucket = repo.htmlURL && this.isBitbucketUrl(repo.htmlURL)
     const isGitLab = repo.htmlURL && this.isGitLabUrl(repo.htmlURL)
+    const login = repo.login
     const repoType = isBitbucket ? 'bitbucket' : isGitLab ? 'gitlab' : 'github'
     const ghRepo = new GitHubRepository(
       repo.name,
@@ -138,7 +142,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.issuesEnabled,
       repo.isArchived,
       repo.permissions,
-      parent
+      parent,
+      login
     )
 
     // Dexie gets confused if we return a non-promise value (e.g. if this function
@@ -177,7 +182,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.defaultBranch,
       repo.workflowPreferences,
       repo.customEditorOverride,
-      repo.isTutorialRepository
+      repo.isTutorialRepository,
+      repo.login
     )
   }
 
@@ -224,7 +230,8 @@ export class RepositoriesStore extends TypedBaseStore<
   public async addTutorialRepository(
     path: string,
     endpoint: string,
-    apiRepo: IAPIFullRepository
+    apiRepo: IAPIFullRepository,
+    login?: string
   ) {
     await this.db.transaction(
       'rw',
@@ -232,7 +239,11 @@ export class RepositoriesStore extends TypedBaseStore<
       this.db.gitHubRepositories,
       this.db.owners,
       async () => {
-        const ghRepo = await this.upsertGitHubRepository(endpoint, apiRepo)
+        const ghRepo = await this.upsertGitHubRepository(
+          endpoint,
+          apiRepo,
+          login
+        )
         const existingRepo = await this.db.repositories.get({ path })
 
         return await this.db.repositories.put({
@@ -244,6 +255,7 @@ export class RepositoriesStore extends TypedBaseStore<
           missing: false,
           lastStashCheckDate: null,
           isTutorialRepository: true,
+          login,
         })
       }
     )
@@ -258,7 +270,8 @@ export class RepositoriesStore extends TypedBaseStore<
    */
   public async addRepository(
     path: string,
-    opts?: AddRepositoryOptions
+    opts?: AddRepositoryOptions,
+    login?: string
   ): Promise<Repository> {
     const repository = await this.db.transaction(
       'rw',
@@ -279,6 +292,7 @@ export class RepositoriesStore extends TypedBaseStore<
           lastStashCheckDate: null,
           alias: null,
           defaultBranch: null,
+          login,
         }
         const id = await this.db.repositories.add(dbRepo)
         return this.toRepository({ id, ...dbRepo })
@@ -316,7 +330,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
-      repository.isTutorialRepository
+      repository.isTutorialRepository,
+      repository.login
     )
   }
 
@@ -358,7 +373,36 @@ export class RepositoriesStore extends TypedBaseStore<
       defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
-      repository.isTutorialRepository
+      repository.isTutorialRepository,
+      repository.login
+    )
+  }
+
+  /**
+   * Update the alias for the specified repository.
+   *
+   * @param repository    The repository to update.
+   * @param defaultBranch The new default branch to use.
+   */
+  public async updateRepositoryAccount(
+    repository: Repository,
+    account: Account | null
+  ): Promise<Repository> {
+    await this.db.repositories.update(repository.id, { login: account?.login })
+
+    this.emitUpdatedRepositories()
+
+    return new Repository(
+      repository.path,
+      repository.id,
+      repository.gitHubRepository,
+      repository.missing,
+      repository.alias,
+      repository.defaultBranch,
+      repository.workflowPreferences,
+      repository.customEditorOverride,
+      repository.isTutorialRepository,
+      account?.login
     )
   }
 
@@ -406,7 +450,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
-      repository.isTutorialRepository
+      repository.isTutorialRepository,
+      repository.login
     )
   }
 
@@ -496,7 +541,8 @@ export class RepositoriesStore extends TypedBaseStore<
   }
 
   public async upsertGitHubRepositoryFromMatch(
-    match: IMatchedGitHubRepository
+    match: IMatchedGitHubRepository,
+    login?: string
   ) {
     return await this.db.transaction(
       'rw',
@@ -520,6 +566,7 @@ export class RepositoriesStore extends TypedBaseStore<
           lastPruneDate: null,
           name: match.name,
           ownerID: owner.id,
+          login: login,
           parentID: null,
           private: null,
         }
@@ -554,7 +601,8 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.defaultBranch,
       repo.workflowPreferences,
       repo.customEditorOverride,
-      repo.isTutorialRepository
+      repo.isTutorialRepository,
+      repo.login
     )
 
     assertIsRepositoryWithGitHubRepository(updatedRepo)
@@ -564,19 +612,24 @@ export class RepositoriesStore extends TypedBaseStore<
   private async _upsertGitHubRepository(
     endpoint: string,
     gitHubRepository: IAPIRepository | IAPIFullRepository,
-    ignoreParent = false
+    ignoreParent = false,
+    login?: string
   ): Promise<GitHubRepository> {
     const parent =
       'parent' in gitHubRepository && gitHubRepository.parent !== undefined
         ? await this._upsertGitHubRepository(
             endpoint,
             gitHubRepository.parent,
-            true
+            true,
+            login
           )
         : await Promise.resolve(null) // Dexie gets confused if we return null
 
-    const { login, type } = gitHubRepository.owner
-    const owner = await this.putOwner(endpoint, login, type)
+    const owner = await this.putOwner(
+      endpoint,
+      gitHubRepository.owner.login,
+      gitHubRepository.owner.type
+    )
 
     const existingRepo = await this.db.gitHubRepositories
       .where('[ownerID+name]')
@@ -623,6 +676,7 @@ export class RepositoriesStore extends TypedBaseStore<
       ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
       ownerID: owner.id,
       name: gitHubRepository.name,
+      login: login,
       private: gitHubRepository.private ?? existingRepo?.private ?? null,
       htmlURL: gitHubRepository.html_url,
       cloneURL: (gitHubRepository.clone_url || existingRepo?.cloneURL) ?? null,
