@@ -837,11 +837,11 @@ export class CloneRepository extends React.Component<
     const { url, lastParsedIdentifier, selectedAccount } =
       this.getSelectedTabState()
 
-    const login = selectedAccount ? selectedAccount.login : undefined
     if (url.endsWith('.wiki.git')) {
-      return { url, login }
+      return { url }
     }
 
+    const login = selectedAccount?.login
     const account = await findAccountForRemoteURL(
       url,
       this.props.accounts,
@@ -854,12 +854,10 @@ export class CloneRepository extends React.Component<
       // Respect the user's preference if they provided an SSH URL
       const protocol = parseRemote(url)?.protocol
 
-      return api
-        .fetchRepositoryCloneInfo(owner, name, protocol, login)
-        .catch(err => {
-          log.error(`Failed to look up repository clone info for '${url}'`, err)
-          return { url, login }
-        })
+      return api.fetchRepositoryCloneInfo(owner, name, protocol).catch(err => {
+        log.error(`Failed to look up repository clone info for '${url}'`, err)
+        return { url, login }
+      })
     }
 
     return null
@@ -895,10 +893,12 @@ export class CloneRepository extends React.Component<
       return
     }
 
-    const { url, defaultBranch, login } = cloneInfo
+    const { url, defaultBranch } = cloneInfo
+    const { selectedAccount } = this.getSelectedTabState()
 
     this.props.dispatcher.closeFoldout(FoldoutType.Repository)
     try {
+      const login = selectedAccount?.login
       this.cloneImpl(url.trim(), path, login, defaultBranch)
     } catch (e) {
       log.error(`CloneRepository: clone failed to complete to ${path}`, e)

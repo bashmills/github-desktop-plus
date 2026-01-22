@@ -237,7 +237,6 @@ export interface IAPIRepositoryCloneInfo {
   /** Canonical clone URL of the repository. */
   readonly url: string
 
-  readonly login?: string
   /**
    * Default branch of the repository, if any. This is usually either retrieved
    * from the API for GitHub repositories, or undefined for other repositories.
@@ -1667,8 +1666,7 @@ export class API {
   public async fetchRepositoryCloneInfo(
     owner: string,
     name: string,
-    protocol: GitProtocol | undefined,
-    login?: string
+    protocol: GitProtocol | undefined
   ): Promise<IAPIRepositoryCloneInfo | null> {
     const response = await this.ghRequest('GET', `repos/${owner}/${name}`, {
       // Make sure we don't run into cache issues when fetching the repositories,
@@ -1683,7 +1681,6 @@ export class API {
     const repo = await parsedResponse<IAPIRepository>(response)
     return {
       url: protocol === 'ssh' ? repo.ssh_url : repo.clone_url,
-      login,
       defaultBranch: repo.default_branch,
     }
   }
