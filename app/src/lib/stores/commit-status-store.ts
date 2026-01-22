@@ -51,6 +51,9 @@ interface IRefStatusSubscription {
   /** Owner The repository owner's login (i.e niik for niik/desktop) */
   readonly owner: string
 
+  /** Login of the account to use for fetching the commit status */
+  readonly login: string
+
   /** The repository name */
   readonly name: string
 
@@ -62,8 +65,6 @@ interface IRefStatusSubscription {
 
   /** If provided, we retrieve the actions workflow runs or the checks with this sub */
   readonly branchName?: string
-
-  readonly login?: string
 }
 
 /**
@@ -277,20 +278,10 @@ export class CommitStatusStore {
 
     const { endpoint, owner, name, ref, login } = subscription
 
-    if (login !== undefined && login === '') {
-      // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-      log.error(`Empty string is not a valid login`)
-    }
-
     const account = this.accounts.find(
-      a => a.endpoint === endpoint && (login === undefined || a.login === login)
+      a => a.endpoint === endpoint && a.login === login
     )
-
     if (account === undefined) {
-      if (login !== undefined) {
-        // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-        log.warn(`Could not find an account to match ${login}@${endpoint}`)
-      }
       return
     }
 
@@ -456,7 +447,7 @@ export class CommitStatusStore {
       ref,
       callbacks: new Set<StatusCallBack>(),
       branchName,
-      login: repository.login,
+      login: repository.loginForApi,
     }
 
     this.subscriptions.set(key, subscription)

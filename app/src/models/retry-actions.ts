@@ -32,7 +32,7 @@ export type RetryAction =
       url: string
       path: string
       options: CloneOptions
-      login?: string
+      login: string
     }
   | {
       type: RetryActionType.Checkout

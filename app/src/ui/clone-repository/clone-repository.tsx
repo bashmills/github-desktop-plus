@@ -532,6 +532,14 @@ export class CloneRepository extends React.Component<
     return this.getTabState(this.props.selectedTab)
   }
 
+  private getSelectedTabAccount(): Account {
+    const selectedAccount = this.getSelectedTabState().selectedAccount
+    if (!selectedAccount) {
+      throw new Error('Trying to clone without a selected account')
+    }
+    return selectedAccount
+  }
+
   /**
    * Update the state for the currently selected tab. Note that
    * since the selected tab can be using either IGitHubTabState
@@ -834,14 +842,13 @@ export class CloneRepository extends React.Component<
    * if possible.
    */
   private async resolveCloneInfo(): Promise<IAPIRepositoryCloneInfo | null> {
-    const { url, lastParsedIdentifier, selectedAccount } =
-      this.getSelectedTabState()
+    const { url, lastParsedIdentifier } = this.getSelectedTabState()
 
     if (url.endsWith('.wiki.git')) {
       return { url }
     }
 
-    const login = selectedAccount?.login
+    const login = this.getSelectedTabAccount().login
     const account = await findAccountForRemoteURL(
       url,
       this.props.accounts,
@@ -856,7 +863,7 @@ export class CloneRepository extends React.Component<
 
       return api.fetchRepositoryCloneInfo(owner, name, protocol).catch(err => {
         log.error(`Failed to look up repository clone info for '${url}'`, err)
-        return { url, login }
+        return { url }
       })
     }
 
@@ -894,11 +901,11 @@ export class CloneRepository extends React.Component<
     }
 
     const { url, defaultBranch } = cloneInfo
-    const { selectedAccount } = this.getSelectedTabState()
+    const selectedAccount = this.getSelectedTabAccount()
 
     this.props.dispatcher.closeFoldout(FoldoutType.Repository)
     try {
-      const login = selectedAccount?.login
+      const login = selectedAccount.login
       this.cloneImpl(url.trim(), path, login, defaultBranch)
     } catch (e) {
       log.error(`CloneRepository: clone failed to complete to ${path}`, e)
@@ -910,10 +917,10 @@ export class CloneRepository extends React.Component<
   private cloneImpl(
     url: string,
     path: string,
-    login?: string,
+    login: string,
     defaultBranch?: string
   ) {
-    this.props.dispatcher.clone(url, path, { defaultBranch }, login)
+    this.props.dispatcher.clone(url, path, login, { defaultBranch })
     this.props.onDismissed()
 
     setDefaultDir(Path.resolve(path, '..'))

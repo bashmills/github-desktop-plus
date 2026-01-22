@@ -70,7 +70,7 @@ export class Repository {
      * which introduces new users to some core concepts of Git and GitHub.
      */
     public readonly isTutorialRepository: boolean = false,
-    public readonly login?: string
+    public readonly login: string | null = null
   ) {
     this.mainWorkTree = { path }
     this.name = (gitHubRepository && gitHubRepository.name) || getBaseName(path)

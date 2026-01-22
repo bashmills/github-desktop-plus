@@ -824,7 +824,7 @@ export class Dispatcher {
    * Clone a missing repository to the previous path, and update it's
    * state in the repository list if the clone completes without error.
    */
-  public cloneAgain(url: string, path: string, login?: string): Promise<void> {
+  public cloneAgain(url: string, path: string, login: string): Promise<void> {
     return this.appStore._cloneAgain(url, path, login)
   }
 
@@ -832,8 +832,8 @@ export class Dispatcher {
   public async clone(
     url: string,
     path: string,
-    options?: { branch?: string; defaultBranch?: string },
-    login?: string
+    login: string,
+    options?: { branch?: string; defaultBranch?: string }
   ): Promise<Repository | null> {
     return this.appStore._completeOpenInDesktop(async () => {
       const { promise, repository } = this.appStore._clone(
@@ -2273,8 +2273,8 @@ export class Dispatcher {
         await this.clone(
           retryAction.url,
           retryAction.path,
-          retryAction.options,
-          retryAction.login
+          retryAction.login,
+          retryAction.options
         )
         break
 

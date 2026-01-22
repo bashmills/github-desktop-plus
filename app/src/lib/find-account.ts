@@ -6,8 +6,7 @@ import { Account, isDotComAccount } from '../models/account'
 type RepositoryLookupFunc = (
   account: Account,
   owner: string,
-  name: string,
-  login?: string
+  name: string
 ) => Promise<boolean>
 
 /**
@@ -40,7 +39,7 @@ export async function findAccountForRemoteURL(
   urlOrRepositoryAlias: string,
   accounts: ReadonlyArray<Account>,
   canAccessRepository: RepositoryLookupFunc = canAccessRepositoryUsingAPI,
-  login?: string
+  login: string
 ): Promise<Account | null> {
   const allAccounts = [...accounts, Account.anonymous()]
 
@@ -60,22 +59,8 @@ export async function findAccountForRemoteURL(
       allAccounts.find(a => {
         const htmlURL = getHTMLURL(a.endpoint)
         const parsedEndpoint = URL.parse(htmlURL)
-        if (login !== undefined && login === '') {
-          // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-          log.error(`Empty string is not a valid login`)
-        }
-
         const result =
-          parsedURL.hostname === parsedEndpoint.hostname &&
-          (login === undefined || a.login === login)
-
-        if (login !== undefined && result === undefined) {
-          // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-          log.warn(
-            `Could not find an account to match ${login}@${parsedURL.hostname}`
-          )
-        }
-
+          parsedURL.hostname === parsedEndpoint.hostname && a.login === login
         return result
       }) || null
 
@@ -117,10 +102,24 @@ export async function findAccountForRemoteURL(
         }
       }
 
-      const canAccess = await canAccessRepository(account, owner, name, login)
+      const canAccess = await canAccessRepository(account, owner, name)
       if (canAccess) {
         return account
       }
+    }
+  }
+
+  // One last try before returning null: search for matching hostname but not login
+  if (parsedURL) {
+    const account =
+      allAccounts.find(a => {
+        const htmlURL = getHTMLURL(a.endpoint)
+        const parsedEndpoint = URL.parse(htmlURL)
+        return parsedURL.hostname === parsedEndpoint.hostname
+      }) || null
+
+    if (account) {
+      return account
     }
   }
 

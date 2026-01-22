@@ -73,7 +73,7 @@ export class RepositoriesStore extends TypedBaseStore<
   public async upsertGitHubRepositoryLight(
     endpoint: string,
     apiRepository: IAPIRepository,
-    login?: string
+    login: string | null
   ) {
     return this.db.transaction(
       'rw',
@@ -90,7 +90,7 @@ export class RepositoriesStore extends TypedBaseStore<
   public async upsertGitHubRepository(
     endpoint: string,
     apiRepository: IAPIFullRepository,
-    login?: string
+    login: string | null
   ): Promise<GitHubRepository> {
     return this.db.transaction(
       'rw',
@@ -231,7 +231,7 @@ export class RepositoriesStore extends TypedBaseStore<
     path: string,
     endpoint: string,
     apiRepo: IAPIFullRepository,
-    login?: string
+    login: string
   ) {
     await this.db.transaction(
       'rw',
@@ -542,7 +542,7 @@ export class RepositoriesStore extends TypedBaseStore<
 
   public async upsertGitHubRepositoryFromMatch(
     match: IMatchedGitHubRepository,
-    login?: string
+    login: string | null
   ) {
     return await this.db.transaction(
       'rw',
@@ -613,7 +613,7 @@ export class RepositoriesStore extends TypedBaseStore<
     endpoint: string,
     gitHubRepository: IAPIRepository | IAPIFullRepository,
     ignoreParent = false,
-    login?: string
+    login: string | null
   ): Promise<GitHubRepository> {
     const parent =
       'parent' in gitHubRepository && gitHubRepository.parent !== undefined

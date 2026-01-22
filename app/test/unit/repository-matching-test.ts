@@ -28,7 +28,8 @@ describe('repository-matching', () => {
       ]
       const repo = matchGitHubRepository(
         accounts,
-        'https://github.com/someuser/somerepo.git'
+        'https://github.com/someuser/somerepo.git',
+        null
       )
       assert(repo !== null)
       assert.equal(repo.name, 'somerepo')
@@ -52,7 +53,8 @@ describe('repository-matching', () => {
       ]
       const repo = matchGitHubRepository(
         accounts,
-        'https://github.com/someuser/somerepo'
+        'https://github.com/someuser/somerepo',
+        null
       )
       assert(repo !== null)
       assert.equal(repo.name, 'somerepo')
@@ -76,7 +78,8 @@ describe('repository-matching', () => {
       ]
       const repo = matchGitHubRepository(
         accounts,
-        'git:github.com/someuser/somerepo.git'
+        'git:github.com/someuser/somerepo.git',
+        null
       )
       assert(repo !== null)
       assert.equal(repo.name, 'somerepo')
@@ -100,7 +103,8 @@ describe('repository-matching', () => {
       ]
       const repo = matchGitHubRepository(
         accounts,
-        'git@github.com:someuser/somerepo.git'
+        'git@github.com:someuser/somerepo.git',
+        null
       )
       assert(repo !== null)
       assert.equal(repo.name, 'somerepo')
@@ -124,7 +128,8 @@ describe('repository-matching', () => {
       ]
       const repo = matchGitHubRepository(
         accounts,
-        'https://github.com/someuser/somerepo.git'
+        'https://github.com/someuser/somerepo.git',
+        null
       )
       assert(repo === null)
     })
@@ -220,6 +225,7 @@ describe('repository-matching', () => {
       parent: null,
       endpoint: 'https://api.github.com/',
       fork: true,
+      login: 'shiftkey',
       loginForApi: 'shiftkey',
       hash: 'whatever',
       issuesEnabled: true,

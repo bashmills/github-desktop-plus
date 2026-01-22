@@ -4701,7 +4701,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     const remote = gitStore.defaultRemote
     return remote !== null
-      ? matchGitHubRepository(this.accounts, remote.url, repository.login)
+      ? matchGitHubRepository(
+          this.accounts,
+          remote.url,
+          repository.login ?? null
+        )
       : null
   }
 
@@ -6795,7 +6799,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     path: string,
     endpoint: string,
     apiRepository: IAPIFullRepository,
-    login?: string
+    login: string
   ) {
     const type = await getRepositoryType(path)
     if (type.kind === 'regular') {
