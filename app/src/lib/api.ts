@@ -190,7 +190,6 @@ export interface IAPIRepository {
   readonly ssh_url: string
   readonly html_url: string
   readonly name: string
-  readonly login?: string
   readonly owner: IAPIIdentity
   readonly private: boolean | null // null if unknown
   readonly fork: boolean
@@ -286,7 +285,6 @@ export interface IBitbucketAPIRepository
   readonly parent?: IBitbucketAPIRepository
   readonly has_issues: boolean
   readonly updated_on: string
-  readonly login?: string
   readonly mainbranch: {
     readonly name: string
   }
@@ -311,7 +309,6 @@ function toIAPIRepository(repo: IBitbucketAPIRepository): IAPIRepository {
     ssh_url: sshUrl,
     html_url: repo.links.html.href,
     name: repo.name,
-    login: repo.login,
     owner: toIAPIIdentity(repo.owner),
     private: repo.is_private,
     fork: false,
@@ -1081,7 +1078,6 @@ function toIAPIEmailFromGitLab(
 export interface IGitLabAPIRepository {
   readonly id: number
   readonly name: string
-  readonly login: string
   readonly path: string
   readonly path_with_namespace: string
   readonly web_url: string
@@ -1109,7 +1105,6 @@ function toIAPIRepositoryFromGitLab(
     ssh_url: repo.ssh_url_to_repo,
     html_url: repo.web_url,
     name: repo.path,
-    login: repo.login,
     owner: {
       id: repo.owner?.id ?? 0,
       login: ownerLogin,
