@@ -6,7 +6,6 @@ import { fatalError } from '../fatal-error'
 import { TypedBaseStore } from './base-store'
 import { isGHE } from '../endpoint-capabilities'
 import { compare, compareDescending } from '../compare'
-import { enableMultipleLoginAccounts } from '../feature-flag'
 
 // Ensure that GitHub.com accounts appear first followed by Enterprise
 // accounts, sorted by the order in which they were added.
@@ -98,24 +97,13 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
   public async addAccount(account: Account): Promise<Account | null> {
     await this.loadingPromise
 
-    const multipleLoginAccounts = enableMultipleLoginAccounts()
-
     this.storeAccountKey(account)
 
     const accountsByEndpoint = this.accounts.reduce(
-      (map, x) =>
-        map.set(
-          multipleLoginAccounts ? x.endpoint + ':' + x.login : x.endpoint,
-          x
-        ),
+      (map, x) => map.set(x.endpoint + ':' + x.login, x),
       new Map<string, Account>()
     )
-    accountsByEndpoint.set(
-      multipleLoginAccounts
-        ? account.endpoint + ':' + account.login
-        : account.endpoint,
-      account
-    )
+    accountsByEndpoint.set(account.endpoint + ':' + account.login, account)
 
     this.accounts = sortAccounts([...accountsByEndpoint.values()])
 
