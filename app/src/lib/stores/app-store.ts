@@ -11,7 +11,7 @@ import {
   SignInStore,
   UpstreamRemoteName,
 } from '.'
-import { Account, isDotComAccount } from '../../models/account'
+import { Account, isDotComAccount, UnknownLogin } from '../../models/account'
 import { AppMenu, IMenu } from '../../models/app-menu'
 import { Author } from '../../models/author'
 import { Branch, BranchType, IAheadBehind } from '../../models/branch'
@@ -98,11 +98,10 @@ import {
 import {
   API,
   deleteToken,
+  getAccountForEndpoint,
   getEndpointForRepository,
   IAPIComment,
   IAPICreatePushProtectionBypassResponse,
-  getAccountForEndpointToken,
-  getAccountForEndpoint,
   IAPIFullRepository,
   IAPIOrganization,
   IAPIRepoRuleset,
@@ -785,8 +784,17 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return zoomFactor
   }
 
-  private onTokenInvalidated = (endpoint: string, token: string) => {
-    const account = getAccountForEndpointToken(this.accounts, endpoint, token)
+  private onTokenInvalidated = (
+    endpoint: string,
+    token: string,
+    login: string | UnknownLogin
+  ) => {
+    if (login === UnknownLogin.InitialAuthFetch) {
+      console.error('The token for initial account fetch was invalidated!')
+      return
+    }
+
+    const account = getAccountForEndpoint(this.accounts, endpoint, login)
 
     if (account === null) {
       return
@@ -814,9 +822,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
     endpoint: string,
     token: string,
     refreshToken: string,
-    tokenExpiresAt: number
+    tokenExpiresAt: number,
+    login: string | UnknownLogin
   ) => {
-    const account = getAccountForEndpointToken(this.accounts, endpoint, token)
+    if (login === UnknownLogin.InitialAuthFetch) {
+      console.error('Attempted to refresh token for initial account fetch!')
+      return
+    }
+
+    const account = getAccountForEndpoint(this.accounts, endpoint, login)
     if (account === null) {
       return
     }
@@ -1316,7 +1330,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       const account = getAccountForEndpoint(
         this.accounts,
         gitHubRepo.endpoint,
-        gitHubRepo.login
+        gitHubRepo.loginForApi
       )
 
       if (account === null) {
@@ -2217,7 +2231,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const user = getAccountForEndpoint(
       this.accounts,
       repository.endpoint,
-      repository.login
+      repository.loginForApi
     )
 
     if (!user) {
@@ -2243,7 +2257,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const account = getAccountForEndpoint(
       this.accounts,
       repository.endpoint,
-      repository.login
+      repository.loginForApi
     )
     if (!account) {
       return
@@ -2272,20 +2286,24 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.pullRequestCoordinator.stopPullRequestUpdater()
   }
 
-  public async fetchPullRequest(repoUrl: string, pr: string, login?: string) {
+  public async fetchPullRequest(repoUrl: string, pr: string) {
     const endpoint = getEndpointForRepository(repoUrl)
     const remoteUrl = parseRemote(repoUrl)
 
     if (!remoteUrl) {
       return null
     }
-    const account = getAccountForEndpoint(this.accounts, endpoint, login)
-
-    if (account) {
-      const api = API.fromAccount(account)
-      const remoteUrl = parseRemote(repoUrl)
-      if (remoteUrl && remoteUrl.owner && remoteUrl.name) {
-        return await api.fetchPullRequest(remoteUrl.owner, remoteUrl.name, pr)
+    // We may have more than one account with this endpoint, but the "open PR"
+    // URL does not contain login information so let's just try all of them
+    for (const account of this.accounts.filter(a => a.endpoint === endpoint)) {
+      try {
+        const api = API.fromAccount(account)
+        const remoteUrl = parseRemote(repoUrl)
+        if (remoteUrl && remoteUrl.owner && remoteUrl.name) {
+          return await api.fetchPullRequest(remoteUrl.owner, remoteUrl.name, pr)
+        }
+      } catch {
+        // Continue iterating
       }
     }
     return null
@@ -4655,7 +4673,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const account = getAccountForEndpoint(
       this.accounts,
       repository.gitHubRepository.endpoint,
-      repository.gitHubRepository.login
+      repository.gitHubRepository.loginForApi
     )
 
     if (account === null) {

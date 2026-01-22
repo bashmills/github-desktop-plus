@@ -1,5 +1,5 @@
 import * as URL from 'url'
-import { Account } from '../models/account'
+import { Account, UnknownLogin } from '../models/account'
 
 import {
   request,
@@ -1395,14 +1395,14 @@ interface IAPIAliveWebSocket {
 type TokenInvalidatedCallback = (
   endpoint: string,
   token: string,
-  login?: string
+  login: string | UnknownLogin
 ) => void
 type TokenRefreshedCallback = (
   endpoint: string,
   token: string,
   refreshToken: string,
   expiresAt: number,
-  login?: string
+  login: string | UnknownLogin
 ) => void
 
 export interface IAPICreatePushProtectionBypassResponse {
@@ -1436,7 +1436,7 @@ export class API {
   protected static emitTokenInvalidated(
     endpoint: string,
     token: string,
-    login?: string
+    login: string | UnknownLogin
   ) {
     this.tokenInvalidatedListeners.forEach(callback =>
       callback(endpoint, token, login)
@@ -1448,7 +1448,7 @@ export class API {
     token: string,
     refreshToken: string,
     expiresAt: number,
-    login?: string
+    login: string | UnknownLogin
   ) {
     this.tokenRefreshedListeners.forEach(callback =>
       callback(endpoint, token, refreshToken, expiresAt, login)
@@ -1462,6 +1462,7 @@ export class API {
         // eslint-disable-next-line @typescript-eslint/no-use-before-define -- a necessary evil if we want to minimize the diff in other files
         return new BitbucketAPI(
           account.token,
+          account.login,
           account.refreshToken,
           account.tokenExpiresAt
         )
@@ -1469,6 +1470,7 @@ export class API {
         // eslint-disable-next-line @typescript-eslint/no-use-before-define -- a necessary evil if we want to minimize the diff in other files
         return GitLabAPI.get(
           account.token,
+          account.login,
           account.refreshToken,
           account.tokenExpiresAt
         )
@@ -1477,8 +1479,8 @@ export class API {
         return new API(
           account.endpoint,
           account.token,
-          account.copilotEndpoint,
-          account.login
+          account.login,
+          account.copilotEndpoint
         )
       default:
         assertNever(account.apiType, 'Unknown API type')
@@ -1487,7 +1489,7 @@ export class API {
 
   protected endpoint: string
   protected token: string
-  protected login?: string
+  protected login: string | UnknownLogin
   private copilotEndpoint?: string
   private refreshTokenPromise?: Promise<void>
 
@@ -1495,13 +1497,13 @@ export class API {
   public constructor(
     endpoint: string,
     token: string,
-    copilotEndpoint?: string,
-    login?: string
+    login: string | UnknownLogin,
+    copilotEndpoint?: string
   ) {
     this.endpoint = endpoint
     this.token = token
-    this.copilotEndpoint = copilotEndpoint
     this.login = login
+    this.copilotEndpoint = copilotEndpoint
   }
 
   public getToken() {
@@ -2492,8 +2494,7 @@ export class API {
       body?: Object
       customHeaders?: Object
       reloadCache?: boolean
-    } = {},
-    login?: string
+    } = {}
   ): Promise<Response> {
     const expiration = this.getTokenExpiration()
     if (expiration !== null && expiration.getTime() < Date.now()) {
@@ -2508,8 +2509,7 @@ export class API {
       path,
       options.body,
       { ...this.getExtraHeaders(), ...options.customHeaders },
-      options.reloadCache,
-      login
+      options.reloadCache
     )
   }
 
@@ -2526,13 +2526,7 @@ export class API {
       reloadCache?: boolean
     } = {}
   ): Promise<Response> {
-    const response = await this.request(
-      this.endpoint,
-      method,
-      path,
-      options,
-      this.login
-    )
+    const response = await this.request(this.endpoint, method, path, options)
 
     this.checkTokenInvalidated(response)
 
@@ -2552,7 +2546,7 @@ export class API {
       response.headers.has('X-GitHub-Request-Id') &&
       !response.headers.has('X-GitHub-OTP')
     ) {
-      API.emitTokenInvalidated(this.endpoint, this.token)
+      API.emitTokenInvalidated(this.endpoint, this.token, this.login)
     }
   }
 
@@ -2917,8 +2911,13 @@ export class BitbucketAPI extends API {
   private apiRefreshToken: string
   private expiresAt: Date | null = null
 
-  public constructor(token: string, refreshToken: string, expiresAt: number) {
-    super(getBitbucketAPIEndpoint(), token)
+  public constructor(
+    token: string,
+    login: string | UnknownLogin,
+    refreshToken: string,
+    expiresAt: number
+  ) {
+    super(getBitbucketAPIEndpoint(), token, login)
     this.apiRefreshToken = refreshToken
     this.expiresAt = expiresAt ? new Date(expiresAt) : null
   }
@@ -2968,7 +2967,7 @@ export class BitbucketAPI extends API {
 
   protected override checkTokenInvalidated(response: Response) {
     if (response.status === 401) {
-      API.emitTokenInvalidated(this.endpoint, this.token)
+      API.emitTokenInvalidated(this.endpoint, this.token, this.login)
     }
   }
 
@@ -3256,25 +3255,37 @@ export class BitbucketAPI extends API {
 
 export class GitLabAPI extends API {
   // Refreshing the token also invalidates both the old token and the old refresh token.
-  // We need to make GitLabAPI a singleton to ensure there are no race conditions when refreshing the token
-  private static instance: GitLabAPI | null = null
+  // We need to make GitLabAPI a per-login singleton to ensure there are no race conditions when refreshing the token
+  private static instances: Map<string, GitLabAPI> = new Map()
 
   public static get(
     token: string,
+    login: string | UnknownLogin,
     refreshToken: string,
     expiresAt: number
   ): GitLabAPI {
-    if (!GitLabAPI.instance || !GitLabAPI.instance.token) {
-      GitLabAPI.instance = new GitLabAPI(token, refreshToken, expiresAt)
+    if (login === UnknownLogin.InitialAuthFetch) {
+      return new GitLabAPI(token, login, refreshToken, expiresAt)
     }
-    return GitLabAPI.instance
+    const instance = this.instances.get(login)
+    if (!instance || !instance.token) {
+      const newInstance = new GitLabAPI(token, login, refreshToken, expiresAt)
+      this.instances.set(login, newInstance)
+      return newInstance
+    }
+    return instance
   }
 
   private apiRefreshToken: string
   private expiresAt: Date | null = null
 
-  private constructor(token: string, refreshToken: string, expiresAt: number) {
-    super(getGitLabAPIEndpoint(), token)
+  private constructor(
+    token: string,
+    login: string | UnknownLogin,
+    refreshToken: string,
+    expiresAt: number
+  ) {
+    super(getGitLabAPIEndpoint(), token, login)
     this.apiRefreshToken = refreshToken
     this.expiresAt = expiresAt ? new Date(expiresAt) : null
   }
@@ -3325,7 +3336,7 @@ export class GitLabAPI extends API {
 
   protected override checkTokenInvalidated(response: Response) {
     if (response.status === 401) {
-      API.emitTokenInvalidated(this.endpoint, this.token)
+      API.emitTokenInvalidated(this.endpoint, this.token, this.login)
     }
   }
 
@@ -3632,15 +3643,15 @@ export async function fetchUser(
   token: string,
   refreshToken: string,
   expiresAt: number,
-  login?: string
+  login: string | UnknownLogin
 ): Promise<Account> {
   let api: API
   if (endpoint === getBitbucketAPIEndpoint()) {
-    api = new BitbucketAPI(token, refreshToken, expiresAt)
+    api = new BitbucketAPI(token, login, refreshToken, expiresAt)
   } else if (endpoint === getGitLabAPIEndpoint()) {
-    api = GitLabAPI.get(token, refreshToken, expiresAt)
+    api = GitLabAPI.get(token, login, refreshToken, expiresAt)
   } else {
-    api = new API(endpoint, token, undefined, login)
+    api = new API(endpoint, token, login, undefined)
   }
   try {
     const [user, emails, copilotInfo, features] = await Promise.all([
@@ -3787,44 +3798,13 @@ export function getGitLabAPIEndpoint(): string {
 export function getAccountForEndpoint(
   accounts: ReadonlyArray<Account>,
   endpoint: string,
-  login?: string,
-  strict: boolean = false
-): Account | null {
-  if (login !== undefined && login === '') {
-    // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-    log.error(`Empty string is not a valid login`)
-  }
-
-  const result = accounts.find(
-    a =>
-      a.endpoint === endpoint &&
-      ((strict !== true && login === undefined) || a.login === login)
-  )
-
-  if (login !== undefined && result === undefined) {
-    // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-    log.warn(`Could not find an account to match ${login}@${endpoint}`)
-  }
-
-  return result || null
-}
-
-export function getAccountForEndpointToken(
-  accounts: ReadonlyArray<Account>,
-  endpoint: string,
-  token: string
-): Account | null {
-  return (
-    accounts.find(a => a.endpoint === endpoint && a.token === token) || null
-  )
-}
-
-/** Get the account for the login. */
-export function getAccountForLogin(
-  accounts: ReadonlyArray<Account>,
   login: string
 ): Account | null {
-  return accounts.find(a => a.login === login) || null
+  return (
+    accounts.find(a => a.endpoint === endpoint && a.login === login) ||
+    accounts.find(a => a.endpoint === endpoint && !a.login) ||
+    null
+  )
 }
 
 export function getOAuthAuthorizationURL(

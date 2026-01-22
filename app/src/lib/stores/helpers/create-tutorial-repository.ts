@@ -23,7 +23,7 @@ const InitialReadmeContents =
   `back to GitHub Desktop.${nl}`
 
 async function createAPIRepository(account: Account, name: string) {
-  const api = new API(account.endpoint, account.token, undefined, account.login)
+  const api = new API(account.endpoint, account.token, account.login, undefined)
 
   try {
     return await api.createRepository(

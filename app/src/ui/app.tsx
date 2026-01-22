@@ -1621,8 +1621,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         const state = this.props.repositoryStateManager.get(repository)
         const repositoryAccount = getAccountForRepository(
           this.state.accounts,
-          repository,
-          true
+          repository
         )
 
         return (

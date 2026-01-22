@@ -31,7 +31,7 @@ const avatarTokenCache = new ExpiringOperationCache<
       throw new Error('No account found for endpoint')
     }
 
-    const api = new API(endpoint, account.token, undefined, account.login)
+    const api = new API(endpoint, account.token, account.login, undefined)
     const token = await api.getAvatarToken()
 
     return forceUnwrap('Avatar token missing', token)
@@ -73,7 +73,7 @@ const botAvatarCache = new ExpiringOperationCache<
       throw new Error('Email does not appear to be a bot email')
     }
 
-    const api = new API(endpoint, account.token, undefined, account.login)
+    const api = new API(endpoint, account.token, account.login, undefined)
     const apiUser = await api.fetchUser(login)
 
     if (!apiUser?.avatar_url) {

@@ -61,6 +61,11 @@ export class GitHubRepository {
   public get fork(): boolean {
     return !!this.parent
   }
+
+  public get loginForApi(): string {
+    // If no login is set explicitly, assume we might be logged in as the repo owner
+    return this.login ?? this.owner.login
+  }
 }
 
 /**

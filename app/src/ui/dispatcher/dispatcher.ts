@@ -1925,12 +1925,12 @@ export class Dispatcher {
   }
 
   private async openRepositoryFromUrl(action: IOpenRepositoryFromURLAction) {
-    const { url, pr, branch, filepath, login } = action
+    const { url, pr, branch, filepath } = action
 
     let repository: Repository | null
 
     if (pr !== null) {
-      repository = await this.openPullRequestFromUrl(url, pr, login)
+      repository = await this.openPullRequestFromUrl(url, pr)
     } else if (branch !== null) {
       repository = await this.openBranchNameFromUrl(url, branch)
     } else {
@@ -1984,10 +1984,9 @@ export class Dispatcher {
 
   private async openPullRequestFromUrl(
     url: string,
-    pr: string,
-    login?: string
+    pr: string
   ): Promise<RepositoryWithGitHubRepository | null> {
-    const pullRequest = await this.appStore.fetchPullRequest(url, pr, login)
+    const pullRequest = await this.appStore.fetchPullRequest(url, pr)
 
     if (pullRequest === null) {
       return null

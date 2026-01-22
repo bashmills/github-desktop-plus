@@ -220,6 +220,7 @@ describe('repository-matching', () => {
       parent: null,
       endpoint: 'https://api.github.com/',
       fork: true,
+      loginForApi: 'shiftkey',
       hash: 'whatever',
       issuesEnabled: true,
       isArchived: false,

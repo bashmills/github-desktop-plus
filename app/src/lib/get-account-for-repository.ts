@@ -5,8 +5,7 @@ import { getAccountForEndpoint } from './api'
 /** Get the authenticated account for the repository. */
 export function getAccountForRepository(
   accounts: ReadonlyArray<Account>,
-  repository: Repository,
-  strict: boolean = false
+  repository: Repository
 ): Account | null {
   const gitHubRepository = repository.gitHubRepository
   if (!gitHubRepository) {
@@ -16,7 +15,6 @@ export function getAccountForRepository(
   return getAccountForEndpoint(
     accounts,
     gitHubRepository.endpoint,
-    gitHubRepository.login,
-    strict
+    gitHubRepository.loginForApi
   )
 }

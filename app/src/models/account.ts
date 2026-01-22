@@ -26,6 +26,10 @@ export function accountEquals(x: Account | null, y: Account | null) {
 
 export type AccountAPIType = 'dotcom' | 'enterprise' | 'bitbucket' | 'gitlab'
 
+export enum UnknownLogin {
+  InitialAuthFetch,
+}
+
 /**
  * A GitHub account, representing the user found on GitHub The Website or GitHub Enterprise.
  *

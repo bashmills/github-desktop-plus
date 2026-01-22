@@ -1,5 +1,5 @@
 import { Disposable } from 'event-kit'
-import { Account } from '../../models/account'
+import { Account, UnknownLogin } from '../../models/account'
 import { assertNever, fatalError } from '../fatal-error'
 import {
   validateURL,
@@ -376,7 +376,13 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
 
     if (tokenData) {
       const [token, refreshToken, expiresAt] = tokenData
-      const account = await fetchUser(endpoint, token, refreshToken, expiresAt)
+      const account = await fetchUser(
+        endpoint,
+        token,
+        refreshToken,
+        expiresAt,
+        UnknownLogin.InitialAuthFetch
+      )
       this.state.oauthState.onAuthCompleted(account)
     } else {
       this.state.oauthState.onAuthError(
