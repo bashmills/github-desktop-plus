@@ -3802,7 +3802,7 @@ export function getAccountForEndpoint(
 ): Account | null {
   return (
     accounts.find(a => a.endpoint === endpoint && a.login === login) ||
-    accounts.find(a => a.endpoint === endpoint && !a.login) ||
+    accounts.find(a => a.endpoint === endpoint) ||
     null
   )
 }
