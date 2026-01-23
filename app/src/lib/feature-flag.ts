@@ -97,8 +97,6 @@ export const enableCustomIntegration = () => true
 
 export const enableResizingToolbarButtons = () => true
 
-export const enableFilteredChangesList = () => true
-
 export const enableCommitMessageGeneration = (account: Account) => {
   return (
     (account.features ?? []).includes(
