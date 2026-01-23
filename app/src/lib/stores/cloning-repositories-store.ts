@@ -21,7 +21,7 @@ export class CloningRepositoriesStore extends BaseStore {
     url: string,
     path: string,
     options: CloneOptions,
-    login?: string
+    login: string
   ): Promise<boolean> {
     const repository = new CloningRepository(path, url, login)
     this._repositories.push(repository)

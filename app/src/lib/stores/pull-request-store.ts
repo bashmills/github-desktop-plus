@@ -110,7 +110,7 @@ export class PullRequestStore {
   private async fetchAndStoreOpenPullRequests(
     api: API,
     repository: GitHubRepository,
-    login?: string
+    login: string
   ) {
     const { name, owner } = getNameWithOwner(repository)
     const open = await api.fetchAllOpenPullRequests(owner, name)
@@ -121,7 +121,7 @@ export class PullRequestStore {
     api: API,
     repository: GitHubRepository,
     lastUpdatedAt: Date,
-    login?: string
+    login: string
   ) {
     const { name, owner } = getNameWithOwner(repository)
     const updated = await api
@@ -228,7 +228,7 @@ export class PullRequestStore {
   private async storePullRequestsAndEmitUpdate(
     pullRequestsFromAPI: ReadonlyArray<IAPIPullRequest>,
     repository: GitHubRepository,
-    login?: string
+    login: string
   ) {
     if (await this.storePullRequests(pullRequestsFromAPI, repository, login)) {
       this.emitPullRequestsChanged(repository, await this.getAll(repository))
@@ -245,7 +245,7 @@ export class PullRequestStore {
   private async storePullRequests(
     pullRequestsFromAPI: ReadonlyArray<IAPIPullRequest>,
     repository: GitHubRepository,
-    login?: string
+    login: string
   ) {
     if (pullRequestsFromAPI.length === 0) {
       return false
@@ -275,7 +275,7 @@ export class PullRequestStore {
       // only thing we really care about to determine whether the
       // repository has already been inserted in the database is the clone
       // url since that's what the upsert method uses as its key.
-      cacheKey: (_, repo, login?) => repo.clone_url,
+      cacheKey: (_, repo) => repo.clone_url,
     })
 
     for (const pr of pullRequestsFromAPI) {

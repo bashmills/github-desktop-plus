@@ -1189,7 +1189,7 @@ export class App extends React.Component<IAppProps, IAppState> {
     // But if they just dragged one, use the dialog so that they can initialize
     // it if needed.
     if (paths.length > 1) {
-      const addedRepositories = await dispatcher.addRepositories(paths)
+      const addedRepositories = await dispatcher.addRepositories(paths, null)
 
       if (addedRepositories.length > 0) {
         dispatcher.recordAddExistingRepository()

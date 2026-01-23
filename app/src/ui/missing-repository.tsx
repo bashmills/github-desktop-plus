@@ -177,7 +177,7 @@ export class MissingRepository extends React.Component<
       return
     }
 
-    const login = gitHubRepository.login || undefined
+    const login = gitHubRepository.loginForApi
 
     try {
       await this.props.dispatcher.cloneAgain(

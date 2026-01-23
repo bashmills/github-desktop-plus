@@ -299,7 +299,7 @@ export class CreateRepository extends React.Component<
     return Path.join(currentPath, safeDirectoryName(this.state.name))
   }
 
-  private createRepository = async (login?: string) => {
+  private createRepository = async () => {
     const fullPath = await this.resolveRepositoryRoot()
 
     if (fullPath === null) {
@@ -339,7 +339,7 @@ export class CreateRepository extends React.Component<
 
     const repositories = await this.props.dispatcher.addRepositories(
       [fullPath],
-      login
+      null
     )
     if (repositories.length < 1) {
       return

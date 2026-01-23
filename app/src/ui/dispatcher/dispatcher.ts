@@ -173,7 +173,7 @@ export class Dispatcher {
    */
   public addRepositories(
     paths: ReadonlyArray<string>,
-    login?: string
+    login: string | null
   ): Promise<ReadonlyArray<Repository>> {
     return this.appStore._addRepositories(paths, login)
   }

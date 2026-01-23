@@ -270,8 +270,8 @@ export class RepositoriesStore extends TypedBaseStore<
    */
   public async addRepository(
     path: string,
-    opts?: AddRepositoryOptions,
-    login?: string
+    login: string | null,
+    opts?: AddRepositoryOptions
   ): Promise<Repository> {
     const repository = await this.db.transaction(
       'rw',

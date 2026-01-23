@@ -5407,7 +5407,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     url: string,
     path: string,
     options: { branch?: string; defaultBranch?: string } = {},
-    login?: string
+    login: string
   ): {
     promise: Promise<boolean>
     repository: CloningRepository
@@ -6823,7 +6823,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   public async _addRepositories(
     paths: ReadonlyArray<string>,
-    login?: string
+    login: string | null
   ): Promise<ReadonlyArray<Repository>> {
     const addedRepositories = new Array<Repository>()
     const lfsRepositories = new Array<Repository>()
@@ -6838,10 +6838,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
       if (repositoryType.kind === 'unsafe') {
         const repository = await this.repositoriesStore.addRepository(
           path,
+          login,
           {
             missing: true,
-          },
-          login
+          }
         )
 
         addedRepositories.push(repository)
@@ -6866,8 +6866,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
         const addedRepo = await this.repositoriesStore.addRepository(
           validatedPath,
-          undefined,
-          login
+          login,
+          undefined
         )
 
         // initialize the remotes for this new repository to ensure it can fetch
@@ -6946,7 +6946,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public async _cloneAgain(
     url: string,
     path: string,
-    login?: string
+    login: string
   ): Promise<void> {
     const { promise, repository } = this._clone(url, path, {}, login)
     await this._selectRepository(repository)

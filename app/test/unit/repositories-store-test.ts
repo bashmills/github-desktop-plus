@@ -18,7 +18,7 @@ describe('RepositoriesStore', () => {
   describe('adding a new repository', () => {
     it('contains the added repository', async () => {
       const repoPath = '/some/cool/path'
-      await repositoriesStore.addRepository(repoPath)
+      await repositoriesStore.addRepository(repoPath, null)
 
       const repositories = await repositoriesStore.getAll()
       assert.equal(repositories[0].path, repoPath)
@@ -27,8 +27,8 @@ describe('RepositoriesStore', () => {
 
   describe('getting all repositories', () => {
     it('returns multiple repositories', async () => {
-      await repositoriesStore.addRepository('/some/cool/path')
-      await repositoriesStore.addRepository('/some/other/path')
+      await repositoriesStore.addRepository('/some/cool/path', null)
+      await repositoriesStore.addRepository('/some/other/path', null)
 
       const repositories = await repositoriesStore.getAll()
       assert.equal(repositories.length, 2)
@@ -65,8 +65,8 @@ describe('RepositoriesStore', () => {
 
     it('adds a new GitHub repository', async () => {
       await repositoriesStore.setGitHubRepository(
-        await repositoriesStore.addRepository('/some/cool/path'),
-        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo)
+        await repositoriesStore.addRepository('/some/cool/path', null),
+        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo, null)
       )
 
       const repositories = await repositoriesStore.getAll()
@@ -82,13 +82,13 @@ describe('RepositoriesStore', () => {
 
     it('reuses an existing GitHub repository', async () => {
       const firstRepo = await repositoriesStore.setGitHubRepository(
-        await repositoriesStore.addRepository('/some/cool/path'),
-        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo)
+        await repositoriesStore.addRepository('/some/cool/path', null),
+        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo, null)
       )
 
       const secondRepo = await repositoriesStore.setGitHubRepository(
-        await repositoriesStore.addRepository('/some/other/path'),
-        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo)
+        await repositoriesStore.addRepository('/some/other/path', null),
+        await repositoriesStore.upsertGitHubRepository(endpoint, apiRepo, null)
       )
 
       assert.equal(
