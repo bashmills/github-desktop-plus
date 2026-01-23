@@ -1670,6 +1670,14 @@ export class Dispatcher {
     this.appStore._beginDotComSignIn(resultCallback)
   }
 
+  public beginBitbucketSignIn(resultCallback: (result: SignInResult) => void) {
+    this.appStore._beginBitbucketSignIn(resultCallback)
+  }
+
+  public beginGitLabSignIn(resultCallback: (result: SignInResult) => void) {
+    this.appStore._beginGitLabSignIn(resultCallback)
+  }
+
   public beginBrowserBasedSignIn(
     endpoint: string,
     resultCallback?: (result: SignInResult) => void

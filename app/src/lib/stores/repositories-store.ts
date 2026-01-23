@@ -7,6 +7,7 @@ import {
 } from '../databases/repositories-database'
 import { Owner } from '../../models/owner'
 import {
+  deduceRepositoryType,
   GitHubRepository,
   GitHubRepositoryPermission,
 } from '../../models/github-repository'
@@ -127,10 +128,7 @@ export class RepositoriesStore extends TypedBaseStore<
       )
     }
 
-    const isBitbucket = repo.htmlURL && this.isBitbucketUrl(repo.htmlURL)
-    const isGitLab = repo.htmlURL && this.isGitLabUrl(repo.htmlURL)
-    const login = repo.login
-    const repoType = isBitbucket ? 'bitbucket' : isGitLab ? 'gitlab' : 'github'
+    const repoType = deduceRepositoryType(repo.htmlURL || '')
     const ghRepo = new GitHubRepository(
       repo.name,
       repoType,
@@ -143,30 +141,12 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.isArchived,
       repo.permissions,
       parent,
-      login
+      repo.login
     )
 
     // Dexie gets confused if we return a non-promise value (e.g. if this function
     // didn't need to await for the parent repo or the owner)
     return Promise.resolve(ghRepo)
-  }
-
-  private isBitbucketUrl(url: string): boolean {
-    try {
-      const parsedUrl = new URL(url)
-      return parsedUrl.host === 'bitbucket.org'
-    } catch (e) {
-      return false
-    }
-  }
-
-  private isGitLabUrl(url: string): boolean {
-    try {
-      const parsedUrl = new URL(url)
-      return parsedUrl.host === 'gitlab.com'
-    } catch (e) {
-      return false
-    }
   }
 
   private async toRepository(repo: IDatabaseRepository) {

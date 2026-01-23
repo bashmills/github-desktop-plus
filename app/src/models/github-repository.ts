@@ -92,3 +92,17 @@ export function hasWritePermission(
     gitHubRepository.permissions !== 'read'
   )
 }
+
+export function deduceRepositoryType(url: string): RepoType {
+  try {
+    const host = new URL(url).hostname
+    if (host === 'bitbucket.org') {
+      return 'bitbucket'
+    } else if (host === 'gitlab.com') {
+      return 'gitlab'
+    }
+    return 'github'
+  } catch (e) {
+    return 'github'
+  }
+}

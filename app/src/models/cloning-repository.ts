@@ -14,7 +14,7 @@ export class CloningRepository {
   public constructor(
     public readonly path: string,
     public readonly url: string,
-    public readonly login?: string
+    public readonly login: string
   ) {}
 
   public get name(): string {

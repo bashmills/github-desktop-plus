@@ -1,7 +1,9 @@
 import { Account } from '../../models/account'
 import { IGitAccount } from '../../models/git-account'
+import { deduceRepositoryType } from '../../models/github-repository'
 import { PopupType } from '../../models/popup'
 import { Dispatcher } from '../../ui/dispatcher'
+import { assertNever } from '../fatal-error'
 import { SignInResult } from '../stores'
 
 type PromptSSHSecretResponse = {
@@ -84,12 +86,25 @@ class TrampolineUIHelper {
         this.dispatcher.closePopup(PopupType.SignIn)
       }
 
-      const { hostname, origin } = new URL(endpoint)
-      if (hostname === 'github.com') {
-        this.dispatcher.beginDotComSignIn(cb)
-      } else {
-        this.dispatcher.beginEnterpriseSignIn(cb)
-        await this.dispatcher.setSignInEndpoint(origin)
+      const repositoryType = deduceRepositoryType(endpoint)
+      switch (repositoryType) {
+        case 'github':
+          const { hostname, origin } = new URL(endpoint)
+          if (hostname === 'github.com') {
+            this.dispatcher.beginDotComSignIn(cb)
+          } else {
+            this.dispatcher.beginEnterpriseSignIn(cb)
+            await this.dispatcher.setSignInEndpoint(origin)
+          }
+          break
+        case 'bitbucket':
+          this.dispatcher.beginBitbucketSignIn(cb)
+          break
+        case 'gitlab':
+          this.dispatcher.beginGitLabSignIn(cb)
+          break
+        default:
+          assertNever(repositoryType, `Unexpected repo type: ${repositoryType}`)
       }
 
       this.dispatcher.showPopup({
