@@ -2,6 +2,9 @@
 
 This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) with additional features and improvements.
 
+> [!IMPORTANT]
+> This is a community-maintained project. It **is not** an official GitHub product. 
+
 <img src="docs/assets/github-desktop-plus-demo.webp" alt="Demo" style="max-width:1000px;">
 
 ## Highlights
@@ -31,6 +34,7 @@ This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) w
 
 - "**Pull all**" button to fetch and pull all your repositories at once.
 - Allow **hiding** the "**Recent**" repositories section.
+- Allow customizing the repository **groups** to better organize your repositories (right click on a repository and select "Change group name").
 
 ### Branches list:
 

@@ -130,6 +130,7 @@ import { CommitDragElement } from './drag-elements/commit-drag-element'
 import classNames from 'classnames'
 import { MoveToApplicationsFolder } from './move-to-applications-folder'
 import { ChangeRepositoryAlias } from './change-repository-alias/change-repository-alias-dialog'
+import { ChangeRepositoryGroupName } from './change-repository-group-name/change-repository-group-name-dialog'
 import { ThankYou } from './thank-you'
 import {
   getUserContributions,
@@ -2123,6 +2124,15 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
+      case PopupType.ChangeRepositoryGroupName: {
+        return (
+          <ChangeRepositoryGroupName
+            dispatcher={this.props.dispatcher}
+            repository={popup.repository}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
       case PopupType.ThankYou:
         return (
           <ThankYou
@@ -3124,6 +3134,17 @@ export class App extends React.Component<IAppProps, IAppState> {
       this.props.dispatcher.changeRepositoryAlias(repository, null)
     }
 
+    const onChangeRepositoryGroupName = (repository: Repository) => {
+      this.props.dispatcher.showPopup({
+        type: PopupType.ChangeRepositoryGroupName,
+        repository,
+      })
+    }
+
+    const onRemoveRepositoryGroupName = (repository: Repository) => {
+      this.props.dispatcher.changeRepositoryGroupName(repository, null)
+    }
+
     const items = generateRepositoryListContextMenu({
       onRemoveRepository: this.removeRepository,
       onShowRepository: this.showRepository,
@@ -3134,6 +3155,8 @@ export class App extends React.Component<IAppProps, IAppState> {
       externalEditorLabel: this.externalEditorLabel,
       onChangeRepositoryAlias: onChangeRepositoryAlias,
       onRemoveRepositoryAlias: onRemoveRepositoryAlias,
+      onChangeRepositoryGroupName: onChangeRepositoryGroupName,
+      onRemoveRepositoryGroupName: onRemoveRepositoryGroupName,
       onViewInBrowser: this.viewInBrowser,
       repository: repository,
       shellLabel: this.state.useCustomShell
