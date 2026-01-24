@@ -41,7 +41,8 @@ export const getGroupKey = (group: RepositoryListGroup) => {
     case 'dotcom':
       return `1:${group.displayName ?? group.owner.login}`
     case 'enterprise':
-      return `1:${group.displayName ?? group.host}`
+      // Allow mixing together dotcom and enterprise repos when setting a group name manually
+      return group.displayName ? `1:${group.displayName}` : `2:${group.host}`
     case 'other':
       return `3:other`
     default:
@@ -71,16 +72,16 @@ const getGroupForRepository = (repo: Repositoryish): RepositoryListGroup => {
       ? {
           kind: 'enterprise',
           host: getHostForRepository(repo),
-          displayName: repo.displayGroupName,
+          displayName: repo.groupName,
         }
       : {
           kind: 'dotcom',
           owner: repo.gitHubRepository.owner,
-          displayName: repo.displayGroupName,
+          displayName: repo.groupName,
         }
   }
   if (repo instanceof Repository) {
-    return { kind: 'other', displayName: repo.displayGroupName }
+    return { kind: 'other', displayName: repo.groupName }
   }
   return { kind: 'other', displayName: null }
 }
@@ -109,7 +110,7 @@ export function groupRepositories(
 
   for (const repo of repositories) {
     if (recentSet?.has(repo.id) && repo instanceof Repository) {
-      addToGroup({ kind: 'recent', displayName: repo.displayGroupName }, repo)
+      addToGroup({ kind: 'recent', displayName: repo.groupName }, repo)
     }
 
     addToGroup(getGroupForRepository(repo), repo)

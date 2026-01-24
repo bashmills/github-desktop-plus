@@ -102,10 +102,6 @@ export class Repository {
     return this._url
   }
 
-  public get displayGroupName(): string | null {
-    return this.groupName ?? this.gitHubRepository?.owner.login ?? null
-  }
-
   private fetchUrl(): void {
     // Get the URL of the default remote, if it exists.
     getRemotes(this).then(remotes => {
