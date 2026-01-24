@@ -14,7 +14,7 @@ import { assertNever } from '../../lib/fatal-error'
 import { isGHE, isGHES } from '../../lib/endpoint-capabilities'
 import { Owner } from '../../models/owner'
 
-export type RepositoryListGroup =
+export type RepositoryListGroup = (
   | {
       kind: 'recent' | 'other'
     }
@@ -26,6 +26,7 @@ export type RepositoryListGroup =
       kind: 'enterprise'
       host: string
     }
+) & { displayName: string | null }
 
 /**
  * Returns a unique grouping key (string) for a repository group. Doubles as a
@@ -38,9 +39,9 @@ export const getGroupKey = (group: RepositoryListGroup) => {
     case 'recent':
       return `0:recent`
     case 'dotcom':
-      return `1:dotcom:${group.owner.login}`
+      return `1:${group.displayName ?? group.owner.login}`
     case 'enterprise':
-      return `2:enterprise:${group.host}`
+      return `1:${group.displayName ?? group.host}`
     case 'other':
       return `3:other`
     default:
@@ -67,10 +68,21 @@ const getGroupForRepository = (repo: Repositoryish): RepositoryListGroup => {
   if (repo instanceof Repository && isRepositoryWithGitHubRepository(repo)) {
     return isGHE(repo.gitHubRepository.endpoint) ||
       isGHES(repo.gitHubRepository.endpoint)
-      ? { kind: 'enterprise', host: getHostForRepository(repo) }
-      : { kind: 'dotcom', owner: repo.gitHubRepository.owner }
+      ? {
+          kind: 'enterprise',
+          host: getHostForRepository(repo),
+          displayName: repo.displayGroupName,
+        }
+      : {
+          kind: 'dotcom',
+          owner: repo.gitHubRepository.owner,
+          displayName: repo.displayGroupName,
+        }
   }
-  return { kind: 'other' }
+  if (repo instanceof Repository) {
+    return { kind: 'other', displayName: repo.displayGroupName }
+  }
+  return { kind: 'other', displayName: null }
 }
 
 type RepoGroupItem = { group: RepositoryListGroup; repos: Repositoryish[] }
@@ -97,7 +109,7 @@ export function groupRepositories(
 
   for (const repo of repositories) {
     if (recentSet?.has(repo.id) && repo instanceof Repository) {
-      addToGroup({ kind: 'recent' }, repo)
+      addToGroup({ kind: 'recent', displayName: repo.displayGroupName }, repo)
     }
 
     addToGroup(getGroupForRepository(repo), repo)

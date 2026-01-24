@@ -581,6 +581,20 @@ dialog {
     }
   }
 
+  &#change-repository-group-name {
+    width: 450px;
+
+    .description {
+      color: var(--text-secondary-color);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing);
+
+      p {
+        margin: 0;
+      }
+    }
+  }
+
   &#sign-in {
     width: 400px;
 

@@ -52,6 +52,7 @@ export interface IDatabaseRepository {
   readonly gitHubRepositoryID: number | null
   readonly path: string
   readonly alias: string | null
+  readonly groupName: string | null
   readonly defaultBranch: string | null
   readonly missing: boolean
 

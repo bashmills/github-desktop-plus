@@ -7,54 +7,60 @@ import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { TextBox } from '../lib/text-box'
 import { assertNever } from '../../lib/fatal-error'
 
-interface IChangeRepositoryAliasProps {
+interface IChangeRepositoryGroupNameProps {
   readonly dispatcher: Dispatcher
   readonly onDismissed: () => void
   readonly repository: Repository
 }
 
-interface IChangeRepositoryAliasState {
-  readonly newAlias: string
+interface IChangeRepositoryGroupNameState {
+  readonly newGroupName: string
 }
 
-export class ChangeRepositoryAlias extends React.Component<
-  IChangeRepositoryAliasProps,
-  IChangeRepositoryAliasState
+export class ChangeRepositoryGroupName extends React.Component<
+  IChangeRepositoryGroupNameProps,
+  IChangeRepositoryGroupNameState
 > {
-  public constructor(props: IChangeRepositoryAliasProps) {
+  public constructor(props: IChangeRepositoryGroupNameProps) {
     super(props)
 
-    this.state = { newAlias: props.repository.alias ?? props.repository.name }
+    this.state = {
+      newGroupName:
+        props.repository.groupName ??
+        props.repository.gitHubRepository?.owner.login ??
+        '',
+    }
   }
 
   public render() {
     const repository = this.props.repository
-    const verb = repository.alias === null ? 'Create' : 'Change'
 
     return (
       <Dialog
-        id="change-repository-alias"
+        id="change-repository-group-name"
         title={
-          __DARWIN__ ? `${verb} Repository Alias` : `${verb} repository alias`
+          __DARWIN__
+            ? `Change Repository Group Name`
+            : `Change repository group name`
         }
-        ariaDescribedBy="change-repository-alias-description"
+        ariaDescribedBy="change-repository-group-name-description"
         onDismissed={this.props.onDismissed}
-        onSubmit={this.changeAlias}
+        onSubmit={this.changeGroupName}
       >
         <DialogContent>
-          <p id="change-repository-alias-description">
-            Choose a new alias for the repository "{nameOf(repository)}".{' '}
+          <p id="change-repository-group-name-description">
+            Choose a new group name for the repository "{nameOf(repository)}".{' '}
           </p>
           <p>
             <TextBox
-              ariaLabel="Alias"
-              value={this.state.newAlias}
+              ariaLabel="Group name"
+              value={this.state.newGroupName}
               onValueChanged={this.onNameChanged}
             />
           </p>
           {repository.gitHubRepository !== null && (
             <p className="description">
-              This will not affect the original repository name
+              This will not change the actual repository owner
               {this.remoteLabel(repository)}.
             </p>
           )}
@@ -62,8 +68,10 @@ export class ChangeRepositoryAlias extends React.Component<
 
         <DialogFooter>
           <OkCancelButtonGroup
-            okButtonText={__DARWIN__ ? `${verb} Alias` : `${verb} alias`}
-            okButtonDisabled={this.state.newAlias.length === 0}
+            okButtonText={
+              __DARWIN__ ? `Change Group Name` : `Change group name`
+            }
+            okButtonDisabled={this.state.newGroupName.length === 0}
           />
         </DialogFooter>
       </Dialog>
@@ -88,14 +96,14 @@ export class ChangeRepositoryAlias extends React.Component<
     }
   }
 
-  private onNameChanged = (newAlias: string) => {
-    this.setState({ newAlias })
+  private onNameChanged = (newGroupName: string) => {
+    this.setState({ newGroupName })
   }
 
-  private changeAlias = () => {
-    this.props.dispatcher.changeRepositoryAlias(
+  private changeGroupName = () => {
+    this.props.dispatcher.changeRepositoryGroupName(
       this.props.repository,
-      this.state.newAlias
+      this.state.newGroupName
     )
     this.props.onDismissed()
   }

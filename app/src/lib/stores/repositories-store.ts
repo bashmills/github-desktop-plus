@@ -174,6 +174,7 @@ export class RepositoriesStore extends TypedBaseStore<
         : await Promise.resolve(null), // Dexie gets confused if we return null
       repo.missing,
       repo.alias,
+      repo.groupName,
       repo.defaultBranch,
       repo.workflowPreferences,
       repo.customEditorOverride,
@@ -239,6 +240,7 @@ export class RepositoriesStore extends TypedBaseStore<
           ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
           path,
           alias: null,
+          groupName: null,
           defaultBranch: null,
           gitHubRepositoryID: ghRepo.dbID,
           missing: false,
@@ -278,6 +280,7 @@ export class RepositoriesStore extends TypedBaseStore<
           missing: opts?.missing ?? false,
           lastStashCheckDate: null,
           alias: null,
+          groupName: null,
           defaultBranch: null,
         }
         const id = await this.db.repositories.add(dbRepo)
@@ -313,6 +316,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       missing,
       repository.alias,
+      repository.groupName,
       repository.defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
@@ -336,7 +340,22 @@ export class RepositoriesStore extends TypedBaseStore<
   }
 
   /**
-   * Update the alias for the specified repository.
+   * Update the group name for the specified repository.
+   *
+   * @param repository  The repository to update.
+   * @param groupName       The new group name to use.
+   */
+  public async updateRepositoryGroupName(
+    repository: Repository,
+    groupName: string | null
+  ): Promise<void> {
+    await this.db.repositories.update(repository.id, { groupName })
+
+    this.emitUpdatedRepositories()
+  }
+
+  /**
+   * Update the default branch for the specified repository.
    *
    * @param repository    The repository to update.
    * @param defaultBranch The new default branch to use.
@@ -355,6 +374,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       repository.missing,
       repository.alias,
+      repository.groupName,
       defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
@@ -403,6 +423,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       false,
       repository.alias,
+      repository.groupName,
       repository.defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,
@@ -551,6 +572,7 @@ export class RepositoriesStore extends TypedBaseStore<
       ghRepo,
       repo.missing,
       repo.alias,
+      repo.groupName,
       repo.defaultBranch,
       repo.workflowPreferences,
       repo.customEditorOverride,

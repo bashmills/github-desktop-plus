@@ -34,6 +34,7 @@ This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) w
 
 - "**Pull all**" button to fetch and pull all your repositories at once.
 - Allow **hiding** the "**Recent**" repositories section.
+- Allow customizing the repository **groups** to better organize your repositories (right click on a repository and select "Change group name").
 
 ### Branches list:
 

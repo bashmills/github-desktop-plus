@@ -243,13 +243,13 @@ export class RepositoriesList extends React.Component<
   }
 
   private getGroupLabel(group: RepositoryListGroup) {
-    const { kind } = group
+    const { kind, displayName } = group
     if (kind === 'enterprise') {
-      return group.host
+      return displayName ?? group.host
     } else if (kind === 'other') {
-      return 'Other'
+      return displayName ?? 'Other'
     } else if (kind === 'dotcom') {
-      return group.owner.login
+      return displayName ?? group.owner.login
     } else if (kind === 'recent') {
       return 'Recent'
     } else {
@@ -299,6 +299,8 @@ export class RepositoriesList extends React.Component<
       externalEditorLabel: this.props.externalEditorLabel,
       onChangeRepositoryAlias: this.onChangeRepositoryAlias,
       onRemoveRepositoryAlias: this.onRemoveRepositoryAlias,
+      onChangeRepositoryGroupName: this.onChangeRepositoryGroupName,
+      onRemoveRepositoryGroupName: this.onRemoveRepositoryGroupName,
       onViewInBrowser: this.props.onViewInBrowser,
       repository: item.repository,
       shellLabel: this.props.shellLabel,
@@ -496,5 +498,16 @@ export class RepositoriesList extends React.Component<
 
   private onRemoveRepositoryAlias = (repository: Repository) => {
     this.props.dispatcher.changeRepositoryAlias(repository, null)
+  }
+
+  private onChangeRepositoryGroupName = (repository: Repository) => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.ChangeRepositoryGroupName,
+      repository,
+    })
+  }
+
+  private onRemoveRepositoryGroupName = (repository: Repository) => {
+    this.props.dispatcher.changeRepositoryGroupName(repository, null)
   }
 }

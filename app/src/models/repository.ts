@@ -61,6 +61,7 @@ export class Repository {
     public readonly gitHubRepository: GitHubRepository | null,
     public readonly missing: boolean,
     public readonly alias: string | null = null,
+    public readonly groupName: string | null = null,
     public readonly defaultBranch: string | null = null,
     public readonly workflowPreferences: WorkflowPreferences = {},
     public readonly customEditorOverride: EditorOverride | null = null,
@@ -80,6 +81,7 @@ export class Repository {
       gitHubRepository?.hash,
       this.missing,
       this.alias,
+      this.groupName,
       this.defaultBranch,
       getCustomOverrideHash(this.customEditorOverride),
       this.workflowPreferences.forkContributionTarget,
@@ -98,6 +100,10 @@ export class Repository {
     }
 
     return this._url
+  }
+
+  public get displayGroupName(): string | null {
+    return this.groupName ?? this.gitHubRepository?.owner.login ?? null
   }
 
   private fetchUrl(): void {
