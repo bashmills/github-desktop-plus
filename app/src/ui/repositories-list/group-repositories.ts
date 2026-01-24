@@ -44,7 +44,7 @@ export const getGroupKey = (group: RepositoryListGroup) => {
       // Allow mixing together dotcom and enterprise repos when setting a group name manually
       return group.displayName ? `1:${group.displayName}` : `2:${group.host}`
     case 'other':
-      return `3:other`
+      return group.displayName ? `1:${group.displayName}` : `3:other`
     default:
       assertNever(group, `Unknown repository group kind ${kind}`)
   }
