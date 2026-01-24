@@ -870,7 +870,7 @@ export class Preferences extends React.Component<
       }
 
       if (this.state.hooksPreferencesDirty) {
-        if (this.state.enableGitHookEnv) {
+        if (this.state.enableGitHookEnv !== undefined) {
           setHooksEnvEnabled(this.state.enableGitHookEnv)
         }
 
