@@ -10,7 +10,7 @@ import { Avatar } from '../lib/avatar'
 import { CallToAction } from '../lib/call-to-action'
 import {
   enableBitbucketIntegration,
-  enableGitLabIntegration
+  enableGitLabIntegration,
 } from '../../lib/feature-flag'
 import { getHTMLURL } from '../../lib/api'
 
