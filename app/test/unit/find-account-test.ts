@@ -64,7 +64,7 @@ describe('findAccountForRemoteURL', () => {
       'https://gitlab.com/inkscape/inkscape.git',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account === null)
   })
@@ -74,7 +74,7 @@ describe('findAccountForRemoteURL', () => {
       'desktop/nonexistent-repo-fixture',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account === null)
   })
@@ -84,7 +84,7 @@ describe('findAccountForRemoteURL', () => {
       'inkscape/inkscape',
       [],
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account, Account.anonymous())
@@ -95,7 +95,7 @@ describe('findAccountForRemoteURL', () => {
       'https://github.com/inkscape/inkscape',
       [],
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account, Account.anonymous())
@@ -106,7 +106,7 @@ describe('findAccountForRemoteURL', () => {
       'inkscape/inkscape',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -117,7 +117,7 @@ describe('findAccountForRemoteURL', () => {
       'https://github.com/inkscape/inkscape.git',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -128,7 +128,7 @@ describe('findAccountForRemoteURL', () => {
       'https://github.mycompany.com/inkscape/inkscape.git',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joel')
@@ -139,7 +139,7 @@ describe('findAccountForRemoteURL', () => {
       'desktop/repo-fixture',
       accounts,
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -150,7 +150,7 @@ describe('findAccountForRemoteURL', () => {
       'desktop/repo-fixture',
       [],
       mockCanAccessRepository,
-      ''
+      'foo'
     )
     assert(account === null)
   })
