@@ -27,7 +27,7 @@ depends=(curl
 optdepends=('github-cli: CLI interface for GitHub'
             'hub: CLI interface for GitHub')
 makedepends=(python-setuptools
-             'nodejs>=22'
+             'nodejs-lts-[[NODE_CODENAME]]'
              npm
              xorg-server-xvfb
              yarn)
