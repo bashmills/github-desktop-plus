@@ -351,6 +351,7 @@ function copyDependencies() {
   mkdirSync(gitDir, { recursive: true })
   cpSync(path.resolve(projectRoot, 'app/node_modules/dugite/git'), gitDir, {
     recursive: true,
+    verbatimSymlinks: true,
   })
 
   console.log('  Copying desktop credential helper…')
