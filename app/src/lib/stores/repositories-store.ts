@@ -398,6 +398,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.gitHubRepository,
       repository.missing,
       repository.alias,
+      repository.groupName,
       repository.defaultBranch,
       repository.workflowPreferences,
       repository.customEditorOverride,

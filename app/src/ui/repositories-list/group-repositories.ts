@@ -72,8 +72,17 @@ const getGroupForRepository = (repo: Repositoryish): RepositoryListGroup => {
   if (repo instanceof Repository && isRepositoryWithGitHubRepository(repo)) {
     return isGHE(repo.gitHubRepository.endpoint) ||
       isGHES(repo.gitHubRepository.endpoint)
-      ? { kind: 'enterprise', host: getHostForRepository(repo) }
-      : { kind: 'dotcom', owner: repo.gitHubRepository.owner }
+      ? {
+          kind: 'enterprise',
+          host: getHostForRepository(repo),
+          displayName: repo.groupName,
+        }
+      : {
+          kind: 'dotcom',
+          owner: repo.gitHubRepository.owner,
+          displayName: repo.groupName,
+          login: repo.login ?? '',
+        }
   }
   if (repo instanceof Repository) {
     return { kind: 'other', displayName: repo.groupName }
