@@ -30,12 +30,15 @@ jobs:
           submodules: recursive
       - name: Package and test application in container
         uses: pol-rivero/desktop-ubuntu-arm64-packaging@268f378f0fcea447cbb773ccf5bdc82f7389dcce
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage arm64
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-arm64-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -54,12 +57,15 @@ jobs:
           submodules: recursive
       - name: Package and test application in container
         uses: pol-rivero/desktop-ubuntu-arm-packaging@2d4df8604295eb7bf767101c365435e7e029e3df
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage armv7l
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-arm-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -78,12 +84,15 @@ jobs:
           submodules: recursive
       - name: Package and test application in container
         uses: pol-rivero/desktop-ubuntu-amd64-packaging@fd44033e38ccc986e39ed8e7a6d38640506e8bde
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage x86_64
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-amd64-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -142,6 +151,7 @@ jobs:
             Upstream: [GitHub Desktop ${{ env.VERSION_WITHOUT_V }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.VERSION_WITHOUT_V }})
           files: |
             artifacts/**/*.AppImage
+            artifacts/**/*.AppImage.zsync
             artifacts/**/*.deb
             artifacts/**/*.rpm
           draft: false
