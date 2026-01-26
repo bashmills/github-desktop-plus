@@ -6773,7 +6773,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
       `[AppStore] removing account ${account.login} (${account.name}) from store`
     )
     await this.accountsStore.removeAccount(account)
-    await deleteToken(account)
+    if (account.token) {
+      await deleteToken(account)
+    }
   }
 
   public async _updateAccount(account: Account): Promise<void> {
