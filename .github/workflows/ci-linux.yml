@@ -30,12 +30,15 @@ jobs:
           submodules: recursive
       - name: Package and test application in container
         uses: pol-rivero/desktop-ubuntu-arm64-packaging@268f378f0fcea447cbb773ccf5bdc82f7389dcce
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage arm64
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-arm64-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -54,12 +57,15 @@ jobs:
           submodules: recursive
       - name: Package and test application in container
         uses: pol-rivero/desktop-ubuntu-arm-packaging@2d4df8604295eb7bf767101c365435e7e029e3df
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage armv7l
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-arm-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -77,13 +83,16 @@ jobs:
           ref: ${{ inputs.ref }}
           submodules: recursive
       - name: Package and test application in container
-        uses: pol-rivero/desktop-ubuntu-amd64-packaging@5100a32fe5240f5e3150b8f0740585835d0cf1e8
+        uses: pol-rivero/desktop-ubuntu-amd64-packaging@fd44033e38ccc986e39ed8e7a6d38640506e8bde
+      - name: Generate AppImage zsync
+        run: script/generate-appimage-zsync.sh dist/*.AppImage x86_64
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-amd64-artifacts
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             dist/*.sha256
@@ -142,6 +151,7 @@ jobs:
             Upstream: [GitHub Desktop ${{ env.VERSION_WITHOUT_V }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.VERSION_WITHOUT_V }})
           files: |
             artifacts/**/*.AppImage
+            artifacts/**/*.AppImage.zsync
             artifacts/**/*.deb
             artifacts/**/*.rpm
           draft: false
@@ -201,6 +211,13 @@ jobs:
           echo "PKGBUILD_BIN=$PKGBUILD_BIN" >> $GITHUB_ENV
           echo "PKGBUILD=$PKGBUILD" >> $GITHUB_ENV
           echo "PKGBUILD_GIT=$PKGBUILD_GIT" >> $GITHUB_ENV
+          node_major=$(head -n 1 .node-version | cut -d. -f1)
+          NODE_CODENAME="$(
+            curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
+            jq -r --arg v "v${node_major}" '.[$v].codename // empty' |
+            tr '[:upper:]' '[:lower:]'
+          )"
+
           for PKGBUILD_FILE in "$PKGBUILD_BIN" "$PKGBUILD" "$PKGBUILD_GIT"; do
             if [[ ! -f "$PKGBUILD_FILE" ]]; then
                 echo "$PKGBUILD_FILE does not exist. Contents of current directory:"
@@ -208,6 +225,7 @@ jobs:
                 exit 1
             fi
             sed -i "s/\[\[VERSION_WITHOUT_V\]\]/${VERSION_WITHOUT_V}/" $PKGBUILD_FILE
+            sed -i "s/\[\[NODE_CODENAME\]\]/${NODE_CODENAME}/" $PKGBUILD_FILE
             desktop_file_sha256=$(sha256sum $AUR_DIR/github-desktop-plus.desktop | awk '{ print $1 }')
             sed -i "s/\[\[DESKTOP_FILE_SHA256\]\]/$desktop_file_sha256/" $PKGBUILD_FILE
             launch_script_sha256=$(sha256sum $AUR_DIR/launch-app.sh | awk '{ print $1 }')
