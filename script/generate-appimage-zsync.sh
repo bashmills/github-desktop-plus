@@ -3,15 +3,16 @@
 set -e
 
 APPIMAGE_FILE="$1"
-ARCH="$2"
-if [ -z "$APPIMAGE_FILE" ] || [ -z "$ARCH" ]; then
-  echo "Usage: $0 <AppImage file> <architecture>"
+FILENAME_ARCH_PART="$2"
+APPIMAGE_ARCH="$3"
+if [ -z "$APPIMAGE_FILE" ] || [ -z "$FILENAME_ARCH_PART" ] || [ -z "$APPIMAGE_ARCH" ]; then
+  echo "Usage: $0 <AppImage file> <filename architecture part> <AppImage architecture>"
   exit 1
 fi
 
 REPO_OWNER="pol-rivero"
 REPO_NAME="github-desktop-plus"
-RELEASES_ZSYNC_PATTERN="GitHubDesktopPlus-*-linux-$ARCH.AppImage.zsync"
+RELEASES_ZSYNC_PATTERN="GitHubDesktopPlus-*-linux-$FILENAME_ARCH_PART.AppImage.zsync"
 
 extract_appimage_noexec() {
   local f="$1"
@@ -49,7 +50,7 @@ curl -L -o appimagetool https://github.com/AppImage/appimagetool/releases/downlo
 chmod +x appimagetool
 
 # Embed update info and re-pack (this will generate the .zsync file)
-./appimagetool -u "$UPDATE_INFO" squashfs-root "$APPIMAGE_FILE"
+ARCH="$APPIMAGE_ARCH" ./appimagetool -u "$UPDATE_INFO" squashfs-root "$APPIMAGE_FILE"
 
 # Cleanup
 rm -rf squashfs-root appimagetool
