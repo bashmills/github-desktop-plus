@@ -16,7 +16,9 @@ RELEASES_ZSYNC_PATTERN="GitHubDesktopPlus-*-linux-$ARCH.AppImage.zsync"
 # Extract AppImage contents
 cd "$(dirname "$APPIMAGE_FILE")"
 APPIMAGE_FILE=$(basename "$APPIMAGE_FILE")
-chmod +x "$APPIMAGE_FILE"
+ls -l "$APPIMAGE_FILE"
+whoami
+sudo chmod +x "$APPIMAGE_FILE"
 "./$APPIMAGE_FILE" --appimage-extract
 
 TAG="latest"  # https://github.com/AppImage/AppImageSpec/blob/master/draft.md#release-name-values
