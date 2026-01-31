@@ -1,20 +1,12 @@
-name: 'CI / Linux'
+name: 'CI (Linux)'
 
 on:
   push:
     branches:
-      - development
-      - linux
-      - 'linux-release-*'
+      - main
     tags:
-      - 'release-*.*.*-linux*'
-      - 'release-*.*.*-test*'
       - 'v*.*.*'
   pull_request:
-    branches:
-      - linux
-      - linux-vnext
-      - 'linux-release-*'
 
 jobs:
   arm64:
