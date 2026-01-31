@@ -38,6 +38,7 @@ PY
 
 # Extract AppImage contents
 cd "$(dirname "$APPIMAGE_FILE")"
+sudo chown -R "$(whoami)" .
 APPIMAGE_FILE=$(basename "$APPIMAGE_FILE")
 extract_appimage_noexec "$APPIMAGE_FILE" squashfs-root
 
