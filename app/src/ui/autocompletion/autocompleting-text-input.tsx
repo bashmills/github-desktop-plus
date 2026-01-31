@@ -1,9 +1,9 @@
 import * as React from 'react'
 import {
-  List,
-  SelectionSource,
-  findNextSelectableRow,
-  SelectionDirection,
+    List,
+    SelectionSource,
+    findNextSelectableRow,
+    SelectionDirection,
 } from '../lib/list'
 import { IAutocompletionProvider } from './index'
 import { fatalError } from '../../lib/fatal-error'
@@ -13,9 +13,9 @@ import { showContextualMenu } from '../../lib/menu-item'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
 import { createUniqueId, releaseUniqueId } from '../lib/id-pool'
 import {
-  Popover,
-  PopoverAnchorPosition,
-  PopoverDecoration,
+    Popover,
+    PopoverAnchorPosition,
+    PopoverDecoration,
 } from '../lib/popover'
 
 interface IRange {
@@ -639,7 +639,7 @@ export abstract class AutocompletingTextInput<
       this.props.onKeyDown(event)
     }
 
-    if (event.defaultPrevented) {
+    if (event.defaultPrevented || event.nativeEvent.isComposing === true) {
       return
     }
 
@@ -753,12 +753,18 @@ export abstract class AutocompletingTextInput<
 
   private onChange = async (event: React.FormEvent<ElementType>) => {
     const str = event.currentTarget.value
+    const isComposing =
+      (event.nativeEvent as InputEvent).isComposing === true
 
     if (this.props.onValueChanged) {
       this.props.onValueChanged(str)
     }
 
     this.updateCaretCoordinates()
+
+    if (isComposing) {
+      return
+    }
 
     return this.open(str)
   }
