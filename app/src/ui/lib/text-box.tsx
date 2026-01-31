@@ -162,7 +162,7 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     if (
       this.inputElement &&
       this.state.cursorPosition &&
-      this.isComposing === false &&
+      !this.isComposing &&
       ['text', 'search', 'url', 'tel', 'password'].includes(
         this.inputElement.type
       )
@@ -216,7 +216,7 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value
     const isComposing =
-      (event.nativeEvent as InputEvent).isComposing === true
+      event.nativeEvent instanceof InputEvent && event.nativeEvent.isComposing
     const cursorPosition = this.isComposing
       ? undefined
       : {
@@ -289,10 +289,8 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
   }
 
   private onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing === true) {
-      if (this.props.onKeyDown !== undefined) {
-        this.props.onKeyDown(event)
-      }
+    if (event.nativeEvent.isComposing) {
+      this.props.onKeyDown?.(event)
       return
     }
 
