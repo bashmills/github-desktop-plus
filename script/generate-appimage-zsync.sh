@@ -15,6 +15,7 @@ RELEASES_ZSYNC_PATTERN="GitHubDesktopPlus-*-linux-$ARCH.AppImage.zsync"
 
 # Extract AppImage contents
 cd "$(dirname "$APPIMAGE_FILE")"
+APPIMAGE_FILE=$(basename "$APPIMAGE_FILE")
 chmod +x "$APPIMAGE_FILE"
 "./$APPIMAGE_FILE" --appimage-extract
 
