@@ -639,7 +639,7 @@ export abstract class AutocompletingTextInput<
       this.props.onKeyDown(event)
     }
 
-    if (event.defaultPrevented) {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) {
       return
     }
 
@@ -753,12 +753,18 @@ export abstract class AutocompletingTextInput<
 
   private onChange = async (event: React.FormEvent<ElementType>) => {
     const str = event.currentTarget.value
+    const isComposing =
+      event.nativeEvent instanceof InputEvent && event.nativeEvent.isComposing
 
     if (this.props.onValueChanged) {
       this.props.onValueChanged(str)
     }
 
     this.updateCaretCoordinates()
+
+    if (isComposing) {
+      return
+    }
 
     return this.open(str)
   }

@@ -137,6 +137,7 @@ interface ITextBoxState {
 /** An input element with app-standard styles. */
 export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
   private inputElement: HTMLInputElement | null = null
+  private isComposing = false
 
   public componentWillMount() {
     const friendlyName = this.props.label || this.props.placeholder
@@ -161,6 +162,7 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     if (
       this.inputElement &&
       this.state.cursorPosition &&
+      !this.isComposing &&
       ['text', 'search', 'url', 'tel', 'password'].includes(
         this.inputElement.type
       )
@@ -213,14 +215,22 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
 
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value
-    const cursorPosition = {
-      start: event.currentTarget.selectionStart ?? 0,
-      end: event.currentTarget.selectionEnd ?? 0,
-    }
+    const isComposing =
+      event.nativeEvent instanceof InputEvent && event.nativeEvent.isComposing
+    const cursorPosition = isComposing
+      ? undefined
+      : {
+          start: event.currentTarget.selectionStart ?? 0,
+          end: event.currentTarget.selectionEnd ?? 0,
+        }
 
     // Even when the new value is '', we don't want to render the aria-live
     // message saying "input cleared", so we set valueCleared to false.
     this.setState({ value, valueCleared: false, cursorPosition }, () => {
+      if (isComposing) {
+        return
+      }
+
       if (this.props.onValueChanged) {
         this.props.onValueChanged(value)
       }
@@ -279,6 +289,11 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
   }
 
   private onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) {
+      this.props.onKeyDown?.(event)
+      return
+    }
+
     const value = this.state.value
 
     if (
@@ -340,6 +355,8 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
           ref={this.onInputRef}
           onFocus={this.onFocus}
           onBlur={this.onBlur}
+          onCompositionStart={this.onCompositionStart}
+          onCompositionEnd={this.onCompositionEnd}
           autoFocus={this.props.autoFocus}
           disabled={this.props.disabled}
           readOnly={this.props.readOnly}
@@ -385,5 +402,16 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     if (this.props.onBlur !== undefined) {
       this.props.onBlur(event.target.value)
     }
+  }
+
+  private onCompositionStart = () => {
+    this.isComposing = true
+    if (this.state.cursorPosition !== undefined) {
+      this.setState({ cursorPosition: undefined })
+    }
+  }
+
+  private onCompositionEnd = () => {
+    this.isComposing = false
   }
 }
