@@ -217,7 +217,7 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     const value = event.currentTarget.value
     const isComposing =
       event.nativeEvent instanceof InputEvent && event.nativeEvent.isComposing
-    const cursorPosition = this.isComposing
+    const cursorPosition = isComposing
       ? undefined
       : {
           start: event.currentTarget.selectionStart ?? 0,
