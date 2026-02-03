@@ -411,7 +411,9 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     }
   }
 
-  private onCompositionEnd = (event: React.CompositionEvent<HTMLInputElement>) => {
+  private onCompositionEnd = (
+    event: React.CompositionEvent<HTMLInputElement>
+  ) => {
     this.isComposing = false
 
     const value = event.currentTarget.value
