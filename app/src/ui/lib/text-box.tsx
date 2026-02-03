@@ -411,7 +411,16 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     }
   }
 
-  private onCompositionEnd = () => {
+  private onCompositionEnd = (event: React.CompositionEvent<HTMLInputElement>) => {
     this.isComposing = false
+
+    const value = event.currentTarget.value
+    if (this.state.value !== value) {
+      this.setState({ value, valueCleared: false })
+    }
+
+    if (this.props.onValueChanged !== undefined) {
+      this.props.onValueChanged(value)
+    }
   }
 }
