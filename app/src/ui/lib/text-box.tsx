@@ -421,8 +421,6 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
       this.setState({ value, valueCleared: false })
     }
 
-    if (this.props.onValueChanged !== undefined) {
-      this.props.onValueChanged(value)
-    }
+    this.props.onValueChanged?.(value)
   }
 }
