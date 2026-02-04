@@ -3,20 +3,10 @@
 set -e
 
 APPIMAGE_FILE="$1"
-RUNNER_ARCH="$2"
-if [ -z "$APPIMAGE_FILE" ] || [ -z "$RUNNER_ARCH" ]; then
+FILENAME_ARCH_PART="$2"
+APPIMAGE_ARCH="$3"
+if [ -z "$APPIMAGE_FILE" ] || [ -z "$FILENAME_ARCH_PART" ] || [ -z "$APPIMAGE_ARCH" ]; then
   echo "Usage: $0 <AppImage file> <filename architecture part> <AppImage architecture>"
-  exit 1
-fi
-
-if [ "$RUNNER_ARCH" = "arm64" ]; then
-  FILENAME_ARCH_PART="arm64"
-  APPIMAGE_ARCH="aarch64"
-elif [ "$RUNNER_ARCH" = "x64" ]; then
-  FILENAME_ARCH_PART="x86_64"
-  APPIMAGE_ARCH="x86_64"
-else 
-  echo "Unsupported architecture: $RUNNER_ARCH"
   exit 1
 fi
 
