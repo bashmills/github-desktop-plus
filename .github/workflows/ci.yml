@@ -80,13 +80,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, windows-2022]
+        os: [macos-14, windows-2022, ubuntu-latest]
         arch: [x64, arm64]
         include:
           - os: macos-14
             friendlyName: macOS
           - os: windows-2022
             friendlyName: Windows
+          - os: ubuntu-latest
+            friendlyName: Linux
     timeout-minutes: 60
     environment: ${{ inputs.environment }}
     env:
@@ -145,7 +147,7 @@ jobs:
           npm_config_arch: ${{ matrix.arch }}
       - name: Run unit tests
         if: |
-          (runner.os == 'Windows' && matrix.arch == 'x64') || (runner.os == 'macOS' && matrix.arch == 'arm64')
+          (runner.os == 'Windows' && matrix.arch == 'x64') || (runner.os == 'macOS' && matrix.arch == 'arm64') || (runner.os == 'Linux' && matrix.arch == 'x64')
         run: yarn test:unit
       - name: Run script tests
         run: yarn test:script
@@ -165,6 +167,10 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_CODE_SIGNING_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CODE_SIGNING_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CODE_SIGNING_CLIENT_SECRET }}
+      - name: Generate AppImage zsync
+        if: ${{ runner.os == 'Linux' }}
+        run:
+          script/generate-appimage-zsync.sh dist/*.AppImage ${{ matrix.arch }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -174,17 +180,23 @@ jobs:
             dist/GitHubDesktop-*.nupkg
             dist/GitHubDesktopSetup-${{matrix.arch}}.exe
             dist/GitHubDesktopSetup-${{matrix.arch}}.msi
+            dist/*.AppImage
+            dist/*.AppImage.zsync
+            dist/*.deb
+            dist/*.rpm
+            dist/*.sha256
             dist/bundle-size.json
           if-no-files-found: error
 
-  publish:
-    name: Publish artifacts
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+  release_github:
+    name: Create GitHub release
     needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
-      - name: Set release tag
-        run: echo "RELEASE_TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -195,37 +207,332 @@ jobs:
         run: ls -R
         working-directory: './artifacts'
 
-      - name: Wait for release to be available
+      - name: Get tag name without prefix
         run: |
-          echo "Waiting for release ${{ env.RELEASE_TAG }} to be available..."
-          for i in {1..180}; do
-            response=$(curl --silent -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG")
-            if echo "$response" | grep -q '"id":'; then
-              echo "Release found."
-              exit 0
-            fi
-            echo "Release not found. Retrying in 10 seconds..."
-            sleep 10
-          done
-          echo "Release ${{ env.RELEASE_TAG }} not found after 30 minutes."
-          exit 1
+          RELEASE_TAG=${GITHUB_REF/refs\/tags\//}
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          if [[ "${RELEASE_TAG}" == release-* ]]; then
+            tagNameWithoutPrefix="${RELEASE_TAG:8}"
+          else
+            tagNameWithoutPrefix="${RELEASE_TAG}"
+          fi
+          VERSION_WITHOUT_V=$(echo "${tagNameWithoutPrefix}" | sed -E "s/v(.*)/\\1/")
+          echo "VERSION_WITHOUT_V=${VERSION_WITHOUT_V}" >> $GITHUB_ENV
+          # Export for downstream jobs
+          echo "${VERSION_WITHOUT_V}" > VERSION_WITHOUT_V.txt
 
+      # GitHubDesktop-linux-<arch>-<old_version>.<ext> -> GitHubDesktopPlus-<release_tag>-linux-<arch>.<ext>
+      # GitHubDesktop-linux-<arch>-<old_version>-beta1.<ext> -> GitHubDesktopPlus-<release_tag>-linux-<arch>.<ext>
+      # GitHubDesktopSetup-<arch>.<ext> -> GitHubDesktopPlus-<release_tag>-windows-<arch>.<ext>
+      # GitHub Desktop Plus-<arch>.zip -> GitHubDesktopPlus-<release_tag>-macOS-<arch>.zip
       - name: Rename artifacts
         run: |
-          # GitHubDesktopSetup-<arch>.<ext> -> GitHubDesktopPlus-<release_tag>-windows-<arch>.<ext>
+          for file in $(find ./artifacts -type f -name "GitHubDesktop-linux-*"); do
+            new_name=$(echo "$file" | sed -E "s/GitHubDesktop-linux-(.*)-[0-9]+\\.[0-9]+\\.[0-9]+(-beta[0-9]+)?\\.(.*)/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-linux-\\1.\\3/")
+            new_name=$(echo $new_name | sed -E "s/linux-amd64/linux-x86_64/")
+            new_name=$(echo $new_name | sed -E "s/linux-aarch64/linux-arm64/")
+            mv --verbose "$file" "$new_name"
+          done
+
           for file in $(find ./artifacts -type f -name "GitHubDesktopSetup-*"); do
             new_name=$(echo "$file" | sed -E "s/GitHubDesktopSetup-(.*)\\.(.*)/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-windows-\\1.\\2/")
             mv --verbose "$file" "$new_name"
           done
 
-          # GitHub Desktop Plus-<arch>.zip -> GitHubDesktopPlus-<release_tag>-macOS-<arch>.zip
           find ./artifacts -type f -name "GitHub Desktop Plus-*.zip" -print0 | while IFS= read -r -d '' file; do
             new_name=$(echo "$file" | sed -E "s/GitHub Desktop Plus-(.*)\\.zip/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-macOS-\\1.zip/")
             mv --verbose "$file" "$new_name"
           done
 
-      - name: Upload assets to release
-        run: |
-          gh release upload ${{ env.RELEASE_TAG }} artifacts/**/*.exe artifacts/**/*.msi artifacts/**/*.zip --clobber --repo ${{ github.repository }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GitHub Desktop Plus v${{ env.VERSION_WITHOUT_V }}
+          body: |
+            Upstream: [GitHub Desktop ${{ env.VERSION_WITHOUT_V }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.VERSION_WITHOUT_V }})
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.AppImage.zsync
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.zip
+          draft: false
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload VERSION_WITHOUT_V artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VERSION_WITHOUT_V
+          path: VERSION_WITHOUT_V.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  release_aur:
+    name: Publish AUR package
+    needs: release_github
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: './artifacts'
+
+      - name: Download VERSION_WITHOUT_V artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: VERSION_WITHOUT_V
+          path: './'
+
+      - name: Set VERSION_WITHOUT_V env var
+        run: |
+          echo "VERSION_WITHOUT_V=$(cat ./VERSION_WITHOUT_V.txt)" >> $GITHUB_ENV
+
+      - name: Rename artifacts
+        run: |
+          for file in $(find ./artifacts -type f -name "GitHubDesktop-linux-*"); do
+            new_name=$(echo "$file" | sed -E "s/GitHubDesktop-linux-(.*)-[0-9]+\\.[0-9]+\\.[0-9]+(-beta[0-9]+)?\\.(.*)/GitHubDesktopPlus-v${{ env.VERSION_WITHOUT_V }}-linux-\\1.\\3/")
+            new_name=$(echo $new_name | sed -E "s/linux-amd64/linux-x86_64/")
+            new_name=$(echo $new_name | sed -E "s/linux-aarch64/linux-arm64/")
+            mv --verbose "$file" "$new_name"
+          done
+
+      - name: Prepare PKGBUILD files
+        run: |
+          AUR_DIR=./publish/aur
+          echo "AUR_DIR=$AUR_DIR" >> $GITHUB_ENV
+          PKGBUILD_BIN=$AUR_DIR/PKGBUILD-bin.sh
+          PKGBUILD=$AUR_DIR/PKGBUILD.sh
+          PKGBUILD_GIT=$AUR_DIR/PKGBUILD-git.sh
+          echo "PKGBUILD_BIN=$PKGBUILD_BIN" >> $GITHUB_ENV
+          echo "PKGBUILD=$PKGBUILD" >> $GITHUB_ENV
+          echo "PKGBUILD_GIT=$PKGBUILD_GIT" >> $GITHUB_ENV
+          node_major=$(head -n 1 .node-version | cut -d. -f1)
+          NODE_CODENAME="$(
+            curl -fsSL https://raw.githubusercontent.com/nodejs/Release/main/schedule.json |
+            jq -r --arg v "v${node_major}" '.[$v].codename // empty' |
+            tr '[:upper:]' '[:lower:]'
+          )"
+
+          for PKGBUILD_FILE in "$PKGBUILD_BIN" "$PKGBUILD" "$PKGBUILD_GIT"; do
+            if [[ ! -f "$PKGBUILD_FILE" ]]; then
+                echo "$PKGBUILD_FILE does not exist. Contents of current directory:"
+                ls -la
+                exit 1
+            fi
+            sed -i "s/\[\[VERSION_WITHOUT_V\]\]/${VERSION_WITHOUT_V}/" $PKGBUILD_FILE
+            sed -i "s/\[\[NODE_CODENAME\]\]/${NODE_CODENAME}/" $PKGBUILD_FILE
+            desktop_file_sha256=$(sha256sum $AUR_DIR/github-desktop-plus.desktop | awk '{ print $1 }')
+            sed -i "s/\[\[DESKTOP_FILE_SHA256\]\]/$desktop_file_sha256/" $PKGBUILD_FILE
+            launch_script_sha256=$(sha256sum $AUR_DIR/launch-app.sh | awk '{ print $1 }')
+            sed -i "s/\[\[LAUNCH_SCRIPT_SHA256\]\]/$launch_script_sha256/" $PKGBUILD_FILE
+            x86_64_sha256=$(sha256sum artifacts/**/*-x86_64.deb | awk '{ print $1 }')
+            sed -i "s/\[\[X86_64_SHA256\]\]/$x86_64_sha256/" $PKGBUILD_FILE
+            aarch64_sha256=$(sha256sum artifacts/**/*-arm64.deb | awk '{ print $1 }')
+            sed -i "s/\[\[AARCH64_SHA256\]\]/$aarch64_sha256/" $PKGBUILD_FILE
+            armv7h_sha256=$(sha256sum artifacts/**/*-armhf.deb | awk '{ print $1 }')
+            sed -i "s/\[\[ARMV7H_SHA256\]\]/$armv7h_sha256/" $PKGBUILD_FILE
+          done
+
+      - name: Publish AUR package github-desktop-plus-bin
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: github-desktop-plus-bin
+          pkgbuild: ${{ env.PKGBUILD_BIN }}
+          assets: |
+            ${{ env.AUR_DIR }}/.gitignore
+            ${{ env.AUR_DIR }}/github-desktop-plus.desktop
+            ${{ env.AUR_DIR }}/launch-app.sh
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message:
+            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+
+      - name: Publish AUR package github-desktop-plus
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: github-desktop-plus
+          pkgbuild: ${{ env.PKGBUILD }}
+          assets: |
+            ${{ env.AUR_DIR }}/.gitignore
+            ${{ env.AUR_DIR }}/github-desktop-plus.desktop
+            ${{ env.AUR_DIR }}/launch-app.sh
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message:
+            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+
+      - name: Publish AUR package github-desktop-plus-git
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: github-desktop-plus-git
+          pkgbuild: ${{ env.PKGBUILD_GIT }}
+          assets: |
+            ${{ env.AUR_DIR }}/.gitignore
+            ${{ env.AUR_DIR }}/github-desktop-plus.desktop
+            ${{ env.AUR_DIR }}/launch-app.sh
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message:
+            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+
+      - name: Upload PKGBUILD files
+        uses: actions/upload-artifact@v4
+        with:
+          name: PKGBUILDs
+          path: |
+            ${{ env.PKGBUILD_BIN }}
+            ${{ env.PKGBUILD }}
+            ${{ env.PKGBUILD_GIT }}
+          retention-days: 5
+          if-no-files-found: error
+
+  release_rpm:
+    name: Publish RPM package
+    needs: release_github
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: './artifacts'
+
+      - name: Install RPM package tools and s3cmd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y createrepo-c rpm s3cmd
+
+      - name: Import GPG private key and configure RPM signing
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "default-key $(gpg --list-keys --with-colons | grep pub | head -n1 | cut -d: -f5)" >> ~/.gnupg/gpg.conf
+
+          # https://unix.stackexchange.com/a/329107
+          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye
+
+          echo '%_signature gpg' >> ~/.rpmmacros
+          echo '%_gpg_name ${{ secrets.GPG_KEY_NAME }}' >> ~/.rpmmacros
+          echo '%_gpgbin /usr/bin/gpg' >> ~/.rpmmacros
+
+
+          KEYGRIP=$(gpg --list-keys --with-keygrip --with-colons | awk -F: -v name="${{ secrets.GPG_KEY_NAME }}" '$1=="grp"{kg=$10} $1=="uid" && index($10,name){print kg; exit}')
+          "$(gpgconf --list-dirs libexecdir)"/gpg-preset-passphrase --passphrase "${{ secrets.GPG_KEY_PASSPHRASE }}" --preset $KEYGRIP
+
+      - name: Prepare RPM repository
+        run: |
+          mkdir dist
+          cd dist
+          mkdir Packages
+
+          # Copy and sign RPM packages
+          find ../artifacts -type f -name "*.rpm" -exec cp {} Packages/ \;
+          for rpm in Packages/*.rpm; do
+            rpm --addsign "$rpm"
+          done
+
+          # Create and sign release
+          createrepo_c --update .
+          gpg --batch --yes --detach-sign -o repodata/repomd.xml.asc repodata/repomd.xml
+
+      - name: Configure s3cmd for Cloudflare R2
+        run: |
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          host_base = ${{ secrets.R2_ENDPOINT }}
+          host_bucket = ${{ secrets.R2_ENDPOINT }}
+          use_https = True
+          signature_v2 = False
+          EOF
+
+      - name: Sync RPM repo to Cloudflare R2
+        working-directory: dist
+        run: |
+          s3cmd sync --delete-removed ./ s3://${{ secrets.R2_BUCKET_RPM }}/
+
+  release_deb:
+    name: Publish DEB package
+    needs: release_github
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: './artifacts'
+
+      - name: Install Debian repo tools and s3cmd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils s3cmd
+
+      - name: Import GPG private key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "default-key $(gpg --list-keys --with-colons | grep pub | head -n1 | cut -d: -f5)" >> ~/.gnupg/gpg.conf
+
+      - name: Prepare APT repository
+        run: |
+          mkdir dist
+          cd dist
+
+          # Copy .deb packages into pool
+          mkdir -p pool/main
+          find ../artifacts -type f -name "*.deb" -exec cp {} pool/main/ \;
+
+          # Normalize package names
+          dpkg-name pool/main/*.deb
+
+          # Generate the Packages index for each architecture
+          for arch in amd64 arm64 armhf; do
+            mkdir -p dists/stable/main/binary-$arch
+            dpkg-scanpackages --arch $arch pool/main /dev/null > dists/stable/main/binary-$arch/Packages
+            gzip -k dists/stable/main/binary-$arch/Packages
+          done
+
+          # Create the Release file
+          apt-ftparchive -o APT::FTPArchive::Release::Codename=stable release dists/stable > dists/stable/Release
+
+          # Sign release file
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${{ secrets.GPG_KEY_PASSPHRASE }}" --clearsign -o dists/stable/InRelease dists/stable/Release
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${{ secrets.GPG_KEY_PASSPHRASE }}" --detach-sign -o dists/stable/Release.gpg dists/stable/Release
+
+      - name: Configure s3cmd for Cloudflare R2
+        run: |
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          host_base = ${{ secrets.R2_ENDPOINT }}
+          host_bucket = ${{ secrets.R2_ENDPOINT }}
+          use_https = True
+          signature_v2 = False
+          EOF
+
+      - name: Sync DEB repo to Cloudflare R2
+        working-directory: dist
+        run: |
+          s3cmd sync --delete-removed ./ s3://${{ secrets.R2_BUCKET_APT }}/

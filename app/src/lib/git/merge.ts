@@ -1,5 +1,4 @@
-
-import { git } from './core'
+import { git, HookCallbackOptions } from './core'
 import { GitError } from 'dugite'
 import { Repository } from '../../models/repository'
 import { pathExists } from '../../ui/lib/path-exists'

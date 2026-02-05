@@ -16,5 +16,10 @@ if (isGitHubActions() && process.platform === 'darwin' && isPublishable()) {
   console.log('\n\n')
 }
 
+if (isGitHubActions() && process.platform === 'linux') {
+  const output = cp.execSync(`sudo apt install -y libsecret-1-0`)
+  console.log(output)
+}
+
 const output = cp.execSync('git config -l --show-origin', { encoding: 'utf-8' })
 console.log(`Git config:\n${output}\n\n`)
