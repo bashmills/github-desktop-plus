@@ -135,9 +135,9 @@ chmod +x GitHub-Desktop-Plus-*-linux-*.AppImage
 # Just double-click the file to run it
 ```
 
-| **64-bit x86** | **64-bit ARM** | **32-bit ARM** |
-| --- | --- | --- |
-| `-linux-x86_64.AppImage` | `-linux-arm64.AppImage` | `-linux-armv7l.AppImage` |
+| **64-bit x86** | **64-bit ARM** |
+| --- | --- |
+| `-linux-x86_64.AppImage` | `-linux-arm64.AppImage` |
 
 </details>
 

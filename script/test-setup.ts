@@ -9,11 +9,16 @@ if (isGitHubActions() && process.platform === 'darwin' && isPublishable()) {
   const archive = `${getDistPath()}/${getProductName()}.app`
   try {
     console.log('validating signature of Desktop app')
-    cp.execSync(`codesign -dv --verbose=4 '${archive}'`)
+    cp.execSync(`codesign --verbose=4 --deep --strict '${archive}'`)
   } catch (err) {
     process.exit(1)
   }
   console.log('\n\n')
+}
+
+if (isGitHubActions() && process.platform === 'linux') {
+  const output = cp.execSync(`sudo apt install -y libsecret-1-0`)
+  console.log(output)
 }
 
 const output = cp.execSync('git config -l --show-origin', { encoding: 'utf-8' })

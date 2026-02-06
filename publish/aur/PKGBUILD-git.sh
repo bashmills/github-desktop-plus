@@ -10,7 +10,7 @@ pkgname="${_pkgname}-git"
 pkgver=0
 pkgrel=1
 pkgdesc="Fork of GitHub Desktop with extra features and improvements (git version)."
-arch=('x86_64' 'aarch64' 'armv7h')
+arch=('x86_64' 'aarch64')
 url="https://github.com/pol-rivero/github-desktop-plus"
 license=('MIT')
 provides=(${_pkgname})
@@ -77,7 +77,6 @@ package() {
     case "$CARCH" in
         x86_64) suffix="x64" ;;
         aarch64) suffix="arm64" ;;
-        armv7h) suffix="armv7l" ;;
         *) echo "Unsupported architecture: $CARCH"; exit 1 ;;
     esac
     cp -r --preserve=mode "dist/github-desktop-plus-linux-$suffix/"* "$INSTALL_DIR/"
