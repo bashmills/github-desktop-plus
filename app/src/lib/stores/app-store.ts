@@ -4606,6 +4606,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         )
         return repoStore.setGitHubRepository(repository, ghRepo)
       }
+
       return repository
     }
 
@@ -4623,7 +4624,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const freshRepo = await repoStore.setGitHubRepository(repository, ghRepo)
 
     await this.refreshBranchProtectionState(freshRepo)
-
     return freshRepo
   }
 
@@ -5215,7 +5215,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return this.withPushPullFetch(repository, async () => {
       const gitStore = this.gitStoreCache.get(repository)
 
-      await gitStore.loadRemotes()
+      if (!gitStore.currentRemote) {
+        await gitStore.loadRemotes()
+      }
 
       const remote = gitStore.currentRemote
 

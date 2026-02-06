@@ -3651,7 +3651,7 @@ export async function fetchUser(
   } else if (endpoint === getGitLabAPIEndpoint()) {
     api = GitLabAPI.get(token, login, refreshToken, expiresAt)
   } else {
-    api = new API(endpoint, token, login, undefined)
+    api = new API(endpoint, token, login)
   }
   try {
     const [user, emails, copilotInfo, features] = await Promise.all([

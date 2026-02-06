@@ -59,9 +59,9 @@ export async function findAccountForRemoteURL(
       allAccounts.find(a => {
         const htmlURL = getHTMLURL(a.endpoint)
         const parsedEndpoint = URL.parse(htmlURL)
-        const result =
+        return (
           parsedURL.hostname === parsedEndpoint.hostname && a.login === login
-        return result
+        )
       }) || null
 
     // If we find an account whose hostname matches the URL to be cloned, it's

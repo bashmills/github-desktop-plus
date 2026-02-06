@@ -97,7 +97,9 @@ export class AccountsStore extends TypedBaseStore<ReadonlyArray<Account>> {
   public async addAccount(account: Account): Promise<Account | null> {
     await this.loadingPromise
 
-    this.storeAccountKey(account)
+    if (!(await this.storeAccountKey(account))) {
+      return null
+    }
 
     const accountsByEndpoint = this.accounts.reduce(
       (map, x) => map.set(x.endpoint + ':' + x.login, x),
