@@ -466,12 +466,21 @@ export class RepositoriesList extends React.Component<
 
   private onPullRepositoriesButtonClick = async () => {
     this.setState({ pullingRepositories: true })
-    await Promise.all(
-      this.props.repositories
-        .filter(r => r instanceof Repository)
-        .map(r => this.props.dispatcher.pull(r))
-    )
-    this.setState({ pullingRepositories: false })
+    try {
+      await Promise.all(
+        this.props.repositories
+          .filter(r => r instanceof Repository)
+          .map(r =>
+            this.props.dispatcher.pull(r).catch(e => {
+              throw Error(`Error pulling repository ${r.name}:\n${e}`, e)
+            })
+          )
+      )
+    } catch (e) {
+      this.props.dispatcher.postError(e)
+    } finally {
+      this.setState({ pullingRepositories: false })
+    }
   }
 
   private onCloneRepository = () => {
