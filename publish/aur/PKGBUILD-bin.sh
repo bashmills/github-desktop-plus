@@ -8,7 +8,7 @@ pkgname="${_pkgname}-bin"
 pkgver=[[VERSION_WITHOUT_V]]
 pkgrel=1
 pkgdesc="Fork of GitHub Desktop with extra features and improvements (binary release)."
-arch=('x86_64' 'aarch64' 'armv7h')
+arch=('x86_64' 'aarch64')
 url="https://github.com/pol-rivero/github-desktop-plus"
 license=('MIT')
 provides=(${_pkgname})
@@ -33,7 +33,6 @@ source=(
 _common_download_url="${url}/releases/download/v${pkgver}/GitHubDesktopPlus-v${pkgver}-linux"
 source_x86_64=(${_common_download_url}-x86_64.deb)
 source_aarch64=(${_common_download_url}-arm64.deb)
-source_armv7h=(${_common_download_url}-armhf.deb)
 
 sha256sums=(
     '[[DESKTOP_FILE_SHA256]]'
@@ -41,7 +40,6 @@ sha256sums=(
 )
 sha256sums_x86_64=('[[X86_64_SHA256]]')
 sha256sums_aarch64=('[[AARCH64_SHA256]]')
-sha256sums_armv7h=('[[ARMV7H_SHA256]]')
 package() {
     INSTALL_DIR="$pkgdir/opt/${_pkgname}"
 

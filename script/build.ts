@@ -137,19 +137,15 @@ function packageApp() {
     )
   }
 
-  const getPackageArch = (): 'arm64' | 'x64' | 'armv7l' => {
+  const getPackageArch = (): 'arm64' | 'x64' => {
     const arch = process.env.npm_config_arch || process.arch
 
     if (arch === 'arm64' || arch === 'x64') {
       return arch
     }
 
-    if (arch === 'arm') {
-      return 'armv7l'
-    }
-
     throw new Error(
-      `Building Desktop for architecture '${arch}' is not supported. Currently these architectures are supported: arm, arm64, x64`
+      `Building Desktop for architecture '${arch}' is not supported. Currently these architectures are supported: arm64, x64`
     )
   }
 

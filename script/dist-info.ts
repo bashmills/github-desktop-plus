@@ -112,16 +112,12 @@ export const isPublishable = () =>
 export const getChannel = () =>
   process.env.RELEASE_CHANNEL ?? process.env.NODE_ENV ?? 'development'
 
-export function getDistArchitecture(): 'arm64' | 'x64' | 'armv7l' {
+export function getDistArchitecture(): 'arm64' | 'x64' {
   // If a specific npm_config_arch is set, we use that one instead of the OS arch (to support cross compilation)
   const arch = process.env.npm_config_arch || process.arch
 
-  if (arch === 'arm64' || arch === 'x64' || arch === 'armv7l') {
+  if (arch === 'arm64' || arch === 'x64') {
     return arch
-  }
-
-  if (arch === 'arm') {
-    return 'armv7l'
   }
 
   // TODO: Check if it's x64 running on an arm64 Windows with IsWow64Process2

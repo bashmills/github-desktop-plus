@@ -14,8 +14,6 @@ function getArchitecture() {
   switch (arch) {
     case 'arm64':
       return '--arm64'
-    case 'arm':
-      return '--armv7l'
     default:
       return '--x64'
   }

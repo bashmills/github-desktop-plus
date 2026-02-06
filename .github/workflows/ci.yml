@@ -338,8 +338,6 @@ jobs:
             sed -i "s/\[\[X86_64_SHA256\]\]/$x86_64_sha256/" $PKGBUILD_FILE
             aarch64_sha256=$(sha256sum artifacts/**/*-arm64.deb | awk '{ print $1 }')
             sed -i "s/\[\[AARCH64_SHA256\]\]/$aarch64_sha256/" $PKGBUILD_FILE
-            armv7h_sha256=$(sha256sum artifacts/**/*-armhf.deb | awk '{ print $1 }')
-            sed -i "s/\[\[ARMV7H_SHA256\]\]/$armv7h_sha256/" $PKGBUILD_FILE
           done
 
       - name: Publish AUR package github-desktop-plus-bin
