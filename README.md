@@ -5,36 +5,38 @@ This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) w
 > [!IMPORTANT]
 > This is a community-maintained project. It **is not** an official GitHub product. 
 
-<img src="docs/assets/github-desktop-plus-demo.webp" alt="Demo" style="max-width:1000px;">
-
 ## Highlights
-| <h4>Commit history search</h4> | <h4>Multiple stashes per branch</h4> |
+| <h4>Search commits by title, message, tag, or hash</h4> | <h4>Add multiple GitHub, Bitbucket & GitLab accounts</h4> |
 | :---: | :---: |
-| ![Commit search](docs/assets/github-desktop-plus-demo-search.webp) | ![Multiple stashes](docs/assets/github-desktop-plus-demo-stashes.webp) |
-| <h4>Indicator for missing branches in the remote</h4> | <h4>Buttons optimized for visual recognition</h4> |
-| ![Push indicator](docs/assets/github-desktop-plus-demo-push-indicator.webp) | ![Stash header](docs/assets/github-desktop-plus-demo-stash-header.webp) |
-| <h4>Bitbucket & GitLab integration</h4> | <h4>Indicator for merge commits</h4> |
-| ![Bitbucket integration](docs/assets/github-desktop-plus-demo-bitbucket-integration.webp) | ![Merge commits](docs/assets/github-desktop-plus-demo-merge-commits.webp) |
+| ![Commit search](docs/assets/github-desktop-plus-demo-search.webp) | ![Multiple accounts](docs/assets/github-desktop-plus-demo-multiaccount.webp) |
+| <h4>Create multiple stashes per branch</h4> | <h4>Buttons optimized for visual recognition</h4> |
+| ![Multiple stashes](docs/assets/github-desktop-plus-demo-stashes.webp) | ![Stash header](docs/assets/github-desktop-plus-demo-stash-header.webp) |
+| <h4>Indicator for missing branches in the remote</h4> | <h4>Indicator for merge commits</h4> |
+| ![Push indicator](docs/assets/github-desktop-plus-demo-push-indicator.webp) | ![Merge commits](docs/assets/github-desktop-plus-demo-merge-commits.webp) |
+
+<img src="docs/assets/github-desktop-plus-demo.webp" alt="Demo" style="max-width:1000px;">
 
 ## Additional Features in GitHub Desktop Plus
 
 ### General:
 
-- Red color for destructive action buttons.
-- Add **icons** to some similar-looking buttons for faster visual recognition.
-- Allow generating **branch name presets** by calling an external script (e.g. fetching ticket numbers from an issue tracker). [Click here for more details](docs/branch-name-presets.md).
-- Allow using a **different text editor for a given repo**, by overriding it in the repository settings.
+- Experimental support for **multiple accounts** of the same endpoint (e.g. multiple GitHub accounts).
 - **Bitbucket** and **GitLab** integration:
+  - Clone repositories from within the app.
   - Preview and create pull requests.
   - View pull requests status, including checks.
   - Display a commit or PR in Bitbucket/GitLab (web browser).
   - Correctly set repository owner (instead of displaying "Other").
+- Allow using a **different text editor for a given repo**, by overriding it in the repository settings.
+- Add **icons** to some similar-looking buttons for faster visual recognition.
+- Red background for destructive action buttons.
+- Allow generating **branch name presets** by calling an external script (e.g. fetching ticket numbers from an issue tracker). [Click here for more details](docs/branch-name-presets.md).
 
 ### Repositories list:
 
 - "**Pull all**" button to fetch and pull all your repositories at once.
 - Allow **hiding** the "**Recent**" repositories section.
-- Allow customizing the repository **groups** to better organize your repositories (right click on a repository and select "Change group name").
+- Allow customizing the **repository groups** to better organize your repositories (right click on a repository and select "Change group name").
 
 ### Branches list:
 
@@ -46,6 +48,7 @@ This is an **up-to-date** fork of [GitHub Desktop](https://desktop.github.com) w
 - **Search commits** by title, message, tag, or hash.
 - Use a different font style for **merge commits** in order to make them visually distinct, since most of the time they are not as relevant.
 - If a commit modifies only 1 file, allow double-clicking the commit to open the file. For other commits, you can still double-click the file as usual.
+- Allow deleting commits and tags that have already been pushed. Please note that this is intended for advanced users only, and can cause problems if the commits have already been pulled by other collaborators.
 
 ### Changes tab:
 
