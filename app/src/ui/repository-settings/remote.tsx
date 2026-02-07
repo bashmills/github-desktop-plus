@@ -52,22 +52,6 @@ export class Remote extends React.Component<IRemoteProps, {}> {
       <DialogContent>
         <div className="config-row">
           <TextBox
-            placeholder="Repository URL"
-            readOnly={true}
-            label={__DARWIN__ ? `Repository URL` : `repository URL`}
-            value={this.props.repository.url || ''}
-          />
-        </div>
-        <div className="config-row">
-          <TextBox
-            placeholder="Endpoint"
-            readOnly={true}
-            label={__DARWIN__ ? `Repository Endpoint` : `repository Endpoint`}
-            value={endpoint}
-          />
-        </div>
-        <div className="config-row">
-          <TextBox
             placeholder="Remote URL"
             label={
               __DARWIN__
@@ -92,6 +76,14 @@ export class Remote extends React.Component<IRemoteProps, {}> {
             openButtonClassName="dialog-preferred-focus"
             selectedAccount={account}
             onSelectedAccountChanged={this.props.onSelectedAccountChanged}
+          />
+        </div>
+        <div className="config-row">
+          <TextBox
+            placeholder="Endpoint"
+            readOnly={true}
+            label="API Endpoint"
+            value={endpoint}
           />
         </div>
       </DialogContent>
