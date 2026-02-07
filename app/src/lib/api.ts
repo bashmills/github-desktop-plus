@@ -201,7 +201,8 @@ export interface IAPIRepository {
 export interface IBitbucketAPIRepositorySummary {
   readonly uuid: string
   readonly full_name: string
-  readonly name: string
+  readonly name: string // Display name
+  readonly slug: string // URL (for API calls)
   readonly links: {
     readonly html: {
       readonly href: string
@@ -215,7 +216,7 @@ function summaryToIAPIRepository(
     clone_url: '',
     ssh_url: `git@bitbucket.org:${repo.full_name}.git`,
     html_url: repo.links.html.href,
-    name: repo.name,
+    name: repo.slug,
     owner: {
       id: 0,
       login: repo.full_name.split('/')[0],
@@ -307,7 +308,7 @@ function toIAPIRepository(repo: IBitbucketAPIRepository): IAPIRepository {
     clone_url: sshUrl,
     ssh_url: sshUrl,
     html_url: repo.links.html.href,
-    name: repo.name,
+    name: repo.slug,
     owner: toIAPIIdentity(repo.owner),
     private: repo.is_private,
     fork: false,
