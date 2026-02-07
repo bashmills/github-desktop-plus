@@ -474,6 +474,7 @@ export function showTestUI(
         repository.gitHubRepository.name,
         repository.gitHubRepository.type,
         repository.gitHubRepository.owner,
+        repository.gitHubRepository.login,
         repository.gitHubRepository.dbID,
         repository.gitHubRepository.isPrivate,
         repository.gitHubRepository.htmlURL,
@@ -481,8 +482,7 @@ export function showTestUI(
         repository.gitHubRepository.issuesEnabled,
         repository.gitHubRepository.isArchived,
         repository.gitHubRepository.permissions,
-        repository.gitHubRepository, // This ensures the repository has a parent even if it's not a fork for easier testing purposes
-        repository.gitHubRepository.login
+        repository.gitHubRepository // This ensures the repository has a parent even if it's not a fork for easier testing purposes
       ),
       repository.missing
     )

@@ -53,6 +53,7 @@ export function gitHubRepoFixture({
       endpoint !== undefined ? endpoint : getDotComAPIEndpoint(),
       id_counter++
     ),
+    login,
     id_counter++,
     isPrivate !== undefined ? isPrivate : null,
     htmlUrl,
@@ -60,7 +61,6 @@ export function gitHubRepoFixture({
     null,
     null,
     null,
-    parent,
-    login
+    parent
   )
 }

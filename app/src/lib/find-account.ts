@@ -38,8 +38,8 @@ async function canAccessRepositoryUsingAPI(
 export async function findAccountForRemoteURL(
   urlOrRepositoryAlias: string,
   accounts: ReadonlyArray<Account>,
-  canAccessRepository: RepositoryLookupFunc = canAccessRepositoryUsingAPI,
-  login: string
+  login: string,
+  canAccessRepository: RepositoryLookupFunc = canAccessRepositoryUsingAPI
 ): Promise<Account | null> {
   const allAccounts = [...accounts, Account.anonymous()]
 

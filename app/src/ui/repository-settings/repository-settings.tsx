@@ -407,10 +407,7 @@ export class RepositorySettings extends React.Component<
     ) {
       await this.props.dispatcher.updateRepositoryAccount(
         this.props.repository,
-        this.state.repositoryAccount &&
-          this.state.repositoryAccount.login !== 'no-account'
-          ? this.state.repositoryAccount
-          : null
+        this.state.repositoryAccount
       )
     }
 

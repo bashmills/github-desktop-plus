@@ -31,7 +31,7 @@ const avatarTokenCache = new ExpiringOperationCache<
       throw new Error('No account found for endpoint')
     }
 
-    const api = new API(endpoint, account.token, account.login, undefined)
+    const api = new API(endpoint, account.token, account.login)
     const token = await api.getAvatarToken()
 
     return forceUnwrap('Avatar token missing', token)
@@ -73,7 +73,7 @@ const botAvatarCache = new ExpiringOperationCache<
       throw new Error('Email does not appear to be a bot email')
     }
 
-    const api = new API(endpoint, account.token, account.login, undefined)
+    const api = new API(endpoint, account.token, account.login)
     const apiUser = await api.fetchUser(login)
 
     if (!apiUser?.avatar_url) {
@@ -235,10 +235,6 @@ function getAvatarUrlCandidates(
 
   const { email, avatarURL } = user
   const ep = user.endpoint ?? getDotComAPIEndpoint()
-
-  if (user.name === '' || user.name === 'No Account') {
-    return []
-  }
 
   // By leveraging the avatar url from the API (if we've got it) we can
   // load the avatar from one of the load balanced domains (avatars). We can't

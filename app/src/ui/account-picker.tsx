@@ -15,7 +15,7 @@ import memoizeOne from 'memoize-one'
 
 interface IAccountPickerProps {
   readonly accounts: ReadonlyArray<Account>
-  readonly selectedAccount: Account | null
+  readonly selectedAccount: Account
   readonly onSelectedAccountChanged: (account: Account) => void
 
   /**
@@ -65,7 +65,7 @@ export class AccountPicker extends React.Component<
     (
       accounts: ReadonlyArray<Account>,
       selectedItemId: string | undefined,
-      selectedAccount: Account | null
+      selectedAccount: Account
     ) =>
       this.getFilterListGroups(accounts)
         .flatMap(x => x.items)
@@ -111,16 +111,6 @@ export class AccountPicker extends React.Component<
   private renderAccount = (item: IAccountListItem, matches: IMatches) => {
     const account = item.account
 
-    if (!account) {
-      return (
-        <div className="account-list-item">
-          <div className="info">
-            <div className="title">No account</div>
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="account-list-item">
         <Avatar
@@ -140,18 +130,14 @@ export class AccountPicker extends React.Component<
     this.popoverRef.current?.closePopover()
 
     this.setState({ selectedItemId: item.id })
-    if (account) {
-      this.props.onSelectedAccountChanged(account)
-    }
+    this.props.onSelectedAccountChanged(account)
   }
 
   private onSelectionChanged = (selectedItem: IAccountListItem | null) =>
     this.setState({ selectedItemId: selectedItem?.id })
 
   private getItemAriaLabel = (item: IAccountListItem) =>
-    item.account !== null
-      ? `@${item.account.login} ${item.account.friendlyEndpoint}`
-      : `@no-account`
+    `@${item.account.login} ${item.account.friendlyEndpoint}`
 
   public render() {
     const account = this.props.selectedAccount
@@ -162,9 +148,9 @@ export class AccountPicker extends React.Component<
         contentTitle="Choose an account"
         buttonContent={
           <div className="account">
-            <span className="login">@{account?.login}</span> -{' '}
+            <span className="login">@{account.login}</span> -{' '}
             <span className="endpoint">
-              {this.props.selectedAccount?.friendlyEndpoint}
+              {this.props.selectedAccount.friendlyEndpoint}
             </span>
           </div>
         }

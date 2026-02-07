@@ -177,13 +177,11 @@ export class MissingRepository extends React.Component<
       return
     }
 
-    const login = gitHubRepository.loginForApi
-
     try {
       await this.props.dispatcher.cloneAgain(
         cloneURL,
         this.props.repository.path,
-        login
+        gitHubRepository.loginForApi
       )
     } catch (error) {
       this.props.dispatcher.postError(error)

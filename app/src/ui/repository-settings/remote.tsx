@@ -35,10 +35,11 @@ export class Remote extends React.Component<IRemoteProps, {}> {
   public render() {
     const { remote, defaultBranch } = this.props
 
-    const endpoint = this.props.repository.url
+    const repoEndpoint = this.props.repository.url
       ? getEndpointForRepository(this.props.repository.url)
-      : getDotComAPIEndpoint()
-    const noaccount = new Account(
+      : null
+    const endpoint = repoEndpoint ?? getDotComAPIEndpoint()
+    const noAccount = new Account(
       'no-account',
       endpoint,
       '',
@@ -51,10 +52,10 @@ export class Remote extends React.Component<IRemoteProps, {}> {
       'free'
     )
 
-    const account = this.props.account || noaccount
+    const account = this.props.account ?? noAccount
 
     const accounts: ReadonlyArray<Account> = [
-      noaccount,
+      noAccount,
       ...this.props.accounts.filter(a => a.endpoint === endpoint),
     ]
 

@@ -15,6 +15,7 @@ export const DesktopFakeRepository = new Repository(
     'desktop',
     'github',
     desktopOwner,
+    'desktop',
     -1,
     false,
     desktopUrl

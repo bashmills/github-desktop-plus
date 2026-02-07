@@ -107,7 +107,6 @@ export interface IExistingAccountWarning extends ISignInState {
  */
 export interface IEndpointEntryState extends ISignInState {
   readonly kind: SignInStep.EndpointEntry
-  readonly existingAccount?: Account
   readonly resultCallback: (result: SignInResult) => void
 }
 
@@ -434,25 +433,13 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
     }
 
     const endpoint = getBitbucketAPIEndpoint()
-    const existingAccount = this.accounts.find(a => a.apiType === 'bitbucket')
-    if (existingAccount) {
-      this.setState({
-        kind: SignInStep.ExistingAccountWarning,
-        endpoint,
-        existingAccount,
-        error: null,
-        loading: false,
-        resultCallback: resultCallback ?? noop,
-      })
-    } else {
-      this.setState({
-        kind: SignInStep.Authentication,
-        endpoint,
-        error: null,
-        loading: false,
-        resultCallback: resultCallback ?? noop,
-      })
-    }
+    this.setState({
+      kind: SignInStep.Authentication,
+      endpoint,
+      error: null,
+      loading: false,
+      resultCallback: resultCallback ?? noop,
+    })
   }
 
   public beginGitLabSignIn(resultCallback?: (result: SignInResult) => void) {
@@ -461,25 +448,13 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
     }
 
     const endpoint = getGitLabAPIEndpoint()
-    const existingAccount = this.accounts.find(a => a.apiType === 'gitlab')
-    if (existingAccount) {
-      this.setState({
-        kind: SignInStep.ExistingAccountWarning,
-        endpoint,
-        existingAccount,
-        error: null,
-        loading: false,
-        resultCallback: resultCallback ?? noop,
-      })
-    } else {
-      this.setState({
-        kind: SignInStep.Authentication,
-        endpoint,
-        error: null,
-        loading: false,
-        resultCallback: resultCallback ?? noop,
-      })
-    }
+    this.setState({
+      kind: SignInStep.Authentication,
+      endpoint,
+      error: null,
+      loading: false,
+      resultCallback: resultCallback ?? noop,
+    })
   }
 
   /**
@@ -540,27 +515,12 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
 
     const endpoint = getEnterpriseAPIURL(validUrl)
 
-    const existingAccount = currentState.existingAccount
-      ? currentState.existingAccount
-      : this.accounts.find(x => x.endpoint === endpoint)
-
-    if (existingAccount) {
-      this.setState({
-        kind: SignInStep.ExistingAccountWarning,
-        endpoint,
-        existingAccount,
-        error: null,
-        loading: false,
-        resultCallback: currentState.resultCallback,
-      })
-    } else {
-      this.setState({
-        kind: SignInStep.Authentication,
-        endpoint,
-        error: null,
-        loading: false,
-        resultCallback: currentState.resultCallback,
-      })
-    }
+    this.setState({
+      kind: SignInStep.Authentication,
+      endpoint,
+      error: null,
+      loading: false,
+      resultCallback: currentState.resultCallback,
+    })
   }
 }

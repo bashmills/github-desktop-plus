@@ -63,8 +63,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'https://gitlab.com/inkscape/inkscape.git',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account === null)
   })
@@ -73,8 +73,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'desktop/nonexistent-repo-fixture',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account === null)
   })
@@ -83,8 +83,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'inkscape/inkscape',
       [],
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account, Account.anonymous())
@@ -94,8 +94,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'https://github.com/inkscape/inkscape',
       [],
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account, Account.anonymous())
@@ -105,8 +105,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'inkscape/inkscape',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -116,8 +116,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'https://github.com/inkscape/inkscape.git',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -127,8 +127,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'https://github.mycompany.com/inkscape/inkscape.git',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joel')
@@ -138,8 +138,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'desktop/repo-fixture',
       accounts,
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account !== null)
     assert.deepStrictEqual(account.login, 'joan')
@@ -149,8 +149,8 @@ describe('findAccountForRemoteURL', () => {
     const account = await findAccountForRemoteURL(
       'desktop/repo-fixture',
       [],
-      mockCanAccessRepository,
-      'foo'
+      'foo',
+      mockCanAccessRepository
     )
     assert(account === null)
   })

@@ -504,18 +504,10 @@ export class CommitStatusStore {
 
     const { endpoint, owner, name, login } = subscription
 
-    if (login !== undefined && login === '') {
-      // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-      log.error(`Empty string is not a valid login`)
-    }
     const account = this.accounts.find(
-      a => a.endpoint === endpoint && (login === undefined || a.login === login)
+      a => a.endpoint === endpoint && a.login === login
     )
     if (account === undefined) {
-      if (login !== undefined) {
-        // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-        log.warn(`Could not find an account to match ${login}@${endpoint}`)
-      }
       return checkRuns
     }
 
@@ -542,19 +534,11 @@ export class CommitStatusStore {
 
     const { endpoint, owner, name, login } = subscription
 
-    if (login !== undefined && login === '') {
-      // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-      log.error(`Empty string is not a valid login`)
-    }
     const account = this.accounts.find(
-      a => a.endpoint === endpoint && (login === undefined || a.login === login)
+      a => a.endpoint === endpoint && a.login === login
     )
 
     if (account === undefined) {
-      if (login !== undefined) {
-        // TODO: This is here temporarily for debugging, remove it when we're sure this isn't a possibility
-        log.warn(`Could not find an account to match ${login}@${endpoint}`)
-      }
       return checkRuns
     }
 

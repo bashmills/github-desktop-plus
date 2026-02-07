@@ -20,8 +20,8 @@ export class CloningRepositoriesStore extends BaseStore {
   public async clone(
     url: string,
     path: string,
-    options: CloneOptions,
-    login: string
+    login: string,
+    options: CloneOptions
   ): Promise<boolean> {
     const repository = new CloningRepository(path, url, login)
     this._repositories.push(repository)

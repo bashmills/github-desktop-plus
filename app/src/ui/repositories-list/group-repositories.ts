@@ -21,7 +21,7 @@ export type RepositoryListGroup = (
   | {
       kind: 'dotcom'
       owner: Owner
-      login: string
+      login: string | null
     }
   | {
       kind: 'enterprise'
@@ -81,7 +81,7 @@ const getGroupForRepository = (repo: Repositoryish): RepositoryListGroup => {
           kind: 'dotcom',
           owner: repo.gitHubRepository.owner,
           displayName: repo.groupName,
-          login: repo.login ?? '',
+          login: repo.login,
         }
   }
   if (repo instanceof Repository) {

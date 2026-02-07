@@ -10,7 +10,7 @@ import {
   getUserAgent,
 } from './http'
 import { uuid } from './uuid'
-import { GitProtocol } from './remote-parsing'
+import { GitProtocol, parseRemote } from './remote-parsing'
 import {
   getEndpointVersion,
   isBitbucket,
@@ -3692,8 +3692,12 @@ function toExpiresAt(expiresInSeconds: number) {
  * https://github.com/desktop/desktop -> https://api.github.com
  * http://github.mycompany.com/my-team/my-project -> http://github.mycompany.com/api
  */
-export function getEndpointForRepository(url: string): string {
-  const parsed = URL.parse(url)
+export function getEndpointForRepository(url: string): string | null {
+  const parsed = parseRemote(url)
+  if (!parsed) {
+    log.warn(`getEndpointForRepository: failed to parse url ${url}`)
+    return null
+  }
   if (parsed.hostname === 'github.com') {
     return getDotComAPIEndpoint()
   } else if (parsed.hostname === 'bitbucket.org') {

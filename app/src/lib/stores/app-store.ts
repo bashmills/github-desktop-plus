@@ -2292,7 +2292,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const endpoint = getEndpointForRepository(repoUrl)
     const remoteUrl = parseRemote(repoUrl)
 
-    if (!remoteUrl) {
+    if (!endpoint || !remoteUrl) {
       return null
     }
     // We may have more than one account with this endpoint, but the "open PR"
@@ -5430,8 +5430,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public _clone(
     url: string,
     path: string,
-    options: { branch?: string; defaultBranch?: string } = {},
-    login: string
+    login: string,
+    options: { branch?: string; defaultBranch?: string } = {}
   ): {
     promise: Promise<boolean>
     repository: CloningRepository
@@ -5439,8 +5439,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const promise = this.cloningRepositoriesStore.clone(
       url,
       path,
-      options,
-      login
+      login,
+      options
     )
     const repository = this.cloningRepositoriesStore.repositories.find(
       r => r.url === url && r.path === path
@@ -6870,8 +6870,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
       await this.repositoriesStore.addTutorialRepository(
         validatedPath,
         endpoint,
-        apiRepository,
-        login
+        login,
+        apiRepository
       )
       this.tutorialAssessor.onNewTutorialRepository()
     } else {
@@ -6925,8 +6925,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
         const addedRepo = await this.repositoriesStore.addRepository(
           validatedPath,
-          login,
-          undefined
+          login
         )
 
         // initialize the remotes for this new repository to ensure it can fetch
@@ -7007,7 +7006,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     path: string,
     login: string
   ): Promise<void> {
-    const { promise, repository } = this._clone(url, path, {}, login)
+    const { promise, repository } = this._clone(url, path, login)
     await this._selectRepository(repository)
     const success = await promise
     if (!success) {
@@ -9079,9 +9078,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return null
     }
 
-    const { endpoint, name, owner } = repository.gitHubRepository
+    const { endpoint, name, owner, loginForApi } = repository.gitHubRepository
 
-    const account = getAccountForEndpoint(this.accounts, endpoint, owner.login)
+    const account = getAccountForEndpoint(this.accounts, endpoint, loginForApi)
 
     if (account === null) {
       log.error(

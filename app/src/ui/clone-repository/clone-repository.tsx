@@ -456,13 +456,12 @@ export class CloneRepository extends React.Component<
 
     const tabState = this.getGitHubTabState(tab)
     const tabAccounts = this.getAccountsForTab(tab, this.props.accounts)
+    const selectedAccount = this.getAccountForTab(tab)
 
-    if (!tabState.selectedAccount) {
+    if (!selectedAccount) {
       return <DialogContent>{this.renderSignIn(tab)}</DialogContent>
     } else {
-      const accountState = this.props.apiRepositories.get(
-        tabState.selectedAccount
-      )
+      const accountState = this.props.apiRepositories.get(selectedAccount)
       const repositories =
         accountState === undefined ? null : accountState.repositories
       const loading = accountState === undefined ? false : accountState.loading
@@ -470,7 +469,7 @@ export class CloneRepository extends React.Component<
       return (
         <CloneGithubRepository
           path={tabState.path ?? ''}
-          account={tabState.selectedAccount}
+          account={selectedAccount}
           accounts={tabAccounts}
           selectedItem={tabState.selectedItem}
           onSelectionChanged={this.onSelectionChanged}
@@ -499,9 +498,7 @@ export class CloneRepository extends React.Component<
 
   private getAccountForTab(tab: CloneRepositoryTab): Account | null {
     const tabState = this.getTabState(tab)
-    const selectedAccount = tabState.selectedAccount
-
-    return selectedAccount ?? null
+    return tabState.selectedAccount
   }
 
   private getGitHubTabState(
@@ -852,7 +849,6 @@ export class CloneRepository extends React.Component<
     const account = await findAccountForRemoteURL(
       url,
       this.props.accounts,
-      undefined,
       login
     )
     if (lastParsedIdentifier !== null && account !== null) {
@@ -867,7 +863,7 @@ export class CloneRepository extends React.Component<
       })
     }
 
-    return null
+    return { url }
   }
 
   private onItemClicked = (repository: IAPIRepository, source: ClickSource) => {

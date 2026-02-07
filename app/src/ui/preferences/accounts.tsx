@@ -8,10 +8,6 @@ import { Row } from '../lib/row'
 import { DialogContent, DialogPreferredFocusClassName } from '../dialog'
 import { Avatar } from '../lib/avatar'
 import { CallToAction } from '../lib/call-to-action'
-import {
-  enableBitbucketIntegration,
-  enableGitLabIntegration,
-} from '../../lib/feature-flag'
 import { getHTMLURL } from '../../lib/api'
 
 interface IAccountsProps {
@@ -33,10 +29,6 @@ enum SignInType {
 
 export class Accounts extends React.Component<IAccountsProps, {}> {
   public render() {
-    const { accounts } = this.props
-    const bitbucketAccount = accounts.find(a => a.apiType === 'bitbucket')
-    const gitlabAccount = accounts.find(a => a.apiType === 'gitlab')
-
     return (
       <DialogContent className="accounts-tab">
         <h2>GitHub.com</h2>
@@ -45,43 +37,22 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
         <h2>GitHub Enterprise</h2>
         {this.renderMultipleEnterpriseAccounts()}
 
-        {enableBitbucketIntegration() && (
-          <>
-            <h2>Bitbucket</h2>
-            {bitbucketAccount
-              ? this.renderAccount(bitbucketAccount, SignInType.Bitbucket)
-              : this.renderSignIn(SignInType.Bitbucket)}
-          </>
-        )}
+        <h2>Bitbucket</h2>
+        {this.renderMultipleBitbucketAccounts()}
 
-        {enableGitLabIntegration() && (
-          <>
-            <h2>GitLab</h2>
-            {gitlabAccount
-              ? this.renderAccount(gitlabAccount, SignInType.GitLab)
-              : this.renderSignIn(SignInType.GitLab)}
-          </>
-        )}
+        <h2>GitLab</h2>
+        {this.renderMultipleGitLabAccounts()}
       </DialogContent>
     )
   }
 
   private renderMultipleDotComAccounts() {
     const dotComAccounts = this.props.accounts.filter(isDotComAccount)
-
-    return (
-      <>
-        {dotComAccounts.map(account => {
-          return this.renderAccount(account, SignInType.DotCom)
-        })}
-        {dotComAccounts.length === 0 ? (
-          this.renderSignIn(SignInType.DotCom)
-        ) : (
-          <Button onClick={this.props.onDotComSignIn}>
-            Add GitHub account
-          </Button>
-        )}
-      </>
+    return this.renderMultipleAccounts(
+      dotComAccounts,
+      SignInType.DotCom,
+      'Add GitHub account',
+      this.props.onDotComSignIn
     )
   }
 
@@ -89,18 +60,53 @@ export class Accounts extends React.Component<IAccountsProps, {}> {
     const enterpriseAccounts = this.props.accounts.filter(
       a => a.apiType === 'enterprise'
     )
+    return this.renderMultipleAccounts(
+      enterpriseAccounts,
+      SignInType.Enterprise,
+      'Add GitHub Enterprise account',
+      this.props.onEnterpriseSignIn
+    )
+  }
 
+  private renderMultipleBitbucketAccounts() {
+    const bitbucketAccounts = this.props.accounts.filter(
+      a => a.apiType === 'bitbucket'
+    )
+    return this.renderMultipleAccounts(
+      bitbucketAccounts,
+      SignInType.Bitbucket,
+      'Add Bitbucket account',
+      this.props.onBitbucketSignIn
+    )
+  }
+
+  private renderMultipleGitLabAccounts() {
+    const gitlabAccounts = this.props.accounts.filter(
+      a => a.apiType === 'gitlab'
+    )
+    return this.renderMultipleAccounts(
+      gitlabAccounts,
+      SignInType.GitLab,
+      'Add GitLab account',
+      this.props.onGitLabSignIn
+    )
+  }
+
+  private renderMultipleAccounts(
+    accounts: ReadonlyArray<Account>,
+    type: SignInType,
+    buttonText: string,
+    onSignIn: () => void
+  ) {
     return (
       <>
-        {enterpriseAccounts.map(account => {
-          return this.renderAccount(account, SignInType.Enterprise)
+        {accounts.map(account => {
+          return this.renderAccount(account, type)
         })}
-        {enterpriseAccounts.length === 0 ? (
-          this.renderSignIn(SignInType.Enterprise)
+        {accounts.length === 0 ? (
+          this.renderSignIn(type)
         ) : (
-          <Button onClick={this.props.onEnterpriseSignIn}>
-            Add GitHub Enterprise account
-          </Button>
+          <Button onClick={onSignIn}>{buttonText}</Button>
         )}
       </>
     )

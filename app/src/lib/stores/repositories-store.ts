@@ -133,6 +133,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.name,
       repoType,
       owner,
+      repo.login,
       repo.id,
       repo.private,
       repo.htmlURL,
@@ -140,8 +141,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.issuesEnabled,
       repo.isArchived,
       repo.permissions,
-      parent,
-      repo.login
+      parent
     )
 
     // Dexie gets confused if we return a non-promise value (e.g. if this function
@@ -211,8 +211,8 @@ export class RepositoriesStore extends TypedBaseStore<
   public async addTutorialRepository(
     path: string,
     endpoint: string,
-    apiRepo: IAPIFullRepository,
-    login: string
+    login: string,
+    apiRepo: IAPIFullRepository
   ) {
     await this.db.transaction(
       'rw',

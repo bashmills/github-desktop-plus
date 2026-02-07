@@ -13,15 +13,8 @@ import {
  * while still maintaining the association between repositories
  * and a particular account.
  */
-export function accountEquals(x: Account | null, y: Account | null) {
-  return (
-    (x === null && y === null) ||
-    (x !== null &&
-      y !== null &&
-      x.endpoint === y.endpoint &&
-      x.id === y.id &&
-      x.login === y.login)
-  )
+export function accountEquals(x: Account, y: Account) {
+  return x.endpoint === y.endpoint && x.id === y.id && x.login === y.login
 }
 
 export type AccountAPIType = 'dotcom' | 'enterprise' | 'bitbucket' | 'gitlab'
