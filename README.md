@@ -169,6 +169,10 @@ If you encounter the error "Apple could not verify this app is free of malware",
 
 </details>
 
+## Common issues
+
+Before opening a new issue, please check the [Known Issues](docs/known-issues.md) document for common issues and their workarounds.
+
 ## Running the app locally
 
 ### From the terminal
