@@ -315,7 +315,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      repository.login
+      repository.overrideLogin
     )
   }
 
@@ -374,7 +374,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      repository.login
+      repository.overrideLogin
     )
   }
 
@@ -453,7 +453,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      repository.login
+      repository.overrideLogin
     )
   }
 
@@ -554,8 +554,8 @@ export class RepositoriesStore extends TypedBaseStore<
         const { account } = match
         const owner = await this.putOwner(account.endpoint, match.owner)
         const existingRepo = await this.db.gitHubRepositories
-          .where('[ownerID+name]')
-          .equals([owner.id, match.name])
+          .where('[ownerID+name+login]')
+          .equals([owner.id, match.name, login ?? 'null'])
           .first()
 
         if (existingRepo) {
@@ -605,7 +605,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.workflowPreferences,
       repo.customEditorOverride,
       repo.isTutorialRepository,
-      repo.login
+      repo.overrideLogin
     )
 
     assertIsRepositoryWithGitHubRepository(updatedRepo)
@@ -635,8 +635,8 @@ export class RepositoriesStore extends TypedBaseStore<
     )
 
     const existingRepo = await this.db.gitHubRepositories
-      .where('[ownerID+name]')
-      .equals([owner.id, gitHubRepository.name])
+      .where('[ownerID+name+login]')
+      .equals([owner.id, gitHubRepository.name, login ?? 'null'])
       .first()
 
     // If we can't resolve permissions for the current repository chances are

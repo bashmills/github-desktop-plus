@@ -39,18 +39,7 @@ export class Remote extends React.Component<IRemoteProps, {}> {
       ? getEndpointForRepository(this.props.repository.url)
       : null
     const endpoint = repoEndpoint ?? getDotComAPIEndpoint()
-    const noAccount = new Account(
-      'no-account',
-      endpoint,
-      '',
-      '',
-      0,
-      [],
-      'No Account',
-      -1,
-      '',
-      'free'
-    )
+    const noAccount = Account.anonymous()
 
     const account = this.props.account ?? noAccount
 

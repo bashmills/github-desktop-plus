@@ -71,7 +71,7 @@ export class Repository {
      * which introduces new users to some core concepts of Git and GitHub.
      */
     public readonly isTutorialRepository: boolean = false,
-    public readonly login: string | null = null
+    public readonly overrideLogin: string | null = null
   ) {
     this.mainWorkTree = { path }
     this.name = (gitHubRepository && gitHubRepository.name) || getBaseName(path)
@@ -87,7 +87,7 @@ export class Repository {
       getCustomOverrideHash(this.customEditorOverride),
       this.workflowPreferences.forkContributionTarget,
       this.isTutorialRepository,
-      this.login
+      this.overrideLogin
     )
   }
 
@@ -112,6 +112,10 @@ export class Repository {
         this._url = defaultRemote.url
       }
     })
+  }
+
+  public get login(): string | null {
+    return this.overrideLogin ?? this.gitHubRepository?.loginForApi ?? null
   }
 }
 

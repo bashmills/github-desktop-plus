@@ -4599,7 +4599,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
       // If the request fails, we want to preserve the existing GitHub
       // repository info. But if we didn't have a GitHub repository already or
       // the endpoint changed, the skeleton repository is better than nothing.
-      if (endpoint !== repository.gitHubRepository?.endpoint) {
+      if (
+        endpoint !== repository.gitHubRepository?.endpoint ||
+        account.login !== repository.gitHubRepository?.loginForApi
+      ) {
         const ghRepo = await repoStore.upsertGitHubRepositoryFromMatch(
           match,
           repository.login
@@ -4684,11 +4687,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     const remote = gitStore.defaultRemote
     return remote !== null
-      ? matchGitHubRepository(
-          this.accounts,
-          remote.url,
-          repository.login ?? null
-        )
+      ? matchGitHubRepository(this.accounts, remote.url, repository.login)
       : null
   }
 
@@ -4740,7 +4739,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
       repository,
       account
     )
-    await this._refreshRepository(repo)
+    const refreshedRepo = await this.repositoryWithRefreshedGitHubRepository(
+      repo
+    )
+    await this._refreshRepository(refreshedRepo)
   }
 
   public async _updateRepositoryEditorOverride(

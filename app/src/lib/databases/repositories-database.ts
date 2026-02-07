@@ -144,6 +144,13 @@ export class RepositoriesDatabase extends BaseDatabase {
 
     this.conditionalVersion(8, {}, ensureNoUndefinedParentID)
     this.conditionalVersion(9, { owners: '++id, &key' }, createOwnerKey)
+    this.conditionalVersion(
+      10,
+      {
+        gitHubRepositories: '++id, &[ownerID+name+login]',
+      },
+      addLoginToGitHubRepositories
+    )
   }
 }
 
@@ -238,6 +245,31 @@ async function createOwnerKey(tx: Transaction) {
   }
 
   await ownersTable.bulkDelete(ownersToDelete)
+}
+
+async function addLoginToGitHubRepositories(tx: Transaction) {
+  const ownersTable = tx.table<IDatabaseOwner, number>('owners')
+  const ghReposTable = tx.table<IDatabaseGitHubRepository, number>(
+    'gitHubRepositories'
+  )
+
+  const allRepos = await ghReposTable.toArray()
+  const ownerIdToLogin = new Map<number, string>()
+
+  for (const repo of allRepos) {
+    assertNonNullable(repo.id, 'Missing repository id')
+    assertNonNullable(repo.ownerID, 'Missing repository owner id')
+
+    let login = ownerIdToLogin.get(repo.ownerID)
+    if (login === undefined) {
+      const owner = await ownersTable.get(repo.ownerID)
+      assertNonNullable(owner, `Missing owner for id ${repo.ownerID}`)
+      login = owner.login
+      ownerIdToLogin.set(repo.ownerID, login)
+    }
+
+    await ghReposTable.update(repo.id, { login })
+  }
 }
 
 /* Creates a case-insensitive key used to uniquely identify an owner

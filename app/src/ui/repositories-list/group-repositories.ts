@@ -81,7 +81,7 @@ const getGroupForRepository = (repo: Repositoryish): RepositoryListGroup => {
           kind: 'dotcom',
           owner: repo.gitHubRepository.owner,
           displayName: repo.groupName,
-          login: repo.login,
+          login: repo.gitHubRepository.login,
         }
   }
   if (repo instanceof Repository) {

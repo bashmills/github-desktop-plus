@@ -160,6 +160,10 @@ export class Account {
       return 'enterprise'
     }
   }
+
+  public get isAnonymous() {
+    return this.login === '' && this.token === ''
+  }
 }
 
 /**
