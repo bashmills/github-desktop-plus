@@ -436,6 +436,16 @@ export class Dispatcher {
     return this.appStore._closeFoldout(foldout)
   }
 
+  /** Show the worktrees foldout */
+  public showWorktreesFoldout(): Promise<void> {
+    return this.showFoldout({ type: FoldoutType.Worktree })
+  }
+
+  /** Close the worktrees foldout */
+  public closeWorktreesFoldout(): Promise<void> {
+    return this.closeFoldout(FoldoutType.Worktree)
+  }
+
   /**
    * Check for remote commits that could affect an rebase operation.
    *

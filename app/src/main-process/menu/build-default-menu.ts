@@ -208,6 +208,12 @@ export function buildDefaultMenu({
         accelerator: 'CmdOrCtrl+B',
         click: emit('show-branches'),
       },
+      {
+        label: __DARWIN__ ? 'Show Worktrees List' : '&Worktrees list',
+        id: 'show-worktrees-list',
+        accelerator: 'CmdOrCtrl+E',
+        click: emit('show-worktrees'),
+      },
       separator,
       {
         label: __DARWIN__ ? 'Go to Summary' : 'Go to &Summary',

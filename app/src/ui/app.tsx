@@ -445,6 +445,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.showCreateBranch()
       case 'show-branches':
         return this.showBranches()
+      case 'show-worktrees':
+        return this.showWorktrees()
       case 'remove-repository':
         return this.removeRepository(this.getRepository())
       case 'create-repository':
@@ -952,6 +954,22 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
 
     return this.props.dispatcher.showFoldout({ type: FoldoutType.Branch })
+  }
+
+  private showWorktrees() {
+    const state = this.state.selectedState
+    if (state == null || state.type !== SelectionType.Repository) {
+      return
+    }
+
+    if (
+      this.state.currentFoldout &&
+      this.state.currentFoldout.type === FoldoutType.Worktree
+    ) {
+      return this.props.dispatcher.closeFoldout(FoldoutType.Worktree)
+    }
+
+    return this.props.dispatcher.showFoldout({ type: FoldoutType.Worktree })
   }
 
   private push(options?: { forceWithLease: boolean }) {
