@@ -2642,6 +2642,9 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
+      case PopupType.AddWorktree: {
+        return null
+      }
       default:
         return assertNever(popup, `Unknown popup type: ${popup}`)
     }
