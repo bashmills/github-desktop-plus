@@ -50,6 +50,7 @@ import {
   DropdownState,
   PushPullButton,
   BranchDropdown,
+  WorktreeDropdown,
   RevertProgress,
 } from './toolbar'
 import { iconForRepository, OcticonSymbol } from './octicons'
@@ -196,6 +197,7 @@ import {
 } from './secret-scanning/bypass-push-protection-dialog'
 import { HookFailed } from './hook-failed/hook-failed'
 import { CommitProgress } from './commit-progress/commit-progress'
+import { AddWorktreeDialog } from './worktrees/add-worktree-dialog'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2643,7 +2645,14 @@ export class App extends React.Component<IAppProps, IAppState> {
         )
       }
       case PopupType.AddWorktree: {
-        return null
+        return (
+          <AddWorktreeDialog
+            key="add-worktree"
+            repository={popup.repository}
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
       }
       default:
         return assertNever(popup, `Unknown popup type: ${popup}`)
@@ -3340,6 +3349,14 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
   }
 
+  private onWorktreeDropdownStateChanged = (newState: DropdownState) => {
+    if (newState === 'open') {
+      this.props.dispatcher.showFoldout({ type: FoldoutType.Worktree })
+    } else {
+      this.props.dispatcher.closeFoldout(FoldoutType.Worktree)
+    }
+  }
+
   private renderBranchToolbarButton(): JSX.Element | null {
     const selection = this.state.selectedState
 
@@ -3379,6 +3396,34 @@ export class App extends React.Component<IAppProps, IAppState> {
         emoji={this.state.emoji}
         enableFocusTrap={enableFocusTrap}
         underlineLinks={this.state.underlineLinks}
+      />
+    )
+  }
+
+  private renderWorktreeToolbarButton(): JSX.Element | null {
+    const selection = this.state.selectedState
+
+    if (selection == null || selection.type !== SelectionType.Repository) {
+      return null
+    }
+
+    const currentFoldout = this.state.currentFoldout
+
+    const isOpen =
+      currentFoldout !== null && currentFoldout.type === FoldoutType.Worktree
+
+    const repository = selection.repository
+
+    const enableFocusTrap = this.state.currentPopup === null
+
+    return (
+      <WorktreeDropdown
+        dispatcher={this.props.dispatcher}
+        repository={repository}
+        isOpen={isOpen}
+        onDropDownStateChanged={this.onWorktreeDropdownStateChanged}
+        enableFocusTrap={enableFocusTrap}
+        repositories={this.state.repositories}
       />
     )
   }
@@ -3460,6 +3505,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           {this.renderRepositoryToolbarButton()}
         </div>
         {this.renderBranchToolbarButton()}
+        {this.renderWorktreeToolbarButton()}
         {this.renderPushPullToolbarButton()}
       </Toolbar>
     )
