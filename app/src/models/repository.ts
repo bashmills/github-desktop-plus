@@ -115,7 +115,7 @@ export class Repository {
   }
 
   public get login(): string | null {
-    return this.overrideLogin ?? this.gitHubRepository?.loginForApi ?? null
+    return this.overrideLogin ?? this.gitHubRepository?.login ?? null
   }
 }
 

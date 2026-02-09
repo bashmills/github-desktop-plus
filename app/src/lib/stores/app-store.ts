@@ -2838,8 +2838,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         this.repositories.find(
           r =>
             r.constructor === selectedRepository.constructor &&
-            r.id === selectedRepository.id &&
-            r.login === selectedRepository.login
+            r.id === selectedRepository.id
         ) || null
 
       newSelectedRepository = r
