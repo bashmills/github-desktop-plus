@@ -22,6 +22,7 @@ interface IWorktreeDropdownState {
   readonly worktrees: ReadonlyArray<WorktreeEntry>
   readonly filterText: string
   readonly isCurrentRepoLinkedWorktree: boolean
+  readonly worktreeAddedRepo: Repository | null
 }
 
 export class WorktreeDropdown extends React.Component<
@@ -34,6 +35,7 @@ export class WorktreeDropdown extends React.Component<
       worktrees: [],
       filterText: '',
       isCurrentRepoLinkedWorktree: false,
+      worktreeAddedRepo: null,
     }
   }
 
@@ -68,6 +70,7 @@ export class WorktreeDropdown extends React.Component<
   private onWorktreeClick = async (worktree: WorktreeEntry) => {
     const { dispatcher, repositories } = this.props
     const worktreePath = normalizePath(worktree.path)
+    const previousWorktreeRepo = this.state.worktreeAddedRepo
 
     dispatcher.closeFoldout(FoldoutType.Worktree)
 
@@ -77,12 +80,19 @@ export class WorktreeDropdown extends React.Component<
 
     if (existingRepo && existingRepo instanceof Repository) {
       await dispatcher.selectRepository(existingRepo)
+      this.setState({ worktreeAddedRepo: null })
     } else {
       const addedRepos = await dispatcher.addRepositories([worktree.path])
 
       if (addedRepos.length > 0) {
         await dispatcher.selectRepository(addedRepos[0])
+        this.setState({ worktreeAddedRepo: addedRepos[0] })
       }
+    }
+
+    if (previousWorktreeRepo) {
+      await dispatcher.removeRepository(previousWorktreeRepo, false)
+      dispatcher.closeFoldout(FoldoutType.Repository)
     }
   }
 
