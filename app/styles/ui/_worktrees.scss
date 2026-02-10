@@ -1,6 +1,7 @@
 @import '../mixins';
 
 .worktree-list {
+  height: 100%;
   display: flex;
   flex-direction: column;
   width: 365px;
