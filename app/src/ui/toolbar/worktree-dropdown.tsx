@@ -86,6 +86,9 @@ export class WorktreeDropdown extends React.Component<
     }
   }
 
+  // Intentional no-op: navigation happens on click, not selection change
+  private onWorktreeSelected = (_worktree: WorktreeEntry) => {}
+
   private onFilterTextChanged = (text: string) => {
     this.setState({ filterText: text })
   }
@@ -98,7 +101,7 @@ export class WorktreeDropdown extends React.Component<
         worktrees={worktrees}
         currentWorktree={this.getCurrentWorktree()}
         selectedWorktree={null}
-        onWorktreeSelected={this.onWorktreeClick}
+        onWorktreeSelected={this.onWorktreeSelected}
         onWorktreeClick={this.onWorktreeClick}
         filterText={this.state.filterText}
         onFilterTextChanged={this.onFilterTextChanged}
