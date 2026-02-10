@@ -1,6 +1,7 @@
 # Table of contents
 
 - [macOS](#macos)
+  - ['Apple could not verify this app is free of malware' error when launching the app](#apple-could-not-verify-this-app-is-free-of-malware-error-when-launching-the-app)
   - ['The username or passphrase you entered is not correct' error after signing into account](#the-username-or-passphrase-you-entered-is-not-correct-error-after-signing-into-account)
   - [Checking for updates triggers a 'Could not create temporary directory: Permission denied' message](#checking-for-updates-triggers-a-could-not-create-temporary-directory-permission-denied-message)
 - [Windows](#windows)
@@ -12,8 +13,10 @@
   - [Failed to open CA file after an update](#failed-to-open-ca-file-after-an-update)
   - [Authentication errors due to modified registry entries](#authentication-errors-due-to-modified-registry-entries)
 - [Linux](#linux)
-   - [I get a white screen when launching Desktop](#i-get-a-white-screen-when-launching-desktop)
+   - [I cannot sign in using "Continue with browser"](#i-cannot-sign-in-using-continue-with-browser)
+   - [Error "cannot read property 'path' of undefined"](#my-shellterminal-is-not-detected-and-is-stuck-on-gnome-terminal)
    - [I cannot access repositories under my organization](#i-cannot-access-repositories-under-my-organization)
+   - [I get a white screen when launching Desktop](#i-get-a-white-screen-when-launching-desktop)
    - [My shell/terminal is not detected and is stuck on "GNOME Terminal"](#my-shellterminal-is-not-detected-and-is-stuck-on-gnome-terminal)
 
 # Known Issues
@@ -32,9 +35,17 @@ Each known issue links off to an existing GitHub issue. If you have additional q
 
 ### My issue is not listed here?
 
-Please check the [open](https://github.com/desktop/desktop/labels/bug) and [closed](https://github.com/desktop/desktop/issues?q=is%3Aclosed+label%3Abug) bugs in the issue tracker for the details of your bug. If you can't find it, or if you're not sure, open a [new issue](https://github.com/desktop/desktop/issues/new?template=bug_report.md).
+Please check the [open](https://github.com/pol-rivero/github-desktop-plus/issues) and [closed](https://github.com/pol-rivero/github-desktop-plus/issues?q=is%3Aissue%20state%3Aclosed) bugs in the issue tracker for the details of your bug. If you can't find it, or if you're not sure, open a [new issue](https://github.com/pol-rivero/github-desktop-plus/issues/new?template=bug_report.yaml).
 
 ## macOS
+
+### 'Apple could not verify this app is free of malware' error when launching the app
+
+Related issue: [#33](https://github.com/pol-rivero/github-desktop-plus/issues/33)
+
+This error is caused by the app not being notarized by Apple, as notarization requires a paid Apple Developer account.
+
+Simply go to "System Settings" > "Privacy & Security", scroll down to "Security" and click "Open Anyway" on "GitHub Desktop Plus".
 
 ### 'The username or passphrase you entered is not correct' error after signing into account
 
@@ -232,29 +243,30 @@ If you see an error that says "Not enough resources are available to process thi
 
 ## Linux
 
-### The PackageCloud package feed is no longer working
+### I cannot sign in using "Continue with browser"
 
-The PackageCloud feed has been closed down. If you are seeing errors about this you should remove the configuration for this feed and refer to the [README](https://github.com/shiftkey/desktop#repositories)
-for the new settings.
+Related issue: [#54](https://github.com/pol-rivero/github-desktop-plus/issues/54)
 
-#### APT configuration
+After following the instructions in your web browser to authorize GitHub Desktop, the callback is not sent to the app and it remains stuck on the "Continue with browser" screen.
 
-```
-sudo rm /etc/apt/trusted.gpg.d/shiftkey-desktop.asc
-sudo rm /etc/apt/sources.list.d/packagecloud-shiftkey-desktop.list
-```
+The most likely cause is that the URI scheme used by GitHub Desktop Plus for authorization (`x-github-desktop-auth://`) is not linked to the correct program. You can verify if this is the case by fully closing GitHub Desktop Plus (`Ctrl+Q`) and running the following command in your terminal:
 
-#### RPM configuration
-
-```
-sudo rm /etc/apt/sources.list.d/packagecloud-shiftkey-desktop.list
+```bash
+xdg-open "x-github-desktop-auth://test"
 ```
 
-### I get a white screen when launching Desktop
+This should open the GitHub Desktop Plus app. If it doesn't, it means the URI scheme is not linked to the app, and you can fix it by running the following command:
 
-Electron enables hardware accelerated graphics by default, but some graphics cards have issues with hardware acceleration which means the application will launch successfully but it will be a white screen. If you are running GitHub Desktop within virtualization software like Parallels Desktop, hardware accelerated graphics may not be available.
+```bash
+# Prints the current default app for the URI scheme
+xdg-mime query default x-scheme-handler/x-github-desktop-auth
 
-**Workaround:** if you set the `GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION` environment variable to any value and launch Desktop again it will disable hardware acceleration on launch, so the application is usable.
+# Set GitHub Desktop Plus as the default app for the URI scheme
+xdg-mime default github-desktop-plus.desktop x-scheme-handler/x-github-desktop-auth
+
+# Alternatively, if you are using the flatpak:
+xdg-mime default io.github.pol_rivero.github-desktop-plus.desktop x-scheme-handler/x-github-desktop-auth
+```
 
 ### I cannot access repositories under my organization
 
@@ -267,13 +279,23 @@ in a couple of different ways:
    generic error message
 
 The root cause of this is organizations by default will have "OAuth App access
-restrictions" enabled, which blocks the GitHub Desktop development app that is
+restrictions" enabled, which blocks the GitHub Desktop Plus app that is
 used by this fork.
 
-**Workaround:** ask your organization admin to [approve access](https://docs.github.com/en/organizations/restricting-access-to-your-organizations-data/approving-oauth-apps-for-your-organization)
-to the GitHub Desktop development app. 
+You can verify if this is the case by going to https://github.com/settings/applications, clicking on "Desktop Plus (GitHub Desktop Plus)", and checking if your organization is enabled in the "Organization access" section.
 
-If you have not requested the GitHub Desktop development app for this organization, [follow these instructions first](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-your-membership-in-organizations/requesting-organization-approval-for-oauth-apps).
+**Workaround:** ask your organization admin to [approve access](https://docs.github.com/en/organizations/restricting-access-to-your-organizations-data/approving-oauth-apps-for-your-organization)
+to the GitHub Desktop Plus app. 
+
+If you have not requested the GitHub Desktop Plus app for this organization, [follow these instructions first](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-your-membership-in-organizations/requesting-organization-approval-for-oauth-apps).
+
+
+### I get a white screen when launching Desktop
+
+Electron enables hardware accelerated graphics by default, but some graphics cards have issues with hardware acceleration which means the application will launch successfully but it will be a white screen. If you are running GitHub Desktop within virtualization software like Parallels Desktop, hardware accelerated graphics may not be available.
+
+**Workaround:** if you set the `GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION` environment variable to any value and launch Desktop again it will disable hardware acceleration on launch, so the application is usable.
+
 
 ### My shell/terminal is not detected and is stuck on GNOME Terminal
 
@@ -283,7 +305,10 @@ environment's shell, despite the shell being selected in the application setting
 Attempting to launch the shell from the application will show the error  
 "cannot read property 'path' of undefined".
 
-**Workarounds:** 
+**Workaround:** 
 
-- Option 1: install a second different terminal, switch to it, then switch to the terminal you want to use, and then uninstall the second terminal.
-- Option 2: open the application's developer tools and step through the JS calls to correctly set the shell. Further details at https://github.com/shiftkey/desktop/issues/344#issuecomment-1001287110
+1. Install any other terminal emulator (it doesn't matter which one).
+1. In GitHub Desktop Plus, go to "File" > "Options" > "Integrations".
+1. Change the "Shell" option to the other terminal emulator you have installed. Click "Save".
+1. Change the "Shell" option back to your preferred terminal emulator. Click "Save" again.
+1. Uninstall the other terminal emulator you installed in step 1, you no longer need it.
