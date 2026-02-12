@@ -111,6 +111,7 @@ export enum PopupType {
   CommitProgress = 'CommitProgress',
   AddWorktree = 'AddWorktree',
   RenameWorktree = 'RenameWorktree',
+  DeleteWorktree = 'DeleteWorktree',
 }
 
 interface IBasePopup {
@@ -492,6 +493,11 @@ export type PopupDetail =
     }
   | {
       type: PopupType.RenameWorktree
+      repository: Repository
+      worktreePath: string
+    }
+  | {
+      type: PopupType.DeleteWorktree
       repository: Repository
       worktreePath: string
     }
