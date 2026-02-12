@@ -101,6 +101,18 @@ export async function removeWorktree(
   await git(args, repository.path, 'removeWorktree')
 }
 
+export async function moveWorktree(
+  repository: Repository,
+  oldPath: string,
+  newPath: string
+): Promise<void> {
+  await git(
+    ['worktree', 'move', oldPath, newPath],
+    repository.path,
+    'moveWorktree'
+  )
+}
+
 export async function isLinkedWorktree(
   repository: Repository
 ): Promise<boolean> {
