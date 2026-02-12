@@ -6,8 +6,14 @@ import { ToolbarDropdown, DropdownState } from './dropdown'
 import { FoldoutType } from '../../lib/app-state'
 import { WorktreeEntry } from '../../models/worktree'
 import { WorktreeList } from '../worktrees/worktree-list'
-import { listWorktrees, isLinkedWorktree } from '../../lib/git/worktree'
+import {
+  listWorktrees,
+  isLinkedWorktree,
+  removeWorktree,
+} from '../../lib/git/worktree'
 import { CloningRepository } from '../../models/cloning-repository'
+import { showContextualMenu } from '../../lib/menu-item'
+import { generateWorktreeContextMenuItems } from '../worktrees/worktree-list-item-context-menu'
 
 interface IWorktreeDropdownProps {
   readonly dispatcher: Dispatcher
@@ -99,6 +105,33 @@ export class WorktreeDropdown extends React.Component<
   // Intentional no-op: navigation happens on click, not selection change
   private onWorktreeSelected = (_worktree: WorktreeEntry) => {}
 
+  private onWorktreeContextMenu = (
+    worktree: WorktreeEntry,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault()
+
+    const items = generateWorktreeContextMenuItems({
+      path: worktree.path,
+      isMainWorktree: worktree.type === 'main',
+      isLocked: worktree.isLocked,
+      onRemoveWorktree: this.onRemoveWorktree,
+    })
+
+    showContextualMenu(items)
+  }
+
+  private onRemoveWorktree = async (path: string) => {
+    const { repository } = this.props
+
+    try {
+      await removeWorktree(repository, path)
+      await this.fetchWorktrees()
+    } catch (e) {
+      log.error('Failed to remove worktree', e)
+    }
+  }
+
   private onFilterTextChanged = (text: string) => {
     this.setState({ filterText: text })
   }
@@ -116,6 +149,7 @@ export class WorktreeDropdown extends React.Component<
         filterText={this.state.filterText}
         onFilterTextChanged={this.onFilterTextChanged}
         canCreateNewWorktree={false}
+        onWorktreeContextMenu={this.onWorktreeContextMenu}
       />
     )
   }
