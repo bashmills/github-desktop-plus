@@ -14,6 +14,7 @@ import {
 import { CloningRepository } from '../../models/cloning-repository'
 import { showContextualMenu } from '../../lib/menu-item'
 import { generateWorktreeContextMenuItems } from '../worktrees/worktree-list-item-context-menu'
+import { PopupType } from '../../models/popup'
 
 interface IWorktreeDropdownProps {
   readonly dispatcher: Dispatcher
@@ -115,10 +116,20 @@ export class WorktreeDropdown extends React.Component<
       path: worktree.path,
       isMainWorktree: worktree.type === 'main',
       isLocked: worktree.isLocked,
+      onRenameWorktree: this.onRenameWorktree,
       onRemoveWorktree: this.onRemoveWorktree,
     })
 
     showContextualMenu(items)
+  }
+
+  private onRenameWorktree = (path: string) => {
+    this.props.dispatcher.closeFoldout(FoldoutType.Worktree)
+    this.props.dispatcher.showPopup({
+      type: PopupType.RenameWorktree,
+      repository: this.props.repository,
+      worktreePath: path,
+    })
   }
 
   private onRemoveWorktree = async (path: string) => {

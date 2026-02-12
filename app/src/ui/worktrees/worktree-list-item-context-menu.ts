@@ -7,15 +7,25 @@ interface IWorktreeContextMenuConfig {
   readonly path: string
   readonly isMainWorktree: boolean
   readonly isLocked: boolean
+  readonly onRenameWorktree?: (path: string) => void
   readonly onRemoveWorktree?: (path: string) => void
 }
 
 export function generateWorktreeContextMenuItems(
   config: IWorktreeContextMenuConfig
 ): ReadonlyArray<IMenuItem> {
-  const { path, isMainWorktree, isLocked, onRemoveWorktree } = config
+  const { path, isMainWorktree, isLocked, onRenameWorktree, onRemoveWorktree } =
+    config
   const name = Path.basename(path)
   const items = new Array<IMenuItem>()
+
+  if (onRenameWorktree !== undefined) {
+    items.push({
+      label: 'Rename…',
+      action: () => onRenameWorktree(path),
+      enabled: !isMainWorktree && !isLocked,
+    })
+  }
 
   items.push({
     label: __DARWIN__ ? 'Copy Worktree Name' : 'Copy worktree name',
