@@ -54,7 +54,6 @@ type ViewerCopilotResponse = {
       readonly copilotEndpoints: {
         readonly api: string
       }
-      readonly isCopilotDesktopEnabled: boolean
     }
   }
 }
@@ -2776,8 +2775,6 @@ export class API {
         copilotEndpoints {
           api
         }
-
-        isCopilotDesktopEnabled
       }
     }
     `
@@ -2795,7 +2792,7 @@ export class API {
       const { viewer } = json.data
       return {
         copilotEndpoint: viewer.copilotEndpoints.api,
-        isCopilotDesktopEnabled: viewer.isCopilotDesktopEnabled,
+        isCopilotDesktopEnabled: !!viewer.copilotEndpoints.api,
       }
     } catch (e) {
       log.warn(`fetchUserCopilotInfo: failed with endpoint ${this.endpoint}`, e)
