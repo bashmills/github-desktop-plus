@@ -6,11 +6,7 @@ import { ToolbarDropdown, DropdownState } from './dropdown'
 import { FoldoutType } from '../../lib/app-state'
 import { WorktreeEntry } from '../../models/worktree'
 import { WorktreeList } from '../worktrees/worktree-list'
-import {
-  listWorktrees,
-  isLinkedWorktree,
-  removeWorktree,
-} from '../../lib/git/worktree'
+import { listWorktrees, isLinkedWorktree } from '../../lib/git/worktree'
 import { CloningRepository } from '../../models/cloning-repository'
 import { showContextualMenu } from '../../lib/menu-item'
 import { generateWorktreeContextMenuItems } from '../worktrees/worktree-list-item-context-menu'
@@ -132,15 +128,13 @@ export class WorktreeDropdown extends React.Component<
     })
   }
 
-  private onRemoveWorktree = async (path: string) => {
-    const { repository } = this.props
-
-    try {
-      await removeWorktree(repository, path)
-      await this.fetchWorktrees()
-    } catch (e) {
-      log.error('Failed to remove worktree', e)
-    }
+  private onRemoveWorktree = (path: string) => {
+    this.props.dispatcher.closeFoldout(FoldoutType.Worktree)
+    this.props.dispatcher.showPopup({
+      type: PopupType.DeleteWorktree,
+      repository: this.props.repository,
+      worktreePath: path,
+    })
   }
 
   private onFilterTextChanged = (text: string) => {

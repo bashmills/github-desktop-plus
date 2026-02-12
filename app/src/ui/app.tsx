@@ -199,6 +199,7 @@ import { HookFailed } from './hook-failed/hook-failed'
 import { CommitProgress } from './commit-progress/commit-progress'
 import { AddWorktreeDialog } from './worktrees/add-worktree-dialog'
 import { RenameWorktreeDialog } from './worktrees/rename-worktree-dialog'
+import { DeleteWorktreeDialog } from './worktrees/delete-worktree-dialog'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2659,6 +2660,17 @@ export class App extends React.Component<IAppProps, IAppState> {
         return (
           <RenameWorktreeDialog
             key="rename-worktree"
+            repository={popup.repository}
+            worktreePath={popup.worktreePath}
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.DeleteWorktree: {
+        return (
+          <DeleteWorktreeDialog
+            key="delete-worktree"
             repository={popup.repository}
             worktreePath={popup.worktreePath}
             dispatcher={this.props.dispatcher}
