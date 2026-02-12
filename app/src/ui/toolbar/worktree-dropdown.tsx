@@ -1,4 +1,5 @@
 import * as React from 'react'
+import * as Path from 'path'
 import { Dispatcher } from '../dispatcher'
 import * as octicons from '../octicons/octicons.generated'
 import { Repository } from '../../models/repository'
@@ -170,14 +171,19 @@ export class WorktreeDropdown extends React.Component<
   public render() {
     const { isOpen, enableFocusTrap } = this.props
     const currentState: DropdownState = isOpen ? 'open' : 'closed'
+    const currentWorktree = this.getCurrentWorktree()
+    const title = currentWorktree
+      ? Path.basename(currentWorktree.path)
+      : this.props.repository.name
+    const description = __DARWIN__ ? 'Current Worktree' : 'Current worktree'
 
     return (
       <ToolbarDropdown
         className="worktree-button"
         icon={octicons.fileDirectory}
-        title="Worktrees"
-        description="Worktrees"
-        tooltip={isOpen ? undefined : 'Worktrees'}
+        title={title}
+        description={description}
+        tooltip={isOpen ? undefined : `Current worktree is ${title}`}
         onDropdownStateChanged={this.props.onDropDownStateChanged}
         dropdownContentRenderer={this.renderWorktreeFoldout}
         dropdownState={currentState}
