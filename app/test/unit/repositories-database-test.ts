@@ -24,7 +24,7 @@ describe('RepositoriesDatabase', () => {
       lastPruneDate: null,
       permissions: 'write',
       issuesEnabled: true,
-      login: null,
+      login: 0,
     }
     const originalId = await db.gitHubRepositories.add({ ...gitHubRepo })
     const duplicateId = await db.gitHubRepositories.add({ ...gitHubRepo })
@@ -73,7 +73,7 @@ describe('RepositoriesDatabase', () => {
       lastPruneDate: null,
       permissions: 'write',
       issuesEnabled: true,
-      login: null,
+      login: 0,
     }
     const originalRepoB: IDatabaseGitHubRepository = {
       ownerID: ownerB,
@@ -85,7 +85,7 @@ describe('RepositoriesDatabase', () => {
       lastPruneDate: null,
       permissions: 'write',
       issuesEnabled: true,
-      login: null,
+      login: 0,
     }
 
     const repoAId = await db.gitHubRepositories.add(originalRepoA)

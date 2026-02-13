@@ -5,6 +5,9 @@ import { assertNonNullable } from '../fatal-error'
 import { GitHubAccountType } from '../api'
 import { EditorOverride } from '../../models/editor-override'
 
+// Null is not indexable in Dexie, so we use a sentinel value instead
+export type NullLogin = 0
+
 export interface IDatabaseOwner {
   readonly id?: number
   /**
@@ -34,7 +37,7 @@ export interface IDatabaseGitHubRepository {
   readonly isArchived?: boolean
 
   readonly permissions?: 'read' | 'write' | 'admin' | null
-  readonly login: string | null
+  readonly login: string | NullLogin
 }
 
 /** A record to track the protected branch information for a GitHub repository */
