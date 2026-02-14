@@ -4734,6 +4734,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
     repository: Repository,
     account: Account | null
   ): Promise<void> {
+    if (repository.gitHubRepository && account === null) {
+      await this.repositoriesStore.clearGitHubRepositoryLogin(
+        repository.gitHubRepository
+      )
+    }
     const repo = await this.repositoriesStore.updateRepositoryAccount(
       repository,
       account
@@ -6795,6 +6800,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
       `[AppStore] removing account ${account.login} (${account.name}) from store`
     )
     await this.accountsStore.removeAccount(account)
+    await this.repositoriesStore.clearGitHubRepositoryLoginForEndpointAndLogin(
+      account.endpoint,
+      account.login
+    )
     if (account.token) {
       await deleteToken(account)
     }

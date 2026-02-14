@@ -825,6 +825,51 @@ export class RepositoriesStore extends TypedBaseStore<
   }
 
   /**
+   * Clears the 'login' field for a single repository.
+   */
+  public async clearGitHubRepositoryLogin(gitHubRepository: GitHubRepository) {
+    await this.db.gitHubRepositories.update(gitHubRepository.dbID, {
+      login: null,
+    })
+
+    this.emitUpdatedRepositories()
+  }
+
+  /**
+   * Clears the 'login' field for all repositories associated with a given endpoint, ANY OWNER and a given login.
+   */
+  public async clearGitHubRepositoryLoginForEndpointAndLogin(
+    endpoint: string,
+    login: string
+  ) {
+    await this.db.transaction(
+      'rw',
+      this.db.gitHubRepositories,
+      this.db.owners,
+      async () => {
+        // Here we are fetching the entire owners and gitHubRepositories tables.
+        // This is not ideal but we avoid having to create indexes (minimize diff with upstream) and we expect the number of owners and repositories to be relatively small.
+        const allOwners = await this.db.owners.toArray()
+        const allEndpointOwners = allOwners.filter(o => o.endpoint === endpoint)
+        const allEndpointOwnerIds = new Set(allEndpointOwners.map(o => o.id!))
+
+        const allRepos = await this.db.gitHubRepositories.toArray()
+        const reposToUpdate = allRepos.filter(
+          repo => repo.login === login && allEndpointOwnerIds.has(repo.ownerID)
+        )
+        const updatePromises = reposToUpdate.map(repo =>
+          this.db.gitHubRepositories.update(repo.id!, {
+            login: null,
+          })
+        )
+        await Promise.all(updatePromises)
+      }
+    )
+
+    this.emitUpdatedRepositories()
+  }
+
+  /**
    * Helper method to emit updates consistently
    * (This is the only way we emit updates from this store.)
    */
