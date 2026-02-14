@@ -4,7 +4,6 @@ import {
   IDatabaseProtectedBranch,
   IDatabaseRepository,
   getOwnerKey,
-  NullLogin,
 } from '../databases/repositories-database'
 import { Owner } from '../../models/owner'
 import {
@@ -32,8 +31,6 @@ import { IMatchedGitHubRepository } from '../repository-matching'
 import { shallowEquals } from '../equality'
 import { EditorOverride } from '../../models/editor-override'
 import { Account } from '../../models/account'
-
-const NULL_LOGIN_KEY: NullLogin = 0
 
 type AddRepositoryOptions = {
   missing?: boolean
@@ -136,7 +133,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repo.name,
       repoType,
       owner,
-      repo.login === NULL_LOGIN_KEY ? null : repo.login,
+      repo.login,
       repo.id,
       repo.private,
       repo.htmlURL,
@@ -557,21 +554,22 @@ export class RepositoriesStore extends TypedBaseStore<
         const { account } = match
         const owner = await this.putOwner(account.endpoint, match.owner)
         const existingRepo = await this.db.gitHubRepositories
-          .where('[ownerID+name+login]')
-          .equals([owner.id, match.name, login ?? NULL_LOGIN_KEY])
+          .where('[ownerID+name]')
+          .equals([owner.id, match.name])
           .first()
 
-        if (existingRepo) {
+        if (existingRepo && existingRepo.login === login) {
           return this.toGitHubRepository(existingRepo, owner)
         }
 
         const skeletonRepo: IDatabaseGitHubRepository = {
+          id: existingRepo?.id,
           cloneURL: null,
           htmlURL: null,
           lastPruneDate: null,
           name: match.name,
           ownerID: owner.id,
-          login: login ?? NULL_LOGIN_KEY,
+          login,
           parentID: null,
           private: null,
         }
@@ -638,8 +636,8 @@ export class RepositoriesStore extends TypedBaseStore<
     )
 
     const existingRepo = await this.db.gitHubRepositories
-      .where('[ownerID+name+login]')
-      .equals([owner.id, gitHubRepository.name, login ?? NULL_LOGIN_KEY])
+      .where('[ownerID+name]')
+      .equals([owner.id, gitHubRepository.name])
       .first()
 
     // If we can't resolve permissions for the current repository chances are
@@ -682,7 +680,7 @@ export class RepositoriesStore extends TypedBaseStore<
       ...(existingRepo?.id !== undefined && { id: existingRepo.id }),
       ownerID: owner.id,
       name: gitHubRepository.name,
-      login: login ?? NULL_LOGIN_KEY,
+      login,
       private: gitHubRepository.private ?? existingRepo?.private ?? null,
       htmlURL: gitHubRepository.html_url,
       cloneURL: (gitHubRepository.clone_url || existingRepo?.cloneURL) ?? null,

@@ -5,9 +5,6 @@ import { assertNonNullable } from '../fatal-error'
 import { GitHubAccountType } from '../api'
 import { EditorOverride } from '../../models/editor-override'
 
-// Null is not indexable in Dexie, so we use a sentinel value instead
-export type NullLogin = 0
-
 export interface IDatabaseOwner {
   readonly id?: number
   /**
@@ -37,7 +34,7 @@ export interface IDatabaseGitHubRepository {
   readonly isArchived?: boolean
 
   readonly permissions?: 'read' | 'write' | 'admin' | null
-  readonly login: string | NullLogin
+  readonly login: string | null
 }
 
 /** A record to track the protected branch information for a GitHub repository */
@@ -147,13 +144,6 @@ export class RepositoriesDatabase extends BaseDatabase {
 
     this.conditionalVersion(8, {}, ensureNoUndefinedParentID)
     this.conditionalVersion(9, { owners: '++id, &key' }, createOwnerKey)
-    this.conditionalVersion(
-      10,
-      {
-        gitHubRepositories: '++id, &[ownerID+name+login]',
-      },
-      addLoginToGitHubRepositories
-    )
   }
 }
 
@@ -248,31 +238,6 @@ async function createOwnerKey(tx: Transaction) {
   }
 
   await ownersTable.bulkDelete(ownersToDelete)
-}
-
-async function addLoginToGitHubRepositories(tx: Transaction) {
-  const ownersTable = tx.table<IDatabaseOwner, number>('owners')
-  const ghReposTable = tx.table<IDatabaseGitHubRepository, number>(
-    'gitHubRepositories'
-  )
-
-  const allRepos = await ghReposTable.toArray()
-  const ownerIdToLogin = new Map<number, string>()
-
-  for (const repo of allRepos) {
-    assertNonNullable(repo.id, 'Missing repository id')
-    assertNonNullable(repo.ownerID, 'Missing repository owner id')
-
-    let login = ownerIdToLogin.get(repo.ownerID)
-    if (login === undefined) {
-      const owner = await ownersTable.get(repo.ownerID)
-      assertNonNullable(owner, `Missing owner for id ${repo.ownerID}`)
-      login = owner.login
-      ownerIdToLogin.set(repo.ownerID, login)
-    }
-
-    await ghReposTable.update(repo.id, { login })
-  }
 }
 
 /* Creates a case-insensitive key used to uniquely identify an owner
