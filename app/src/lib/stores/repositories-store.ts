@@ -405,7 +405,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      account?.login ?? 'default'
+      account?.login ?? 'ForceNullLogin'
     )
   }
 

@@ -6,7 +6,7 @@ import { getAccountForEndpoint } from './api'
 export function getAccountForRepository(
   accounts: ReadonlyArray<Account>,
   repository: Repository,
-  strict: boolean = true
+  strict: boolean = false
 ): Account | null {
   const gitHubRepository = repository.gitHubRepository
   if (!gitHubRepository) {

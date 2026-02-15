@@ -116,7 +116,7 @@ export class Repository {
 
   public get login(): string | null {
     if (this.overrideLogin != null) {
-      return this.overrideLogin && this.overrideLogin !== 'default'
+      return this.overrideLogin && this.overrideLogin !== 'ForceNullLogin'
         ? this.overrideLogin
         : null
     } else {
