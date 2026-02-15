@@ -50,6 +50,7 @@ import {
 } from '../../lib/custom-integration'
 import {
   defaultGitHookEnvShell,
+  defaultHooksEnvEnabledValue,
   getCacheHooksEnv,
   getGitHookEnvShell,
   getHooksEnvEnabled,
@@ -521,7 +522,9 @@ export class Preferences extends React.Component<
               onEnableGitHookEnvChanged={this.onEnableGitHookEnvChanged}
               onCacheGitHookEnvChanged={this.onCacheGitHookEnvChanged}
               onSelectedShellChanged={this.onSelectedGitHookEnvShellChanged}
-              enableGitHookEnv={this.state.enableGitHookEnv ?? false}
+              enableGitHookEnv={
+                this.state.enableGitHookEnv ?? defaultHooksEnvEnabledValue
+              }
               cacheGitHookEnv={this.state.cacheGitHookEnv ?? true}
               selectedShell={
                 this.state.selectedGitHookEnvShell ?? defaultGitHookEnvShell

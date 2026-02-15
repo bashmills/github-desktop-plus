@@ -16,8 +16,8 @@
     "postinstall": "ts-node -P script/tsconfig.json script/post-install.ts",
     "start": "cross-env NODE_ENV=development ts-node -P script/tsconfig.json script/start.ts",
     "start:prod": "cross-env NODE_ENV=production ts-node -P script/tsconfig.json script/start.ts",
-    "compile:dev": "cross-env NODE_ENV=development TS_NODE_PROJECT=script/tsconfig.json parallel-webpack --config app/webpack.development.ts",
-    "compile:prod": "cross-env NODE_ENV=production TS_NODE_PROJECT=script/tsconfig.json NODE_OPTIONS='--max_old_space_size=4096' parallel-webpack --config app/webpack.production.ts",
+    "compile:dev": "cross-env NODE_ENV=development TS_NODE_PROJECT=script/tsconfig.json webpack --config app/webpack.development.ts",
+    "compile:prod": "cross-env NODE_ENV=production TS_NODE_PROJECT=script/tsconfig.json NODE_OPTIONS='--max_old_space_size=4096' webpack --config app/webpack.production.ts",
     "build:dev": "yarn compile:dev && cross-env NODE_ENV=development ts-node -P script/tsconfig.json script/build.ts",
     "build:prod": "yarn compile:prod && cross-env NODE_ENV=production ts-node -P script/tsconfig.json script/build.ts",
     "package": "ts-node -P script/tsconfig.json script/package.ts",
@@ -83,7 +83,6 @@
     "jsdom": "^26.0.0",
     "legal-eagle": "0.16.0",
     "mini-css-extract-plugin": "^2.9.1",
-    "node-gyp": "^11.0.0",
     "parallel-webpack": "^2.6.0",
     "parse-dds": "^1.2.1",
     "prettier": "^2.6.0",
@@ -164,12 +163,13 @@
     "postinstall-postinstall": "^2.1.0",
     "reserved-words": "^0.1.2",
     "tsconfig-paths": "^3.9.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "webpack-cli": "^6.0.1"
   },
   "optionalDependencies": {
     "electron-installer-debian": "3.2.0",
     "electron-installer-redhat": "3.4.0",
     "electron-winstaller": "^5.0.0"
   },
-  "packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }
