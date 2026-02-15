@@ -22,7 +22,6 @@
           '-Werror',
           '-fPIC',
           '-pie',
-          '-D_FORTIFY_SOURCE=1',
           '-fstack-protector-strong',
           '-Werror=format-security',
         ],
@@ -36,7 +35,12 @@
           'VCCLCompilerTool': { 'ExceptionHandling': 1 },
         },
         'conditions': [
-          ['OS=="win"', { 'defines': [ 'WINDOWS' ] }]
+          ['OS=="win"', {
+            'defines': [ 'WINDOWS' ],
+            'cflags': [
+              '-D_FORTIFY_SOURCE=1'
+            ]
+          }],
         ]
     },
     'targets': [
