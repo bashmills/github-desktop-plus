@@ -3448,6 +3448,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         onDropDownStateChanged={this.onWorktreeDropdownStateChanged}
         enableFocusTrap={enableFocusTrap}
         repositories={this.state.repositories}
+        worktreeDropdownWidth={this.state.worktreeDropdownWidth}
       />
     )
   }
