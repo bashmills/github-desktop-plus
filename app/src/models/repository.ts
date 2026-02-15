@@ -115,7 +115,13 @@ export class Repository {
   }
 
   public get login(): string | null {
-    return this.overrideLogin ?? this.gitHubRepository?.login ?? null
+    if (this.overrideLogin != null) {
+      return this.overrideLogin && this.overrideLogin !== 'default'
+        ? this.overrideLogin
+        : null
+    } else {
+      return this.gitHubRepository?.login ?? null
+    }
   }
 }
 

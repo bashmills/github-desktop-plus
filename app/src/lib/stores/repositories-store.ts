@@ -388,7 +388,9 @@ export class RepositoriesStore extends TypedBaseStore<
     repository: Repository,
     account: Account | null
   ): Promise<Repository> {
-    await this.db.repositories.update(repository.id, { login: account?.login })
+    await this.db.repositories.update(repository.id, {
+      login: account?.login ?? null,
+    })
 
     this.emitUpdatedRepositories()
 
@@ -403,7 +405,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      account?.login
+      account?.login ?? 'default'
     )
   }
 

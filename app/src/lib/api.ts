@@ -3803,11 +3803,12 @@ export function getGitLabAPIEndpoint(): string {
 export function getAccountForEndpoint(
   accounts: ReadonlyArray<Account>,
   endpoint: string,
-  login: string
+  login: string,
+  strict: boolean = false
 ): Account | null {
   return (
     accounts.find(a => a.endpoint === endpoint && a.login === login) ||
-    accounts.find(a => a.endpoint === endpoint) ||
+    (!strict && accounts.find(a => a.endpoint === endpoint)) ||
     null
   )
 }
