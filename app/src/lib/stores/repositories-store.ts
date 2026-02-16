@@ -12,6 +12,7 @@ import {
   GitHubRepositoryPermission,
 } from '../../models/github-repository'
 import {
+  LoginSpecialValue,
   Repository,
   RepositoryWithGitHubRepository,
   assertIsRepositoryWithGitHubRepository,
@@ -405,7 +406,7 @@ export class RepositoriesStore extends TypedBaseStore<
       repository.workflowPreferences,
       repository.customEditorOverride,
       repository.isTutorialRepository,
-      account?.login ?? 'ForceNullLogin'
+      account?.login ?? LoginSpecialValue.ForceNullLogin
     )
   }
 

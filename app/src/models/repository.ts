@@ -13,6 +13,10 @@ import { findDefaultRemote } from '../lib/stores/helpers/find-default-remote'
 import { isTrustedRemoteHost } from '../lib/api'
 import { EditorOverride } from './editor-override'
 
+export enum LoginSpecialValue {
+  ForceNullLogin = 1,
+}
+
 function getBaseName(path: string): string {
   const baseName = Path.basename(path)
 
@@ -71,7 +75,7 @@ export class Repository {
      * which introduces new users to some core concepts of Git and GitHub.
      */
     public readonly isTutorialRepository: boolean = false,
-    public readonly overrideLogin: string | null = null
+    public readonly overrideLogin: string | LoginSpecialValue | null = null
   ) {
     this.mainWorkTree = { path }
     this.name = (gitHubRepository && gitHubRepository.name) || getBaseName(path)
@@ -116,7 +120,8 @@ export class Repository {
 
   public get login(): string | null {
     if (this.overrideLogin != null) {
-      return this.overrideLogin && this.overrideLogin !== 'ForceNullLogin'
+      return this.overrideLogin &&
+        this.overrideLogin !== LoginSpecialValue.ForceNullLogin
         ? this.overrideLogin
         : null
     } else {
