@@ -8,6 +8,7 @@ import {
 } from './workflow-preferences'
 import { assertNever, fatalError } from '../lib/fatal-error'
 import { createEqualityHash } from './equality-hash'
+import { isLinkedWorktreeSync } from '../lib/git/worktree'
 import { getRemotes } from '../lib/git'
 import { findDefaultRemote } from '../lib/stores/helpers/find-default-remote'
 import { isTrustedRemoteHost } from '../lib/api'
@@ -51,6 +52,8 @@ export class Repository {
    */
   private _url: string | null = null
 
+  private _isLinkedWorktree: boolean | undefined = undefined
+
   /**
    * @param path The working directory of this repository
    * @param missing Was the repository missing on disk last we checked?
@@ -91,6 +94,13 @@ export class Repository {
 
   public get path(): string {
     return this.mainWorkTree.path
+  }
+
+  public get isLinkedWorktree(): boolean {
+    if (this._isLinkedWorktree === undefined) {
+      this._isLinkedWorktree = isLinkedWorktreeSync(this.path)
+    }
+    return this._isLinkedWorktree
   }
 
   public get url(): string | null {
