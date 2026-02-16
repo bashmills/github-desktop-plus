@@ -200,6 +200,7 @@ import { CommitProgress } from './commit-progress/commit-progress'
 import { AddWorktreeDialog } from './worktrees/add-worktree-dialog'
 import { RenameWorktreeDialog } from './worktrees/rename-worktree-dialog'
 import { DeleteWorktreeDialog } from './worktrees/delete-worktree-dialog'
+import { isLinkedWorktreeSync } from '../lib/git/worktree'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2982,13 +2983,16 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     const { useCustomShell, selectedShell } = this.state
     const filterText = this.state.repositoryFilterText
+    const repositories = this.state.repositories.filter(
+      r => !(r instanceof Repository && isLinkedWorktreeSync(r.path))
+    )
     return (
       <RepositoriesList
         filterText={filterText}
         onFilterTextChanged={this.onRepositoryFilterTextChanged}
         selectedRepository={selectedRepository}
         onSelectionChanged={this.onSelectionChanged}
-        repositories={this.state.repositories}
+        repositories={repositories}
         recentRepositories={this.state.recentRepositories}
         showRecentRepositories={this.state.showRecentRepositories}
         localRepositoryStateLookup={this.state.localRepositoryStateLookup}
