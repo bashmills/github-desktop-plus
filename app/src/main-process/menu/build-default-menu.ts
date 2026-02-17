@@ -631,7 +631,7 @@ function getStashedChangesLabel(isStashedChangesVisible: boolean): string {
     return __DARWIN__ ? 'Hide Stashed Changes' : 'H&ide stashed changes'
   }
 
-  return __DARWIN__ ? 'Show Stashed Changes' : 'Sho&w stashed changes'
+  return __DARWIN__ ? 'Show Stashed Changes' : 'Show stashed changes'
 }
 
 type ClickHandler = (
