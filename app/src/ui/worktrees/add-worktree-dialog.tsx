@@ -28,6 +28,8 @@ export class AddWorktreeDialog extends React.Component<
   IAddWorktreeDialogProps,
   IAddWorktreeDialogState
 > {
+  private branchNameTextBoxRef = React.createRef<RefNameTextBox>()
+
   public constructor(props: IAddWorktreeDialogProps) {
     super(props)
 
@@ -36,6 +38,10 @@ export class AddWorktreeDialog extends React.Component<
       branchName: '',
       creating: false,
     }
+  }
+
+  public componentDidMount() {
+    this.branchNameTextBoxRef.current?.focus()
   }
 
   private onParentDirPathChanged = (parentDirPath: string) => {
@@ -116,6 +122,7 @@ export class AddWorktreeDialog extends React.Component<
               label={__DARWIN__ ? 'New Workspace Name' : 'New workspace name'}
               initialValue=""
               onValueChange={this.onBranchNameChanged}
+              ref={this.branchNameTextBoxRef}
             />
           </Row>
         </DialogContent>
