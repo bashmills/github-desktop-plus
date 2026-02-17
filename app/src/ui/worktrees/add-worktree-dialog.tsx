@@ -1,4 +1,5 @@
 import * as React from 'react'
+import * as Path from 'path'
 
 import { Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
@@ -18,7 +19,7 @@ interface IAddWorktreeDialogProps {
 }
 
 interface IAddWorktreeDialogState {
-  readonly path: string
+  readonly parentDirPath: string
   readonly branchName: string
   readonly creating: boolean
 }
@@ -31,14 +32,14 @@ export class AddWorktreeDialog extends React.Component<
     super(props)
 
     this.state = {
-      path: '',
+      parentDirPath: Path.dirname(props.repository.path),
       branchName: '',
       creating: false,
     }
   }
 
-  private onPathChanged = (path: string) => {
-    this.setState({ path })
+  private onParentDirPathChanged = (parentDirPath: string) => {
+    this.setState({ parentDirPath })
   }
 
   private onBranchNameChanged = (branchName: string) => {
@@ -54,26 +55,27 @@ export class AddWorktreeDialog extends React.Component<
       return
     }
 
-    this.setState({ path })
+    this.setState({ parentDirPath: path })
   }
 
   private onSubmit = async () => {
-    const { path, branchName } = this.state
+    const { parentDirPath: path, branchName } = this.state
+    const { dispatcher } = this.props
 
     this.setState({ creating: true })
+    const worktreePath = Path.join(path, branchName)
 
     try {
-      await addWorktree(this.props.repository, path, {
+      await addWorktree(this.props.repository, worktreePath, {
         createBranch: branchName.length > 0 ? branchName : undefined,
       })
     } catch (e) {
-      this.props.dispatcher.postError(e)
+      dispatcher.postError(e)
       this.setState({ creating: false })
       return
     }
 
-    const { dispatcher } = this.props
-    const addedRepos = await dispatcher.addRepositories([path])
+    const addedRepos = await dispatcher.addRepositories([worktreePath])
 
     if (addedRepos.length > 0) {
       await dispatcher.selectRepository(addedRepos[0])
@@ -84,7 +86,11 @@ export class AddWorktreeDialog extends React.Component<
   }
 
   public render() {
-    const disabled = this.state.path.length === 0 || this.state.creating
+    const disabled =
+      !this.state.parentDirPath ||
+      !this.state.branchName ||
+      this.state.creating ||
+      !Path.isAbsolute(this.state.parentDirPath)
 
     return (
       <Dialog
@@ -97,17 +103,17 @@ export class AddWorktreeDialog extends React.Component<
         <DialogContent>
           <Row>
             <TextBox
-              value={this.state.path}
-              label={__DARWIN__ ? 'Worktree Path' : 'Worktree path'}
-              placeholder="worktree path"
-              onValueChanged={this.onPathChanged}
+              value={this.state.parentDirPath}
+              label={__DARWIN__ ? 'Parent Folder' : 'Parent folder'}
+              placeholder="Parent folder path"
+              onValueChanged={this.onParentDirPathChanged}
             />
             <Button onClick={this.showFilePicker}>Choose…</Button>
           </Row>
 
           <Row>
             <RefNameTextBox
-              label={__DARWIN__ ? 'New Branch Name' : 'New branch name'}
+              label={__DARWIN__ ? 'New Workspace Name' : 'New workspace name'}
               initialValue=""
               onValueChange={this.onBranchNameChanged}
             />
