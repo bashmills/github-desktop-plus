@@ -1632,6 +1632,7 @@ export class App extends React.Component<IAppProps, IAppState> {
             branchPresetScript={this.state.branchPresetScript}
             titleBarStyle={this.state.titleBarStyle}
             showRecentRepositories={this.state.showRecentRepositories}
+            showWorktrees={this.state.showWorktrees}
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
             hideWindowOnQuit={this.state.hideWindowOnQuit}
             onEditGlobalGitConfig={this.editGlobalGitConfig}
@@ -3431,6 +3432,10 @@ export class App extends React.Component<IAppProps, IAppState> {
     const selection = this.state.selectedState
 
     if (selection == null || selection.type !== SelectionType.Repository) {
+      return null
+    }
+
+    if (!this.state.showWorktrees) {
       return null
     }
 
