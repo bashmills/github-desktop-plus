@@ -2874,6 +2874,10 @@ export class Dispatcher {
     this.appStore._setShowRecentRepositories(showRecentRepositories)
   }
 
+  public setShowWorktrees(showWorktrees: boolean) {
+    this.appStore._setShowWorktrees(showWorktrees)
+  }
+
   public setHideWindowOnQuit(hideWindowOnQuit: boolean) {
     this.appStore._setHideWindowOnQuit(hideWindowOnQuit)
   }

@@ -445,6 +445,7 @@ const tabSizeKey: string = 'tab-size'
 const shellKey = 'shell'
 
 const showRecentRepositoriesKey = 'show-recent-repositories'
+const showWorktreesKey = 'show-worktrees'
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
 
 // background fetching should occur hourly when Desktop is active, but this
@@ -607,6 +608,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private selectedTabSize = tabSizeDefault
   private titleBarStyle: TitleBarStyle = 'native'
   private showRecentRepositories: boolean = true
+  private showWorktrees: boolean = false
   private hideWindowOnQuit: boolean = false
 
   private useWindowsOpenSSH: boolean = false
@@ -715,6 +717,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       getBoolean(repositoryIndicatorsEnabledKey) ?? true
 
     this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
+    this.showWorktrees = getBoolean(showWorktreesKey) ?? false
 
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
       this.getRepositoriesForIndicatorRefresh,
@@ -1151,6 +1154,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       selectedTabSize: this.selectedTabSize,
       titleBarStyle: this.titleBarStyle,
       showRecentRepositories: this.showRecentRepositories,
+      showWorktrees: this.showWorktrees,
       apiRepositories: this.apiRepositoriesStore.getState(),
       useWindowsOpenSSH: this.useWindowsOpenSSH,
       showCommitLengthWarning: this.showCommitLengthWarning,
@@ -4041,6 +4045,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
     setBoolean(showRecentRepositoriesKey, showRecentRepositories)
     this.showRecentRepositories = showRecentRepositories
+    this.emitUpdate()
+  }
+
+  public _setShowWorktrees(showWorktrees: boolean) {
+    if (this.showWorktrees === showWorktrees) {
+      return
+    }
+    setBoolean(showWorktreesKey, showWorktrees)
+    this.showWorktrees = showWorktrees
     this.emitUpdate()
   }
 
