@@ -77,7 +77,10 @@ export class WorktreeDropdown extends React.Component<
       await dispatcher.selectRepository(existingRepo)
       this.setState({ worktreeAddedRepo: null })
     } else {
-      const addedRepos = await dispatcher.addRepositories([worktree.path])
+      const addedRepos = await dispatcher.addRepositories(
+        [worktree.path],
+        this.getLogin()
+      )
 
       if (addedRepos.length > 0) {
         await dispatcher.selectRepository(addedRepos[0])
@@ -166,6 +169,10 @@ export class WorktreeDropdown extends React.Component<
       this.state.worktrees.find(wt => normalizePath(wt.path) === repoPath) ??
       null
     )
+  }
+
+  private getLogin(): string | null {
+    return this.props.repository.login
   }
 
   private onResize = (width: number) => {

@@ -75,7 +75,10 @@ export class DeleteWorktreeDialog extends React.Component<
           throw new Error('Could not find main worktree')
         }
 
-        const addedRepos = await dispatcher.addRepositories([mainPath])
+        const addedRepos = await dispatcher.addRepositories(
+          [mainPath],
+          repository.login
+        )
         if (addedRepos.length === 0) {
           throw new Error('Could not add main worktree repository')
         }

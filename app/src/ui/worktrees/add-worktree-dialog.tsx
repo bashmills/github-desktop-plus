@@ -81,7 +81,10 @@ export class AddWorktreeDialog extends React.Component<
       return
     }
 
-    const addedRepos = await dispatcher.addRepositories([worktreePath])
+    const addedRepos = await dispatcher.addRepositories(
+      [worktreePath],
+      this.props.repository.login
+    )
 
     if (addedRepos.length > 0) {
       await dispatcher.selectRepository(addedRepos[0])
