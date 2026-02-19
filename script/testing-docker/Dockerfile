@@ -12,6 +12,9 @@ RUN corepack enable
 RUN echo "[safe]\n\tdirectory = *" >> ~/.gitconfig
 RUN cp ~/.gitconfig /etc/gitconfig
 
+# Set PATH in profile.d (required for get-shell-env-test.ts)
+RUN echo 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /etc/profile.d/set-path.sh
+
 COPY ./entrypoint.sh /entrypoint.sh
 
 # To allow the image to run without internet connection
