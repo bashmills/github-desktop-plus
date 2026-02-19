@@ -443,6 +443,16 @@ export class Dispatcher {
     return this.appStore._closeFoldout(foldout)
   }
 
+  /** Show the worktrees foldout */
+  public showWorktreesFoldout(): Promise<void> {
+    return this.showFoldout({ type: FoldoutType.Worktree })
+  }
+
+  /** Close the worktrees foldout */
+  public closeWorktreesFoldout(): Promise<void> {
+    return this.closeFoldout(FoldoutType.Worktree)
+  }
+
   /**
    * Check for remote commits that could affect an rebase operation.
    *
@@ -1061,6 +1071,14 @@ export class Dispatcher {
    */
   public resetBranchDropdownWidth(): Promise<void> {
     return this.appStore._resetBranchDropdownWidth()
+  }
+
+  public setWorktreeDropdownWidth(width: number): Promise<void> {
+    return this.appStore._setWorktreeDropdownWidth(width)
+  }
+
+  public resetWorktreeDropdownWidth(): Promise<void> {
+    return this.appStore._resetWorktreeDropdownWidth()
   }
 
   /**
@@ -2890,6 +2908,10 @@ export class Dispatcher {
 
   public setShowRecentRepositories(showRecentRepositories: boolean) {
     this.appStore._setShowRecentRepositories(showRecentRepositories)
+  }
+
+  public setShowWorktrees(showWorktrees: boolean) {
+    this.appStore._setShowWorktrees(showWorktrees)
   }
 
   public setHideWindowOnQuit(hideWindowOnQuit: boolean) {

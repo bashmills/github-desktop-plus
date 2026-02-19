@@ -196,6 +196,9 @@ export interface IAppState {
   /** The width of the resizable branch drop down button in the toolbar. */
   readonly branchDropdownWidth: IConstrainedValue
 
+  /** The width of the resizable worktree drop down button in the toolbar. */
+  readonly worktreeDropdownWidth: IConstrainedValue
+
   /** The width of the resizable push/pull button in the toolbar. */
   readonly pushPullButtonWidth: IConstrainedValue
 
@@ -310,6 +313,9 @@ export interface IAppState {
   /** Whether or not recent repositories should be shown in the repo list */
   readonly showRecentRepositories: boolean
 
+  /** Whether or not the worktrees dropdown should be shown in the toolbar */
+  readonly showWorktrees: boolean
+
   /**
    * A map keyed on a user account (GitHub.com or GitHub Enterprise)
    * containing an object with repositories that the authenticated
@@ -411,6 +417,7 @@ export enum FoldoutType {
   AppMenu,
   AddMenu,
   PushPull,
+  Worktree,
 }
 
 export type AppMenuFoldout = {
@@ -434,6 +441,7 @@ export type Foldout =
   | BranchFoldout
   | AppMenuFoldout
   | { type: FoldoutType.PushPull }
+  | { type: FoldoutType.Worktree }
 
 export enum RepositorySectionTab {
   Changes,

@@ -91,6 +91,7 @@ interface IPreferencesProps {
   readonly branchPresetScript: ICustomIntegration | null
   readonly titleBarStyle: TitleBarStyle
   readonly showRecentRepositories: boolean
+  readonly showWorktrees: boolean
   readonly repositoryIndicatorsEnabled: boolean
   readonly hideWindowOnQuit: boolean
   readonly onEditGlobalGitConfig: () => void
@@ -133,6 +134,7 @@ interface IPreferencesState {
   readonly selectedShell: Shell
   readonly titleBarStyle: TitleBarStyle
   readonly showRecentRepositories: boolean
+  readonly showWorktrees: boolean
   /**
    * If unable to save Git configuration values (name, email)
    * due to an existing configuration lock file this property
@@ -215,6 +217,7 @@ export class Preferences extends React.Component<
       selectedShell: this.props.selectedShell,
       titleBarStyle: this.props.titleBarStyle,
       showRecentRepositories: this.props.showRecentRepositories,
+      showWorktrees: this.props.showWorktrees,
       repositoryIndicatorsEnabled: this.props.repositoryIndicatorsEnabled,
       hideWindowOnQuit: this.props.hideWindowOnQuit,
       initiallySelectedTheme: this.props.selectedTheme,
@@ -547,6 +550,8 @@ export class Preferences extends React.Component<
             onShowRecentRepositoriesChanged={
               this.onShowRecentRepositoriesChanged
             }
+            showWorktrees={this.state.showWorktrees}
+            onShowWorktreesChanged={this.onShowWorktreesChanged}
           />
         )
         break
@@ -806,6 +811,10 @@ export class Preferences extends React.Component<
     this.setState({ showRecentRepositories })
   }
 
+  private onShowWorktreesChanged = (showWorktrees: boolean) => {
+    this.setState({ showWorktrees })
+  }
+
   private renderFooter() {
     const hasDisabledError = this.state.disallowedCharactersMessage != null
 
@@ -866,6 +875,10 @@ export class Preferences extends React.Component<
         this.state.showRecentRepositories !== this.props.showRecentRepositories
       ) {
         dispatcher.setShowRecentRepositories(this.state.showRecentRepositories)
+      }
+
+      if (this.state.showWorktrees !== this.props.showWorktrees) {
+        dispatcher.setShowWorktrees(this.state.showWorktrees)
       }
 
       if (this.state.hideWindowOnQuit !== this.props.hideWindowOnQuit) {

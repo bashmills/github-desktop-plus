@@ -9,6 +9,7 @@ export type MenuEvent =
   | 'add-local-repository'
   | 'create-branch'
   | 'show-branches'
+  | 'show-worktrees'
   | 'remove-repository'
   | 'create-repository'
   | 'rename-branch'
