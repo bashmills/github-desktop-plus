@@ -122,7 +122,7 @@ export class AddWorktreeDialog extends React.Component<
 
           <Row>
             <RefNameTextBox
-              label={__DARWIN__ ? 'New Workspace Name' : 'New workspace name'}
+              label={__DARWIN__ ? 'New Worktree Name' : 'New worktree name'}
               initialValue=""
               onValueChange={this.onBranchNameChanged}
               ref={this.branchNameTextBoxRef}
