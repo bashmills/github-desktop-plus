@@ -2619,7 +2619,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const toolbarButtonsMinWidth =
       defaultPushPullButtonWidth +
       defaultBranchDropdownWidth +
-      defaultWorktreeDropdownWidth
+      (this.showWorktrees ? defaultWorktreeDropdownWidth : 0)
+    const numButtons = 2 + (this.showWorktrees ? 1 : 0)
 
     // Start with all the available width
     let available = window.innerWidth
@@ -2660,10 +2661,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // push-pull. Each subsequent allocation uses the clamped value of the
     // previous to prevent the total from exceeding the available space.
     const branchDropdownMax =
-      available - defaultWorktreeDropdownWidth - defaultPushPullButtonWidth
+      available -
+      (this.showWorktrees ? defaultWorktreeDropdownWidth : 0) -
+      defaultPushPullButtonWidth
     const minimumBranchDropdownWidth =
-      defaultBranchDropdownWidth > available / 3
-        ? available / 3 - 10
+      defaultBranchDropdownWidth > available / numButtons
+        ? available / numButtons - 10
         : defaultBranchDropdownWidth
     this.branchDropdownWidth = constrain(
       this.branchDropdownWidth,
@@ -2674,8 +2677,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const worktreeDropdownMax =
       available - clamp(this.branchDropdownWidth) - defaultPushPullButtonWidth
     const minimumWorktreeDropdownWidth =
-      defaultWorktreeDropdownWidth > available / 3
-        ? available / 3 - 10
+      defaultWorktreeDropdownWidth > available / numButtons
+        ? available / numButtons - 10
         : defaultWorktreeDropdownWidth
     this.worktreeDropdownWidth = constrain(
       this.worktreeDropdownWidth,
@@ -2686,10 +2689,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const pushPullButtonMaxWidth =
       available -
       clamp(this.branchDropdownWidth) -
-      clamp(this.worktreeDropdownWidth)
+      (this.showWorktrees ? clamp(this.worktreeDropdownWidth) : 0)
     const minimumPushPullToolBarWidth =
-      defaultPushPullButtonWidth > available / 3
-        ? available / 3
+      defaultPushPullButtonWidth > available / numButtons
+        ? available / numButtons - 10
         : defaultPushPullButtonWidth
     this.pushPullButtonWidth = constrain(
       this.pushPullButtonWidth,
@@ -4091,6 +4094,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
     setBoolean(showWorktreesKey, showWorktrees)
     this.showWorktrees = showWorktrees
+    this.updateResizableConstraints()
     this.emitUpdate()
   }
 
