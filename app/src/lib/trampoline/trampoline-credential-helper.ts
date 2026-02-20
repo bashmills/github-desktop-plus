@@ -47,9 +47,13 @@ const error = (msg: string, e: any) => log.error(`credential-helper: ${msg}`, e)
 const credWithAccount = (c: Credential, a: IGitAccount | undefined) =>
   a && new Map(c).set('username', a.login).set('password', a.token)
 
-async function getGitHubCredential(cred: Credential, store: AccountsStore) {
+async function getGitHubCredential(
+  cred: Credential,
+  store: AccountsStore,
+  token: string
+) {
   const endpoint = `${getCredentialUrl(cred)}`
-  const login = getLogin(cred)
+  const login = await getLogin(cred, token)
   const account = await findGitHubTrampolineAccount(store, endpoint, login)
   if (account) {
     info(`found GitHub credential for ${endpoint} in store`)
@@ -93,13 +97,13 @@ async function getExternalCredential(input: Credential, token: string) {
 
 /** Implementation of the 'get' git credential helper command */
 async function getCredential(cred: Credential, store: Store, token: string) {
-  const ghCred = await getGitHubCredential(cred, store)
+  const ghCred = await getGitHubCredential(cred, store, token)
 
   if (ghCred) {
     return ghCred
   }
 
-  const endpointKind = await getEndpointKind(cred, store)
+  const endpointKind = await getEndpointKind(cred, store, token)
   const accounts = await store.getAll()
 
   const endpoint = `${getCredentialUrl(cred)}`
@@ -107,7 +111,7 @@ async function getCredential(cred: Credential, store: Store, token: string) {
 
   // If it appears as if the endpoint is a GitHub host and we don't have an
   // account for that endpoint then we should prompt the user to sign in.
-  const login = getLogin(cred)
+  const login = await getLogin(cred, token)
   if (
     endpointKind !== 'generic' &&
     !accounts.some(
@@ -138,7 +142,11 @@ async function getCredential(cred: Credential, store: Store, token: string) {
     : getGenericCredential(cred, token)
 }
 
-const getEndpointKind = async (cred: Credential, store: Store) => {
+const getEndpointKind = async (
+  cred: Credential,
+  store: Store,
+  token: string
+) => {
   const credentialUrl = getCredentialUrl(cred)
   const endpoint = `${credentialUrl}`
 
@@ -168,7 +176,7 @@ const getEndpointKind = async (cred: Credential, store: Store) => {
     }
   }
 
-  const login = getLogin(cred)
+  const login = await getLogin(cred, token)
   const existingAccount = await findGitHubTrampolineAccount(
     store,
     endpoint,
@@ -189,7 +197,7 @@ const getEndpointKind = async (cred: Credential, store: Store) => {
 
 /** Implementation of the 'store' git credential helper command */
 async function storeCredential(cred: Credential, store: Store, token: string) {
-  if ((await getEndpointKind(cred, store)) !== 'generic') {
+  if ((await getEndpointKind(cred, store, token)) !== 'generic') {
     return
   }
 
@@ -209,7 +217,7 @@ const storeExternalCredential = (cred: Credential, token: string) => {
 
 /** Implementation of the 'erase' git credential helper command */
 async function eraseCredential(cred: Credential, store: Store, token: string) {
-  if ((await getEndpointKind(cred, store)) !== 'generic') {
+  if ((await getEndpointKind(cred, store, token)) !== 'generic') {
     return
   }
 
@@ -267,8 +275,14 @@ export const createCredentialHelperTrampolineHandler: (
   }
 }
 
-function getLogin(input: Credential): string | null {
-  return input.get('username') ?? null
+async function getLogin(
+  input: Credential,
+  token: string
+): Promise<string | null> {
+  const path = getTrampolineEnvironmentPath(token)
+  return (
+    (await ui.getLoginForRepositoryPath(path)) ?? input.get('username') ?? null
+  )
 }
 
 function getGcmEnv(token: string): Record<string, string | undefined> {

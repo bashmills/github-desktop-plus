@@ -6863,6 +6863,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return this.repositoriesStore.updateRepositoryPath(repository, path)
   }
 
+  public _getRepositoryForPath(path: string): Promise<Repository | null> {
+    return this.repositoriesStore.getRepositoryForPath(path)
+  }
+
   public async _removeAccount(account: Account) {
     log.info(
       `[AppStore] removing account ${account.login} (${account.name}) from store`

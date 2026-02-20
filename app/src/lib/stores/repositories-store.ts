@@ -460,6 +460,14 @@ export class RepositoriesStore extends TypedBaseStore<
     )
   }
 
+  public async getRepositoryForPath(path: string): Promise<Repository | null> {
+    const dbRepo = await this.db.repositories.get({ path })
+    if (dbRepo === undefined) {
+      return null
+    }
+    return this.toRepository(dbRepo)
+  }
+
   /**
    * Sets the last time the repository was checked for stash entries
    *

@@ -117,6 +117,11 @@ class TrampolineUIHelper {
       return undefined
     })
   }
+
+  public async getLoginForRepositoryPath(path: string): Promise<string | null> {
+    const repo = await this.dispatcher.getRepositoryForPath(path)
+    return repo?.login ?? null
+  }
 }
 
 export const trampolineUIHelper = new TrampolineUIHelper()

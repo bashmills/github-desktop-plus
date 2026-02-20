@@ -1855,6 +1855,10 @@ export class Dispatcher {
     await this.appStore._updateRepositoryPath(repository, path)
   }
 
+  public async getRepositoryForPath(path: string): Promise<Repository | null> {
+    return await this.appStore._getRepositoryForPath(path)
+  }
+
   public async setAppFocusState(isFocused: boolean): Promise<void> {
     await this.appStore._setAppFocusState(isFocused)
 
