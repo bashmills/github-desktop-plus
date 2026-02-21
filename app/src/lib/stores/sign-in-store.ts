@@ -23,7 +23,6 @@ import {
 } from '../../lib/api'
 
 import { TypedBaseStore } from './base-store'
-import uuid from 'uuid'
 import { IOAuthAction } from '../parse-app-url'
 import { shell } from '../app-shell'
 import noop from 'lodash/noop'
@@ -280,7 +279,7 @@ export class SignInStore extends TypedBaseStore<SignInState | null> {
       }
     }
 
-    const csrfToken = uuid()
+    const csrfToken = crypto.randomUUID()
 
     new Promise<Account>((resolve, reject) => {
       const { endpoint, resultCallback } = currentState
