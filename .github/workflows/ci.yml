@@ -80,14 +80,15 @@ jobs:
     outputs:
       APP_VERSION: ${{ env.APP_VERSION }}
     steps:
-      - id: compute_version
+      - name: Compute app version
         run: |
-          VERSION="v0.0.0"
+          VERSION="0.0.0"
           if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
-            VERSION=${GITHUB_REF/refs\/tags\//}
+            # 'refs/tags/v1.2.3' -> '1.2.3'
+            VERSION=$(echo "${GITHUB_REF/refs\/tags\//}" | sed -E "s/v(.*)/\\1/")
           fi
-          VERSION_WITHOUT_V=$(echo "${VERSION}" | sed -E "s/v(.*)/\\1/")
-          echo "APP_VERSION=$VERSION_WITHOUT_V" >> $GITHUB_ENV
+          echo "Computed version: ${VERSION}"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
 
   build:
     name: ${{ matrix.friendlyName }} ${{ matrix.arch }}
