@@ -30,6 +30,7 @@ export enum Shell {
   Warp = 'Warp',
   BlackBox = 'Black Box',
   Ghostty = 'Ghostty',
+  Cosmic = 'COSMIC Terminal',
 }
 
 export const Default = Shell.Gnome
@@ -82,6 +83,8 @@ function getShellPath(shell: Shell): Promise<string | null> {
       return getPathIfAvailable('/usr/bin/blackbox-terminal')
     case Shell.Ghostty:
       return getPathIfAvailable('/usr/bin/ghostty')
+    case Shell.Cosmic:
+      return getPathIfAvailable('/usr/bin/cosmic-term')
     default:
       return assertNever(shell, `Unknown shell: ${shell}`)
   }
@@ -110,6 +113,7 @@ export async function getAvailableShells(): Promise<
     warpPath,
     blackBoxPath,
     ghosttyPath,
+    cosmicPath,
   ] = await Promise.all([
     getShellPath(Shell.Gnome),
     getShellPath(Shell.GnomeConsole),
@@ -130,6 +134,7 @@ export async function getAvailableShells(): Promise<
     getShellPath(Shell.Warp),
     getShellPath(Shell.BlackBox),
     getShellPath(Shell.Ghostty),
+    getShellPath(Shell.Cosmic),
   ])
 
   const shells: Array<FoundShell<Shell>> = []
@@ -209,6 +214,10 @@ export async function getAvailableShells(): Promise<
     shells.push({ shell: Shell.Ghostty, path: ghosttyPath })
   }
 
+  if (cosmicPath) {
+    shells.push({ shell: Shell.Cosmic, path: cosmicPath })
+  }
+
   return shells
 }
 
@@ -226,6 +235,7 @@ export function launch(
     case Shell.XFCE:
     case Shell.Alacritty:
     case Shell.BlackBox:
+    case Shell.Cosmic:
       return spawn(foundShell.path, ['--working-directory', path])
     case Shell.Ptyxis:
       return spawn(foundShell.path, [
