@@ -307,6 +307,10 @@ jobs:
 
       - name: Prepare PKGBUILD files
         run: |
+          _obfuscate() {
+            echo "$1" | rev | sed 's/./&!/g'
+          }
+
           AUR_DIR=./publish/aur
           echo "AUR_DIR=$AUR_DIR" >> $GITHUB_ENV
           PKGBUILD_BIN=$AUR_DIR/PKGBUILD-bin.sh
@@ -338,6 +342,20 @@ jobs:
             sed -i "s/\[\[X86_64_SHA256\]\]/$x86_64_sha256/" $PKGBUILD_FILE
             aarch64_sha256=$(sha256sum artifacts/**/*-arm64.deb | awk '{ print $1 }')
             sed -i "s/\[\[AARCH64_SHA256\]\]/$aarch64_sha256/" $PKGBUILD_FILE
+
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_ID")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_SECRET")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID_BITBUCKET_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_ID_BITBUCKET")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID_GITLAB_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_ID_GITLAB")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET_GITLAB_NAME\]\]/$(_obfuscate "DESKTOP_OAUTH_CLIENT_SECRET_GITLAB")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID_BITBUCKET\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_ID_BITBUCKET }}")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET }}")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_ID_GITLAB\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_ID_GITLAB }}")/" $PKGBUILD_FILE
+            sed -i "s/\[\[DESKTOP_OAUTH_CLIENT_SECRET_GITLAB\]\]/$(_obfuscate "${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET_GITLAB }}")/" $PKGBUILD_FILE
+
           done
 
       - name: Publish AUR package github-desktop-plus-bin

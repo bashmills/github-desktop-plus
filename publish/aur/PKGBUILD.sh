@@ -29,6 +29,7 @@ optdepends=('github-cli: CLI interface for GitHub'
 makedepends=(python-setuptools
              'nodejs-lts-[[NODE_CODENAME]]'
              npm
+             util-linux
              xorg-server-xvfb
              yarn)
 source=("$pkgname::git+https://github.com/pol-rivero/github-desktop-plus.git#tag=v$pkgver"
@@ -43,6 +44,10 @@ sha256sums=('SKIP'
             'SKIP'
             '[[LAUNCH_SCRIPT_SHA256]]'
             '[[DESKTOP_FILE_SHA256]]')
+
+_deobfuscate() {
+    echo "$1" | rev | tr -d '!'
+}
 
 prepare() {
     cd "$pkgname"
@@ -60,6 +65,15 @@ build() {
     # https://github.com/nodejs/node/issues/48444
     export UV_USE_IO_URING=0
     xvfb-run yarn install
+
+    # These can be extracted trivially from the app, so there is no point in trying to hide them.
+    # Obfuscate them slightly in the PKGBUILD to prevent bots from easily scraping them.    
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID]]")"
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET]]")"
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID_BITBUCKET_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID_BITBUCKET]]")"
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET_BITBUCKET]]")"
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID_GITLAB_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_ID_GITLAB]]")"
+    export "$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET_GITLAB_NAME]]")"="$(_deobfuscate "[[DESKTOP_OAUTH_CLIENT_SECRET_GITLAB]]")"
     xvfb-run yarn build:prod
 }
 
