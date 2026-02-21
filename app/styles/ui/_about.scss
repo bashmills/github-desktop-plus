@@ -50,6 +50,11 @@ dialog#about {
         color: black;
       }
     }
+
+    .separator {
+      margin: 0 var(--spacing-half);
+      color: var(--text-secondary-color);
+    }
   }
 
   .logo {

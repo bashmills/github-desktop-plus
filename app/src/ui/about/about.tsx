@@ -100,6 +100,7 @@ export class About extends React.Component<IAboutProps> {
           <LinkButton uri={DesktopPlusReleaseNotesUri}>
             GitHub Desktop Plus Releases
           </LinkButton>
+          <span className="separator">|</span>
           <LinkButton uri={UpstreamReleaseNotesUri}>
             Upstream Releases
           </LinkButton>
