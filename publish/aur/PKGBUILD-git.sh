@@ -52,7 +52,7 @@ pkgver() {
 }
 
 _deobfuscate() {
-    echo "$1" | rev | tr -d '!'
+    echo "$1" | rev | tr -d '@'
 }
 
 prepare() {

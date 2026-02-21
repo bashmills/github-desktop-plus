@@ -46,7 +46,7 @@ sha256sums=('SKIP'
             '[[DESKTOP_FILE_SHA256]]')
 
 _deobfuscate() {
-    echo "$1" | rev | tr -d '!'
+    echo "$1" | rev | tr -d '@'
 }
 
 prepare() {

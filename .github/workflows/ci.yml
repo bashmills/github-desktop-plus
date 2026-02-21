@@ -308,7 +308,7 @@ jobs:
       - name: Prepare PKGBUILD files
         run: |
           _obfuscate() {
-            echo "$1" | rev | sed 's/./&!/g'
+            echo "$1" | rev | sed 's/./&@/g'
           }
 
           AUR_DIR=./publish/aur
