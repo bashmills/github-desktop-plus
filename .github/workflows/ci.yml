@@ -120,9 +120,19 @@ jobs:
           cd vendor/desktop-trampoline
           yarn install
           yarn test
+      - name: Compute app version
+        id: compute_version
+        run: |
+          VERSION="v0.0.0"
+          if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\//}
+          fi
+          VERSION_WITHOUT_V=$(echo "${VERSION}" | sed -E "s/v(.*)/\\1/")
+          echo "APP_VERSION=$VERSION_WITHOUT_V" >> $GITHUB_ENV
       - name: Build production app
         run: yarn build:prod
         env:
+          APP_VERSION: ${{ steps.compute_version.outputs.APP_VERSION }}
           DESKTOP_OAUTH_CLIENT_ID: ${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}
           DESKTOP_OAUTH_CLIENT_SECRET:
             ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}
@@ -172,18 +182,14 @@ jobs:
       - name: Rename Linux artifacts
         if: ${{ runner.os == 'Linux' }}
         run: |
-          if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
-            RELEASE_TAG=${GITHUB_REF/refs\/tags\//}
-          else
-            RELEASE_TAG="v0.0.0"
-          fi
-
           for file in $(find ./dist -type f -name "GitHubDesktop-linux-*"); do
-            new_name=$(echo "$file" | sed -E "s/GitHubDesktop-linux-(.*)-[0-9]+\\.[0-9]+\\.[0-9]+(-beta[0-9]+)?\\.(.*)/GitHubDesktopPlus-${RELEASE_TAG}-linux-\\1.\\3/")
+            new_name=$(echo "$file" | sed -E "s/GitHubDesktop-linux-(.*)-[0-9]+\\.[0-9]+\\.[0-9]+(-beta[0-9]+)?\\.(.*)/GitHubDesktopPlus-v${APP_VERSION}-linux-\\1.\\3/")
             new_name=$(echo $new_name | sed -E "s/linux-amd64/linux-x86_64/")
             new_name=$(echo $new_name | sed -E "s/linux-aarch64/linux-arm64/")
             mv --verbose "$file" "$new_name"
           done
+        env:
+          APP_VERSION: ${{ steps.compute_version.outputs.APP_VERSION }}
 
       - name: Generate AppImage zsync
         if: ${{ runner.os == 'Linux' }}

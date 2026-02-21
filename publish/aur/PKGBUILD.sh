@@ -61,6 +61,7 @@ prepare() {
 }
 
 build() {
+    export APP_VERSION="$pkgver"
     cd "$pkgname"
     # https://github.com/nodejs/node/issues/48444
     export UV_USE_IO_URING=0
