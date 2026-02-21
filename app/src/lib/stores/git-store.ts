@@ -77,6 +77,7 @@ import {
   getRemoteHEAD,
   memoizedGetRemotesFromPath,
   MergeOptions,
+  listWorktrees,
 } from '../git'
 import { GitError as DugiteError } from '../../lib/git'
 import { GitError } from 'dugite'
@@ -94,6 +95,7 @@ import { GitAuthor } from '../../models/git-author'
 import { BaseStore } from './base-store'
 import { getStashes, getStashedFiles } from '../git/stash'
 import { IStashEntry, StashedChangesLoadStates } from '../../models/stash-entry'
+import { WorktreeEntry } from '../../models/worktree'
 import { PullRequest } from '../../models/pull-request'
 import { IStatsStore } from '../stats'
 import { getTagsToPush, storeTagsToPush } from './helpers/tags-to-push-storage'
@@ -136,6 +138,10 @@ export class GitStore extends BaseStore {
   private _allBranches: ReadonlyArray<Branch> = []
 
   private _recentBranches: ReadonlyArray<Branch> = []
+
+  private _allWorktrees: ReadonlyArray<WorktreeEntry> = []
+
+  private _currentWorktree: WorktreeEntry | null = null
 
   private _localCommitSHAs: ReadonlyArray<string> = []
 
@@ -419,6 +425,26 @@ export class GitStore extends BaseStore {
     this.emitUpdate()
   }
 
+  /** Load all worktrees. */
+  public async loadWorktrees() {
+    const worktrees = await this.performFailableOperation(() =>
+      listWorktrees(this.repository)
+    )
+
+    if (!worktrees) {
+      return
+    }
+
+    this._allWorktrees = worktrees
+
+    // Find the current worktree by matching the repository path
+    const repoPath = normalizePath(this.repository.path)
+    this._currentWorktree =
+      worktrees.find(wt => normalizePath(wt.path) === repoPath) ?? null
+
+    this.emitUpdate()
+  }
+
   /**
    * Takes a list of local and remote branches and filters out "duplicate"
    * remote branches, i.e. remote branches that we already have a local
@@ -601,6 +627,16 @@ export class GitStore extends BaseStore {
   /** The most recently checked out branches. */
   public get recentBranches(): ReadonlyArray<Branch> {
     return this._recentBranches
+  }
+
+  /** All worktrees (main and linked). */
+  public get allWorktrees(): ReadonlyArray<WorktreeEntry> {
+    return this._allWorktrees
+  }
+
+  /** The current worktree corresponding to the repository path. */
+  public get currentWorktree(): WorktreeEntry | null {
+    return this._currentWorktree
   }
 
   /**
@@ -1828,4 +1864,8 @@ export class GitStore extends BaseStore {
 
     return commits
   }
+}
+
+function normalizePath(p: string): string {
+  return p.replace(/\/+$/, '')
 }

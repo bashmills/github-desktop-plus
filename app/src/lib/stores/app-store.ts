@@ -1261,6 +1261,13 @@ export class AppStore extends TypedBaseStore<IAppState> {
       }
     })
 
+    this.repositoryStateCache.updateWorktreesState(repository, () => {
+      return {
+        allWorktrees: gitStore.allWorktrees,
+        currentWorktree: gitStore.currentWorktree,
+      }
+    })
+
     let selectWorkingDirectory = false
     let selectStashEntry = false
 
@@ -3890,6 +3897,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // loadBranches needs the default remote to determine the default branch
     await gitStore.loadRemotes()
     await gitStore.loadBranches()
+    await gitStore.loadWorktrees()
 
     const section = state.selectedSection
     let refreshSectionPromise: Promise<void>

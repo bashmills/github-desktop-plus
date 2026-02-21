@@ -3447,6 +3447,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       currentFoldout !== null && currentFoldout.type === FoldoutType.Worktree
 
     const repository = selection.repository
+    const repositoryState = selection.state
 
     const enableFocusTrap = this.state.currentPopup === null
 
@@ -3454,6 +3455,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       <WorktreeDropdown
         dispatcher={this.props.dispatcher}
         repository={repository}
+        repositoryState={repositoryState}
         isOpen={isOpen}
         onDropDownStateChanged={this.onWorktreeDropdownStateChanged}
         enableFocusTrap={enableFocusTrap}

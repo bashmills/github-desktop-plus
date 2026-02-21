@@ -25,6 +25,7 @@ import {
   ICloneProgress,
   IMultiCommitOperationProgress,
 } from '../models/progress'
+import { WorktreeEntry } from '../models/worktree'
 
 import { SignInState } from './stores/sign-in-store'
 
@@ -544,6 +545,8 @@ export interface IRepositoryState {
 
   readonly branchesState: IBranchesState
 
+  readonly worktreesState: IWorktreesState
+
   /** The commits loaded, keyed by their full SHA. */
   readonly commitLookup: Map<string, Commit>
 
@@ -690,6 +693,18 @@ export interface IBranchesState {
 
   /** Tracking branches that have been allowed to be force-pushed within Desktop */
   readonly forcePushBranches: ReadonlyMap<string, string>
+}
+
+export interface IWorktreesState {
+  /**
+   * All worktrees in the repository (main and linked).
+   */
+  readonly allWorktrees: ReadonlyArray<WorktreeEntry>
+
+  /**
+   * The current worktree (the one corresponding to the repository path).
+   */
+  readonly currentWorktree: WorktreeEntry | null
 }
 
 export interface ICommitSelection {

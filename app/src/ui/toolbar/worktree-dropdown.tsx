@@ -4,10 +4,9 @@ import { Dispatcher } from '../dispatcher'
 import * as octicons from '../octicons/octicons.generated'
 import { Repository } from '../../models/repository'
 import { ToolbarDropdown, DropdownState } from './dropdown'
-import { FoldoutType, IConstrainedValue } from '../../lib/app-state'
+import { FoldoutType, IConstrainedValue, IRepositoryState } from '../../lib/app-state'
 import { WorktreeEntry } from '../../models/worktree'
 import { WorktreeList } from '../worktrees/worktree-list'
-import { listWorktrees } from '../../lib/git/worktree'
 import { CloningRepository } from '../../models/cloning-repository'
 import { showContextualMenu } from '../../lib/menu-item'
 import { generateWorktreeContextMenuItems } from '../worktrees/worktree-list-item-context-menu'
@@ -18,6 +17,7 @@ import { enableResizingToolbarButtons } from '../../lib/feature-flag'
 interface IWorktreeDropdownProps {
   readonly dispatcher: Dispatcher
   readonly repository: Repository
+  readonly repositoryState: IRepositoryState
   readonly isOpen: boolean
   readonly onDropDownStateChanged: (state: DropdownState) => void
   readonly enableFocusTrap: boolean
@@ -26,7 +26,6 @@ interface IWorktreeDropdownProps {
 }
 
 interface IWorktreeDropdownState {
-  readonly worktrees: ReadonlyArray<WorktreeEntry>
   readonly filterText: string
   readonly worktreeAddedRepo: Repository | null
 }
@@ -38,27 +37,8 @@ export class WorktreeDropdown extends React.Component<
   public constructor(props: IWorktreeDropdownProps) {
     super(props)
     this.state = {
-      worktrees: [],
       filterText: '',
       worktreeAddedRepo: null,
-    }
-  }
-
-  public componentDidUpdate(prevProps: IWorktreeDropdownProps) {
-    if (!prevProps.isOpen && this.props.isOpen) {
-      this.fetchWorktrees()
-    }
-  }
-
-  private async fetchWorktrees() {
-    const { repository } = this.props
-
-    try {
-      const worktrees = await listWorktrees(repository)
-      this.setState({ worktrees })
-    } catch (e) {
-      log.error('Failed to fetch worktrees', e)
-      this.setState({ worktrees: [] })
     }
   }
 
@@ -145,12 +125,12 @@ export class WorktreeDropdown extends React.Component<
   }
 
   private renderWorktreeFoldout = (): JSX.Element | null => {
-    const { worktrees } = this.state
+    const { allWorktrees, currentWorktree } = this.props.repositoryState.worktreesState
 
     return (
       <WorktreeList
-        worktrees={worktrees}
-        currentWorktree={this.getCurrentWorktree()}
+        worktrees={allWorktrees}
+        currentWorktree={currentWorktree}
         selectedWorktree={null}
         onWorktreeSelected={this.onWorktreeSelected}
         onWorktreeClick={this.onWorktreeClick}
@@ -164,11 +144,7 @@ export class WorktreeDropdown extends React.Component<
   }
 
   private getCurrentWorktree(): WorktreeEntry | null {
-    const repoPath = normalizePath(this.props.repository.path)
-    return (
-      this.state.worktrees.find(wt => normalizePath(wt.path) === repoPath) ??
-      null
-    )
+    return this.props.repositoryState.worktreesState.currentWorktree
   }
 
   private onResize = (width: number) => {
@@ -177,6 +153,28 @@ export class WorktreeDropdown extends React.Component<
 
   private onReset = () => {
     this.props.dispatcher.resetWorktreeDropdownWidth()
+  }
+
+  private onWorktreeToolbarButtonContextMenu = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ): void => {
+    event.preventDefault()
+
+    const currentWorktree = this.getCurrentWorktree()
+
+    if (currentWorktree === null) {
+      return
+    }
+
+    const items = generateWorktreeContextMenuItems({
+      path: currentWorktree.path,
+      isMainWorktree: currentWorktree.type === 'main',
+      isLocked: currentWorktree.isLocked,
+      onRenameWorktree: this.onRenameWorktree,
+      onRemoveWorktree: this.onRemoveWorktree,
+    })
+
+    showContextualMenu(items)
   }
 
   public render() {
@@ -194,6 +192,7 @@ export class WorktreeDropdown extends React.Component<
         icon={octicons.fileDirectory}
         title={title}
         description={description}
+        onContextMenu={this.onWorktreeToolbarButtonContextMenu}
         tooltip={isOpen ? undefined : `Current worktree is ${title}`}
         onDropdownStateChanged={this.props.onDropDownStateChanged}
         dropdownContentRenderer={this.renderWorktreeFoldout}
