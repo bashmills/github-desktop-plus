@@ -192,6 +192,17 @@
       color: var(--dialog-warning-color);
     }
 
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      
+      .icon,
+      .name,
+      .description {
+        pointer-events: none;
+      }
+    }
+
     .name {
       flex-grow: 2;
       @include ellipsis;

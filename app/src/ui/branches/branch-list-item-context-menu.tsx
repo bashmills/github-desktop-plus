@@ -8,6 +8,7 @@ interface IBranchContextMenuConfig {
   nameWithoutRemote: string
   isLocal: boolean
   repoType: RepoType | undefined
+  isInUseByOtherWorktree: boolean
   onRenameBranch?: (branchName: string) => void
   onViewBranchOnGitHub?: () => void
   onViewPullRequestOnGitHub?: () => void
@@ -23,6 +24,7 @@ export function generateBranchContextMenuItems(
     nameWithoutRemote,
     isLocal,
     repoType,
+    isInUseByOtherWorktree,
     onRenameBranch,
     onViewBranchOnGitHub,
     onViewPullRequestOnGitHub,
@@ -65,9 +67,8 @@ export function generateBranchContextMenuItems(
     })
   }
 
-  items.push({ type: 'separator' })
-
-  if (onDeleteBranch !== undefined) {
+  if (onDeleteBranch !== undefined && !isInUseByOtherWorktree) {
+    items.push({ type: 'separator' })
     items.push({
       label: 'Delete…',
       action: () => onDeleteBranch(name),

@@ -95,6 +95,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
   private renderBranchFoldout = (): JSX.Element | null => {
     const repositoryState = this.props.repositoryState
     const branchesState = repositoryState.branchesState
+    const worktreesState = repositoryState.worktreesState
 
     const tip = repositoryState.branchesState.tip
     const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
@@ -104,6 +105,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
         recentBranches={branchesState.recentBranches}
         currentBranch={currentBranch}
         defaultBranch={branchesState.defaultBranch}
+        allWorktrees={worktreesState.allWorktrees}
         dispatcher={this.props.dispatcher}
         repository={this.props.repository}
         selectedTab={this.props.selectedTab}
@@ -315,6 +317,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       nameWithoutRemote,
       isLocal: type === BranchType.Local,
       repoType: this.props.repository.gitHubRepository?.type,
+      isInUseByOtherWorktree: false,
       onRenameBranch: this.onRenameBranch,
       onViewBranchOnGitHub:
         isRepositoryWithGitHubRepository(this.props.repository) &&

@@ -128,6 +128,7 @@ export class BranchSelect extends React.Component<
           currentBranch={currentBranch}
           defaultBranch={defaultBranch}
           recentBranches={recentBranches}
+          allWorktrees={[]}
           filterText={filterText}
           onFilterTextChanged={this.onFilterTextChanged}
           selectedBranch={selectedBranch}

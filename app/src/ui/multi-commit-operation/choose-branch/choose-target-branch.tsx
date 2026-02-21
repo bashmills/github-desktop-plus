@@ -202,6 +202,7 @@ export class ChooseTargetBranchDialog extends React.Component<
             currentBranch={this.props.currentBranch}
             defaultBranch={this.props.defaultBranch}
             recentBranches={this.props.recentBranches}
+            allWorktrees={[]}
             filterText={this.state.filterText}
             onFilterTextChanged={this.onFilterTextChanged}
             onFilterListResultsChanged={this.onFilterListResultsChanged}

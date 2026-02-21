@@ -399,6 +399,7 @@ export class CompareSidebar extends React.Component<
         currentBranch={this.props.currentBranch}
         allBranches={branches}
         recentBranches={recentBranches}
+        allWorktrees={[]}
         filterText={filterText}
         textbox={this.textbox!}
         selectedBranch={this.state.focusedBranch}

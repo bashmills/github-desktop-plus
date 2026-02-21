@@ -26,6 +26,9 @@ interface IBranchListItemProps {
 
   readonly authorDate: Date | undefined
 
+  /** Name of the worktree where this branch is checked out, if any */
+  readonly worktreeName: string | null
+
   /** When a drag element has landed on a branch that is not current */
   readonly onDropOntoBranch?: (branchName: string) => void
 
@@ -93,7 +96,10 @@ export class BranchListItem extends React.Component<
   }
 
   public render() {
-    const { authorDate, isCurrentBranch, isLocalOnly, name } = this.props
+    const { authorDate, isCurrentBranch, isLocalOnly, name, worktreeName } =
+      this.props
+
+    const isInUseByOtherWorktree = worktreeName !== null && !isCurrentBranch
 
     function getIcon() {
       if (isLocalOnly) {
@@ -104,6 +110,7 @@ export class BranchListItem extends React.Component<
     const className = classNames('branches-list-item', {
       'drop-target': this.state.isDragInProgress,
       'local-only': isLocalOnly,
+      disabled: isInUseByOtherWorktree,
     })
 
     return (

@@ -8,6 +8,7 @@ import {
 import { Branch } from '../../models/branch'
 import { BranchesTab } from '../../models/branches-tab'
 import { PopupType } from '../../models/popup'
+import { WorktreeEntry } from '../../models/worktree'
 
 import { Dispatcher } from '../dispatcher'
 import { FoldoutType } from '../../lib/app-state'
@@ -51,6 +52,9 @@ interface IBranchesContainerProps {
   readonly onRenameBranch: (branchName: string) => void
   readonly onMakeDefaultBranch: (branchName: string) => void
   readonly onDeleteBranch: (branchName: string) => void
+
+  /** All worktrees in the repository. */
+  readonly allWorktrees: ReadonlyArray<WorktreeEntry>
 
   /** The pull request associated with the current branch. */
   readonly currentPullRequest: PullRequest | null
@@ -276,6 +280,7 @@ export class BranchesContainer extends React.Component<
             currentBranch={this.props.currentBranch}
             allBranches={this.props.allBranches}
             recentBranches={this.props.recentBranches}
+            allWorktrees={this.props.allWorktrees}
             onItemClick={this.onBranchItemClick}
             filterText={this.state.branchFilterText}
             onFilterTextChanged={this.onBranchFilterTextChanged}

@@ -54,7 +54,8 @@ describe('Branches grouping', () => {
       defaultBranch,
       currentBranch,
       allBranches,
-      recentBranches
+      recentBranches,
+      []
     )
     assert.equal(groups.length, 3)
 
