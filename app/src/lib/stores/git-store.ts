@@ -106,6 +106,7 @@ import { findForkedRemotesToPrune } from './helpers/find-forked-remotes-to-prune
 import { findDefaultBranch } from '../find-default-branch'
 import { cleanUntrackedFiles } from '../git/clean'
 import { dotGitPath } from '../helpers/git-dir'
+import { normalizePath } from '../helpers/path'
 
 /** The number of commits to load from history per batch. */
 const CommitBatchSize = 100
@@ -1864,8 +1865,4 @@ export class GitStore extends BaseStore {
 
     return commits
   }
-}
-
-function normalizePath(p: string): string {
-  return p.replace(/\/+$/, '')
 }

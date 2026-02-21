@@ -17,6 +17,7 @@ import { generateWorktreeContextMenuItems } from '../worktrees/worktree-list-ite
 import { PopupType } from '../../models/popup'
 import { Resizable } from '../resizable'
 import { enableResizingToolbarButtons } from '../../lib/feature-flag'
+import { normalizePath } from '../../lib/helpers/path'
 
 interface IWorktreeDropdownProps {
   readonly dispatcher: Dispatcher
@@ -233,8 +234,4 @@ export class WorktreeDropdown extends React.Component<
       </Resizable>
     )
   }
-}
-
-function normalizePath(p: string): string {
-  return p.replace(/\/+$/, '')
 }

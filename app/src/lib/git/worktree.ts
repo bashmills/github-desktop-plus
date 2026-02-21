@@ -3,6 +3,7 @@ import * as Fs from 'fs'
 import type { Repository } from '../../models/repository'
 import type { WorktreeEntry, WorktreeType } from '../../models/worktree'
 import { git } from './core'
+import { normalizePath } from '../helpers/path'
 
 export function parseWorktreePorcelainOutput(
   stdout: string
@@ -119,11 +120,10 @@ export async function isLinkedWorktree(
   repository: Repository
 ): Promise<boolean> {
   const worktrees = await listWorktrees(repository)
-  const repoPath = repository.path
+  const repoPath = normalizePath(repository.path)
 
   return worktrees.some(
-    wt =>
-      wt.type === 'linked' && normalizePath(wt.path) === normalizePath(repoPath)
+    wt => wt.type === 'linked' && normalizePath(wt.path) === repoPath
   )
 }
 
@@ -148,8 +148,4 @@ export function isLinkedWorktreeSync(repositoryPath: string): boolean {
   } catch {
     return false
   }
-}
-
-function normalizePath(p: string): string {
-  return p.replace(/\/+$/, '')
 }

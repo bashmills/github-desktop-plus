@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Ref } from '../lib/ref'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { removeWorktree, getMainWorktreePath } from '../../lib/git/worktree'
+import { normalizePath } from '../../lib/helpers/path'
 
 interface IDeleteWorktreeDialogProps {
   readonly repository: Repository
@@ -98,8 +99,4 @@ export class DeleteWorktreeDialog extends React.Component<
 
     this.props.onDismissed()
   }
-}
-
-function normalizePath(p: string): string {
-  return p.replace(/\/+$/, '')
 }
