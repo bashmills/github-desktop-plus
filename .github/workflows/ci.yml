@@ -72,9 +72,27 @@ jobs:
       - name: Ensure a clean working directory
         run: git diff --name-status --exit-code
 
+  compute_version:
+    name: Compute app version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      APP_VERSION: ${{ env.APP_VERSION }}
+    steps:
+      - id: compute_version
+        run: |
+          VERSION="v0.0.0"
+          if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\//}
+          fi
+          VERSION_WITHOUT_V=$(echo "${VERSION}" | sed -E "s/v(.*)/\\1/")
+          echo "APP_VERSION=$VERSION_WITHOUT_V" >> $GITHUB_ENV
+
   build:
     name: ${{ matrix.friendlyName }} ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    needs: compute_version
     permissions:
       contents: read
     strategy:
@@ -93,6 +111,8 @@ jobs:
     environment: ${{ inputs.environment }}
     env:
       RELEASE_CHANNEL: ${{ inputs.environment }}
+      # build:prod expects APP_VERSION to be set in the environment
+      APP_VERSION: ${{ needs.compute_version.outputs.APP_VERSION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,20 +140,9 @@ jobs:
           cd vendor/desktop-trampoline
           yarn install
           yarn test
-      - name: Compute app version
-        id: compute_version
-        shell: bash
-        run: |
-          VERSION="v0.0.0"
-          if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
-            VERSION=${GITHUB_REF/refs\/tags\//}
-          fi
-          VERSION_WITHOUT_V=$(echo "${VERSION}" | sed -E "s/v(.*)/\\1/")
-          echo "APP_VERSION=$VERSION_WITHOUT_V" >> $GITHUB_ENV
       - name: Build production app
         run: yarn build:prod
         env:
-          APP_VERSION: ${{ steps.compute_version.outputs.APP_VERSION }}
           DESKTOP_OAUTH_CLIENT_ID: ${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}
           DESKTOP_OAUTH_CLIENT_SECRET:
             ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}
@@ -189,8 +198,6 @@ jobs:
             new_name=$(echo $new_name | sed -E "s/linux-aarch64/linux-arm64/")
             mv --verbose "$file" "$new_name"
           done
-        env:
-          APP_VERSION: ${{ steps.compute_version.outputs.APP_VERSION }}
 
       - name: Generate AppImage zsync
         if: ${{ runner.os == 'Linux' }}
@@ -215,11 +222,13 @@ jobs:
 
   release_github:
     name: Create GitHub release
-    needs: build
+    needs: [build, compute_version]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+    env:
+      APP_VERSION: ${{ needs.compute_version.outputs.APP_VERSION }}
     steps:
       - uses: actions/checkout@v4
 
@@ -232,40 +241,26 @@ jobs:
         run: ls -R
         working-directory: './artifacts'
 
-      - name: Get tag name without prefix
-        run: |
-          RELEASE_TAG=${GITHUB_REF/refs\/tags\//}
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
-          if [[ "${RELEASE_TAG}" == release-* ]]; then
-            tagNameWithoutPrefix="${RELEASE_TAG:8}"
-          else
-            tagNameWithoutPrefix="${RELEASE_TAG}"
-          fi
-          VERSION_WITHOUT_V=$(echo "${tagNameWithoutPrefix}" | sed -E "s/v(.*)/\\1/")
-          echo "VERSION_WITHOUT_V=${VERSION_WITHOUT_V}" >> $GITHUB_ENV
-          # Export for downstream jobs
-          echo "${VERSION_WITHOUT_V}" > VERSION_WITHOUT_V.txt
-
       # GitHubDesktopSetup-<arch>.<ext> -> GitHubDesktopPlus-<release_tag>-windows-<arch>.<ext>
       # GitHub Desktop Plus-<arch>.zip -> GitHubDesktopPlus-<release_tag>-macOS-<arch>.zip
       - name: Rename Windows/macOS artifacts
         run: |
           for file in $(find ./artifacts -type f -name "GitHubDesktopSetup-*"); do
-            new_name=$(echo "$file" | sed -E "s/GitHubDesktopSetup-(.*)\\.(.*)/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-windows-\\1.\\2/")
+            new_name=$(echo "$file" | sed -E "s/GitHubDesktopSetup-(.*)\\.(.*)/GitHubDesktopPlus-v${APP_VERSION}-windows-\\1.\\2/")
             mv --verbose "$file" "$new_name"
           done
 
           find ./artifacts -type f -name "GitHub Desktop Plus-*.zip" -print0 | while IFS= read -r -d '' file; do
-            new_name=$(echo "$file" | sed -E "s/GitHub Desktop Plus-(.*)\\.zip/GitHubDesktopPlus-${{ env.RELEASE_TAG }}-macOS-\\1.zip/")
+            new_name=$(echo "$file" | sed -E "s/GitHub Desktop Plus-(.*)\\.zip/GitHubDesktopPlus-v${APP_VERSION}-macOS-\\1.zip/")
             mv --verbose "$file" "$new_name"
           done
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: GitHub Desktop Plus v${{ env.VERSION_WITHOUT_V }}
+          name: GitHub Desktop Plus v${{ env.APP_VERSION }}
           body: |
-            Upstream: [GitHub Desktop ${{ env.VERSION_WITHOUT_V }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.VERSION_WITHOUT_V }})
+            Upstream: [GitHub Desktop ${{ env.APP_VERSION }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.APP_VERSION }})
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.AppImage.zsync
@@ -279,21 +274,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload VERSION_WITHOUT_V artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: VERSION_WITHOUT_V
-          path: VERSION_WITHOUT_V.txt
-          retention-days: 1
-          if-no-files-found: error
-
   release_aur:
     name: Publish AUR package
-    needs: release_github
+    needs: [release_github, compute_version]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
+    env:
+      APP_VERSION: ${{ needs.compute_version.outputs.APP_VERSION }}
     steps:
       - uses: actions/checkout@v4
 
@@ -301,16 +290,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: './artifacts'
-
-      - name: Download VERSION_WITHOUT_V artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: VERSION_WITHOUT_V
-          path: './'
-
-      - name: Set VERSION_WITHOUT_V env var
-        run: |
-          echo "VERSION_WITHOUT_V=$(cat ./VERSION_WITHOUT_V.txt)" >> $GITHUB_ENV
 
       - name: Prepare PKGBUILD files
         run: |
@@ -339,7 +318,7 @@ jobs:
                 ls -la
                 exit 1
             fi
-            sed -i "s/\[\[VERSION_WITHOUT_V\]\]/${VERSION_WITHOUT_V}/" $PKGBUILD_FILE
+            sed -i "s/\[\[APP_VERSION\]\]/${APP_VERSION}/" $PKGBUILD_FILE
             sed -i "s/\[\[NODE_CODENAME\]\]/${NODE_CODENAME}/" $PKGBUILD_FILE
             desktop_file_sha256=$(sha256sum $AUR_DIR/github-desktop-plus.desktop | awk '{ print $1 }')
             sed -i "s/\[\[DESKTOP_FILE_SHA256\]\]/$desktop_file_sha256/" $PKGBUILD_FILE
@@ -378,7 +357,7 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message:
-            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+            'Update AUR package to version v${{ env.APP_VERSION }}'
           ssh_keyscan_types: rsa,ecdsa,ed25519
 
       - name: Publish AUR package github-desktop-plus
@@ -394,7 +373,7 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message:
-            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+            'Update AUR package to version v${{ env.APP_VERSION }}'
           ssh_keyscan_types: rsa,ecdsa,ed25519
 
       - name: Publish AUR package github-desktop-plus-git
@@ -410,7 +389,7 @@ jobs:
           commit_email: ${{ secrets.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message:
-            'Update AUR package to version v${{ env.VERSION_WITHOUT_V }}'
+            'Update AUR package to version v${{ env.APP_VERSION }}'
           ssh_keyscan_types: rsa,ecdsa,ed25519
 
       - name: Upload PKGBUILD files
