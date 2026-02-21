@@ -20,7 +20,7 @@ export function renderDefaultBranch(
   const currentBranchName = currentBranch ? currentBranch.name : null
   const isLocalOnly =
     branch.type === BranchType.Local && (!branch.upstream || branch.isGone)
-  
+
   const worktreeName = item.worktreeInUse
     ? Path.basename(item.worktreeInUse.path)
     : null

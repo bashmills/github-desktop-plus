@@ -4,7 +4,11 @@ import { Dispatcher } from '../dispatcher'
 import * as octicons from '../octicons/octicons.generated'
 import { Repository } from '../../models/repository'
 import { ToolbarDropdown, DropdownState } from './dropdown'
-import { FoldoutType, IConstrainedValue, IRepositoryState } from '../../lib/app-state'
+import {
+  FoldoutType,
+  IConstrainedValue,
+  IRepositoryState,
+} from '../../lib/app-state'
 import { WorktreeEntry } from '../../models/worktree'
 import { WorktreeList } from '../worktrees/worktree-list'
 import { CloningRepository } from '../../models/cloning-repository'
@@ -125,7 +129,8 @@ export class WorktreeDropdown extends React.Component<
   }
 
   private renderWorktreeFoldout = (): JSX.Element | null => {
-    const { allWorktrees, currentWorktree } = this.props.repositoryState.worktreesState
+    const { allWorktrees, currentWorktree } =
+      this.props.repositoryState.worktreesState
 
     return (
       <WorktreeList

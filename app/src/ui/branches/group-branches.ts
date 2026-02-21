@@ -43,7 +43,10 @@ export function groupBranches(
   const groups = new Array<IFilterListGroup<IBranchListItem>>()
 
   if (defaultBranch) {
-    const worktreeInUse = findWorktreeForBranch(defaultBranch.name, allWorktrees)
+    const worktreeInUse = findWorktreeForBranch(
+      defaultBranch.name,
+      allWorktrees
+    )
     groups.push({
       identifier: 'default',
       items: [
