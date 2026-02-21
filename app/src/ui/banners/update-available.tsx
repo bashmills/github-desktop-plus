@@ -13,7 +13,7 @@ import { shell } from '../../lib/app-shell'
 
 import { ReleaseSummary } from '../../models/release-notes'
 import { Banner } from './banner'
-import { ReleaseNotesUri } from '../lib/releases'
+import { DesktopPlusReleaseNotesUri } from '../lib/releases'
 import { RichText } from '../lib/rich-text'
 import { Emoji } from '../../lib/emoji'
 
@@ -159,7 +159,7 @@ export class UpdateAvailable extends React.Component<IUpdateAvailableProps> {
     if (this.props.newReleases == null) {
       // if, for some reason we're not able to render the release notes we
       // should redirect the user to the website so we do _something_
-      shell.openExternal(ReleaseNotesUri)
+      shell.openExternal(DesktopPlusReleaseNotesUri)
     } else {
       this.props.dispatcher.showPopup({
         type: PopupType.ReleaseNotes,

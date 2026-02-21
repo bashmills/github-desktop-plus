@@ -12,7 +12,10 @@ import { IUpdateState, UpdateStatus } from '../lib/update-store'
 import { Loading } from '../lib/loading'
 import { RelativeTime } from '../relative-time'
 import { assertNever } from '../../lib/fatal-error'
-import { ReleaseNotesUri, LinuxReleasesUri } from '../lib/releases'
+import {
+  DesktopPlusReleaseNotesUri,
+  UpstreamReleaseNotesUri,
+} from '../lib/releases'
 import { encodePathAsUrl } from '../../lib/path'
 import { isOSNoLongerSupportedByElectron } from '../../lib/get-os'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
@@ -94,7 +97,12 @@ export class About extends React.Component<IAboutProps> {
     return (
       <Row>
         <p className="no-padding">
-          <LinkButton uri={LinuxReleasesUri}>View Releases</LinkButton>
+          <LinkButton uri={DesktopPlusReleaseNotesUri}>
+            GitHub Desktop Plus Releases
+          </LinkButton>
+          <LinkButton uri={UpstreamReleaseNotesUri}>
+            Upstream Releases
+          </LinkButton>
         </p>
       </Row>
     )
@@ -220,7 +228,7 @@ export class About extends React.Component<IAboutProps> {
     const name = this.props.applicationName
     const version = this.props.applicationVersion
     const releaseNotesLink = (
-      <LinkButton uri={ReleaseNotesUri}>release notes</LinkButton>
+      <LinkButton uri={DesktopPlusReleaseNotesUri}>release notes</LinkButton>
     )
 
     const versionText = __DEV__ ? `Build ${version}` : `Version ${version}`

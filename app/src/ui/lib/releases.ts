@@ -1,7 +1,7 @@
-export const ReleaseNotesUri =
+export const UpstreamReleaseNotesUri =
   __RELEASE_CHANNEL__ === 'beta'
     ? 'https://desktop.github.com/release-notes/?env=beta'
     : 'https://desktop.github.com/release-notes/'
 
-export const LinuxReleasesUri =
+export const DesktopPlusReleaseNotesUri =
   'https://github.com/pol-rivero/github-desktop-plus/releases/'
