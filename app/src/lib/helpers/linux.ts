@@ -21,7 +21,11 @@ export function convertToFlatpakPath(path: string) {
     return path
   }
 
-  if (path.startsWith('/opt/') || path.startsWith('/var/lib/flatpak')) {
+  if (
+    path.startsWith('/opt/') ||
+    path.startsWith('/var/lib/flatpak') ||
+    path.startsWith('/home/')
+  ) {
     return path
   }
 
