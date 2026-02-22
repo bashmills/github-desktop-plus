@@ -105,6 +105,7 @@ function packageWindows() {
     name: nugetPkgName,
     appDirectory: distPath,
     outputDirectory: outputDir,
+    version: getVersion(),
     authors: getCompanyName(),
     iconUrl: iconUrl,
     setupIcon: iconSource,
