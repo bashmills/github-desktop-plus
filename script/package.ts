@@ -105,7 +105,7 @@ function packageWindows() {
     name: nugetPkgName,
     appDirectory: distPath,
     outputDirectory: outputDir,
-    version: getVersion(),
+    version: getSemverCompatibleVersion(),
     authors: getCompanyName(),
     iconUrl: iconUrl,
     setupIcon: iconSource,
@@ -239,4 +239,16 @@ async function packageLinux() {
     console.error('A problem occurred with the packaging step', err)
     process.exit(1)
   }
+}
+
+function getSemverCompatibleVersion() {
+  const version = getVersion()
+  const parts = version.split('.')
+  if (parts.length > 3) {
+    const major = parts[0]
+    const minor = parts[1]
+    const patch = parts[2]
+    return `${major}.${minor}.${patch}-${version}`
+  }
+  return version
 }
