@@ -154,11 +154,16 @@ function packageWindows() {
       // the architecture similar to how the setup exe and msi do so we'll just
       // have to rename them here after the fact.
       const arch = getDistArchitecture()
-      const prefix = `${getWindowsIdentifierName()}-${getVersion()}`
 
       for (const kind of shouldMakeDelta() ? ['full', 'delta'] : ['full']) {
-        const from = join(outputDir, `${prefix}-${kind}.nupkg`)
-        const to = join(outputDir, `${prefix}-${arch}-${kind}.nupkg`)
+        const from = join(
+          outputDir,
+          `${getWindowsIdentifierName()}-${getSemverCompatibleVersion()}-${kind}.nupkg`
+        )
+        const to = join(
+          outputDir,
+          `${getWindowsIdentifierName()}-${getVersion()}-${arch}-${kind}.nupkg`
+        )
 
         console.log(`Renaming ${from} to ${to}`)
         await rename(from, to)
