@@ -256,12 +256,24 @@ jobs:
             mv --verbose "$file" "$new_name"
           done
 
+      - name: Read release notes
+        id: release_notes
+        run: |
+          RELEASE_NOTES_FILE=".github/github-desktop-plus_relase_notes.md"
+          TITLE=$(head -n 1 "$RELEASE_NOTES_FILE")
+          BODY=$(tail -n +3 "$RELEASE_NOTES_FILE")
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            echo "$BODY"
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: GitHub Desktop Plus v${{ env.APP_VERSION }}
-          body: |
-            Upstream: [GitHub Desktop ${{ env.APP_VERSION }} release notes](https://github.com/desktop/desktop/releases/tag/release-${{ env.APP_VERSION }})
+          name: ${{ steps.release_notes.outputs.title }}
+          body: ${{ steps.release_notes.outputs.body }}
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.AppImage.zsync
