@@ -42,7 +42,7 @@ export const getGroupKey = (group: RepositoryListGroup) => {
     case 'dotcom':
       return displayName
         ? `1:${displayName}`
-        : `1:${group.owner.login}:${group.login}`
+        : `1:${group.owner.login}:${group.login ?? group.owner.login}`
     case 'enterprise':
       // Allow mixing together dotcom and enterprise repos when setting a group name manually
       return displayName ? `1:${displayName}` : `2:${group.host}`
