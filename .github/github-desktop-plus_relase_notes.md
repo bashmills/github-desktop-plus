@@ -14,3 +14,6 @@ GitHub Desktop Plus v3.5.6-alpha3
 - The "About" page and package information should now contain the correct GitHub Desktop Plus version number, instead of the upstream (GitHub Desktop) version.
 
 - The "About" page now opens the correct release notes URL when the "release notes" link is clicked.
+
+> [!NOTE]
+> If you encounter an error when trying to generate a commit message with Copilot, you may need to sign out and sign back in to your GitHub accounts.
