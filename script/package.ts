@@ -253,7 +253,8 @@ function getSemverCompatibleVersion() {
     const major = parts[0]
     const minor = parts[1]
     const patch = parts[2]
-    return `${major}.${minor}.${patch}-${version}`
+    const rest = parts.slice(3).join('-')
+    return `${major}.${minor}.${patch}-r${rest}`
   }
   return version
 }
