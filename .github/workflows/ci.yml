@@ -304,6 +304,10 @@ jobs:
         with:
           path: './artifacts'
 
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: './artifacts'
+
       - name: Prepare PKGBUILD files
         run: |
           _obfuscate() {
@@ -357,6 +361,17 @@ jobs:
 
           done
 
+      - name: Upload PKGBUILD files
+        uses: actions/upload-artifact@v4
+        with:
+          name: PKGBUILDs
+          path: |
+            ${{ env.PKGBUILD_BIN }}
+            ${{ env.PKGBUILD }}
+            ${{ env.PKGBUILD_GIT }}
+          retention-days: 5
+          if-no-files-found: error
+
       - name: Publish AUR package github-desktop-plus-bin
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
@@ -404,17 +419,6 @@ jobs:
           commit_message:
             'Update AUR package to version v${{ env.APP_VERSION }}'
           ssh_keyscan_types: rsa,ecdsa,ed25519
-
-      - name: Upload PKGBUILD files
-        uses: actions/upload-artifact@v4
-        with:
-          name: PKGBUILDs
-          path: |
-            ${{ env.PKGBUILD_BIN }}
-            ${{ env.PKGBUILD }}
-            ${{ env.PKGBUILD_GIT }}
-          retention-days: 5
-          if-no-files-found: error
 
   release_rpm:
     name: Publish RPM package
