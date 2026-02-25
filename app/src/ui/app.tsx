@@ -966,6 +966,10 @@ export class App extends React.Component<IAppProps, IAppState> {
       return
     }
 
+    if (!this.state.showWorktrees) {
+      this.props.dispatcher.setShowWorktrees(true)
+    }
+
     if (
       this.state.currentFoldout &&
       this.state.currentFoldout.type === FoldoutType.Worktree
