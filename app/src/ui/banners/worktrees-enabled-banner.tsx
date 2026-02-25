@@ -22,14 +22,9 @@ export class WorktreesEnabledBanner extends React.Component<IWorktreesEnabledBan
     const label = __DARWIN__ ? 'Appearance Settings' : 'Appearance Options'
 
     return (
-      <SuccessBanner
-        timeout={8000}
-        onDismissed={this.props.onDismissed}
-      >
+      <SuccessBanner timeout={8000} onDismissed={this.props.onDismissed}>
         Worktrees enabled. You can change this in{' '}
-        <LinkButton onClick={this.onOpenAppearanceSettings}>
-          {label}
-        </LinkButton>
+        <LinkButton onClick={this.onOpenAppearanceSettings}>{label}</LinkButton>
         .
       </SuccessBanner>
     )
