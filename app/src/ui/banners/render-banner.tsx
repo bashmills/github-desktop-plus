@@ -3,6 +3,8 @@ import * as React from 'react'
 import { assertNever } from '../../lib/fatal-error'
 
 import { Banner, BannerType } from '../../models/banner'
+import { PopupType } from '../../models/popup'
+import { PreferencesTab } from '../../models/preferences'
 
 import { Dispatcher } from '../dispatcher'
 import { MergeConflictsBanner } from './merge-conflicts-banner'
@@ -19,6 +21,7 @@ import { SuccessfulSquash } from './successful-squash'
 import { SuccessBanner } from './success-banner'
 import { ConflictsFoundBanner } from './conflicts-found-banner'
 import { OSVersionNoLongerSupportedBanner } from './os-version-no-longer-supported-banner'
+import { LinkButton } from '../lib/link-button'
 
 export function renderBanner(
   banner: Banner,
@@ -171,6 +174,31 @@ export function renderBanner(
       )
     case BannerType.OSVersionNoLongerSupported:
       return <OSVersionNoLongerSupportedBanner onDismissed={onDismissed} />
+    case BannerType.WorktreesEnabled: {
+      const label = __DARWIN__
+        ? 'Appearance Settings'
+        : 'Appearance Options'
+      return (
+        <SuccessBanner
+          key="worktrees-enabled"
+          timeout={8000}
+          onDismissed={onDismissed}
+        >
+          Worktrees enabled. You can change this in{' '}
+          <LinkButton
+            onClick={() =>
+              dispatcher.showPopup({
+                type: PopupType.Preferences,
+                initialSelectedTab: PreferencesTab.Appearance,
+              })
+            }
+          >
+            {label}
+          </LinkButton>
+          .
+        </SuccessBanner>
+      )
+    }
     default:
       return assertNever(banner, `Unknown popup type: ${banner}`)
   }

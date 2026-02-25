@@ -968,6 +968,7 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     if (!this.state.showWorktrees) {
       this.props.dispatcher.setShowWorktrees(true)
+      this.setBanner({ type: BannerType.WorktreesEnabled })
     }
 
     if (
