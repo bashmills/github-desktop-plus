@@ -145,6 +145,7 @@ import { DragType, DropTargetSelector } from '../models/drag-drop'
 import { dragAndDropManager } from '../lib/drag-and-drop-manager'
 import { MultiCommitOperation } from './multi-commit-operation/multi-commit-operation'
 import { WarnLocalChangesBeforeUndo } from './undo/warn-local-changes-before-undo'
+import { WarnUndoPushedCommit } from './undo/warn-undo-pushed-commit'
 import { WarningBeforeReset } from './reset/warning-before-reset'
 import { InvalidatedToken } from './invalidated-token/invalidated-token'
 import { MultiCommitOperationKind } from '../models/multi-commit-operation'
@@ -2282,6 +2283,18 @@ export class App extends React.Component<IAppProps, IAppState> {
             commit={commit}
             isWorkingDirectoryClean={isWorkingDirectoryClean}
             confirmUndoCommit={this.state.askForConfirmationOnUndoCommit}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.WarnUndoPushedCommit: {
+        const { repository, commit } = popup
+        return (
+          <WarnUndoPushedCommit
+            key="warn-undo-pushed-commit"
+            dispatcher={this.props.dispatcher}
+            repository={repository}
+            commit={commit}
             onDismissed={onPopupDismissedFn}
           />
         )

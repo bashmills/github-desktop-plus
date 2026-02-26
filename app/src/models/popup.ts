@@ -82,6 +82,7 @@ export enum PopupType {
   CommitMessage = 'CommitMessage',
   MultiCommitOperation = 'MultiCommitOperation',
   WarnLocalChangesBeforeUndo = 'WarnLocalChangesBeforeUndo',
+  WarnUndoPushedCommit = 'WarnUndoPushedCommit',
   WarningBeforeReset = 'WarningBeforeReset',
   InvalidatedToken = 'InvalidatedToken',
   AddSSHHost = 'AddSSHHost',
@@ -341,6 +342,11 @@ export type PopupDetail =
       repository: Repository
       commit: Commit
       isWorkingDirectoryClean: boolean
+    }
+  | {
+      type: PopupType.WarnUndoPushedCommit
+      repository: Repository
+      commit: Commit
     }
   | {
       type: PopupType.WarningBeforeReset
