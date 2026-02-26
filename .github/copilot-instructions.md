@@ -102,20 +102,8 @@ yarn build:dev
 ### Testing
 
 ```bash
-# Run all unit tests
-yarn test
-
-# Run specific test file
-yarn test <file>
-
-# Run tests in directory
-yarn test <directory>
-
-# Run script tests
-yarn test:script
-
-# Run ESLint tests
-yarn test:eslint
+# Run all tests
+yarn test:docker
 ```
 
 **Test Conventions**:
