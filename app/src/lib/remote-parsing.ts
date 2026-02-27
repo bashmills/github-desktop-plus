@@ -28,7 +28,7 @@ const remoteRegexes: ReadonlyArray<{ protocol: GitProtocol; regex: RegExp }> = [
   {
     protocol: 'https',
     regex: new RegExp(
-      '^https?://(?:.+@)?(.+)/([^/]+)/([^/]+?)(?:/|\\.git/?)?$'
+      '^https?://(?:.+@)?([^/]+)/(.+)/([^/]+?)(?:/|\\.git/?)?$'
     ),
   },
   {

@@ -1099,7 +1099,7 @@ export interface IGitLabAPIRepository {
 function toIAPIRepositoryFromGitLab(
   repo: IGitLabAPIRepository
 ): IAPIRepository {
-  const ownerLogin = repo.path_with_namespace.split('/')[0]
+  const ownerLogin = repo.path_with_namespace.split('/').slice(0, -1).join('/')
   return {
     clone_url: repo.http_url_to_repo,
     ssh_url: repo.ssh_url_to_repo,
