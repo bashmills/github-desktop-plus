@@ -737,7 +737,11 @@ export class CompareSidebar extends React.Component<
       branch.tip.sha
     )
 
-    if (aheadBehind !== undefined && aheadBehind.behind === 0 && aheadBehind.ahead > 0) {
+    if (
+      aheadBehind !== undefined &&
+      aheadBehind.behind === 0 &&
+      aheadBehind.ahead > 0
+    ) {
       return ComparisonMode.Ahead
     }
 
