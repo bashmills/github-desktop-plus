@@ -281,6 +281,11 @@ export class CompareSidebar extends React.Component<
             ? compareCommitSHAs
             : filteredHistoryCommitSHAs
         }
+        allHistoryCommitSHAs={
+          formState.kind === HistoryTabMode.History
+            ? this.props.compareState.allHistoryCommitSHAs
+            : undefined
+        }
         selectedSHAs={this.props.selectedCommitShas}
         shasToHighlight={this.props.shasToHighlight}
         localCommitSHAs={this.props.localCommitSHAs}

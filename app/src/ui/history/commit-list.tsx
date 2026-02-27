@@ -52,6 +52,12 @@ interface ICommitListProps {
   /** The SHAs of the selected commits */
   readonly selectedSHAs: ReadonlyArray<string>
 
+  /**
+   * The full list of commit SHAs in history (unfiltered), used to determine
+   * the actual position of commits regardless of filtering/searching.
+   */
+  readonly allHistoryCommitSHAs?: ReadonlyArray<string>
+
   /** Whether or not commits in this list can be undone. */
   readonly canUndoCommits?: boolean
 
@@ -751,16 +757,20 @@ export class CommitList extends React.Component<
   ): IMenuItem[] {
     const isLocal = this.isLocalCommit(commit.sha)
 
-    const canBeUndone = this.props.canUndoCommits === true && row === 0
-    const canBeAmended = this.props.canAmendCommits === true && row === 0
+    // Determine the actual position in unfiltered history
+    const actualRow =
+      this.props.allHistoryCommitSHAs?.indexOf(commit.sha) ?? row
+
+    const canBeUndone = this.props.canUndoCommits === true && actualRow === 0
+    const canBeAmended = this.props.canAmendCommits === true && actualRow === 0
     // The user can reset to any commit up to the first non-local one (included).
     // They cannot reset to the most recent commit... because they're already
     // in it.
     const isResettableCommit =
-      row > 0 && row <= this.props.localCommitSHAs.length
+      actualRow > 0 && actualRow <= this.props.localCommitSHAs.length
     const canBeResetTo =
       this.props.canResetToCommits === true && isResettableCommit
-    const canBeCheckedOut = row > 0 //Cannot checkout the current commit
+    const canBeCheckedOut = actualRow > 0 //Cannot checkout the current commit
 
     const gitHubRepository = this.props.repository?.gitHubRepository
 
