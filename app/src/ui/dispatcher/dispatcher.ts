@@ -839,7 +839,7 @@ export class Dispatcher {
   public async clone(
     url: string,
     path: string,
-    login: string,
+    login: string | null,
     options?: { branch?: string; defaultBranch?: string }
   ): Promise<Repository | null> {
     return this.appStore._completeOpenInDesktop(async () => {

@@ -529,14 +529,6 @@ export class CloneRepository extends React.Component<
     return this.getTabState(this.props.selectedTab)
   }
 
-  private getSelectedTabAccount(): Account {
-    const selectedAccount = this.getSelectedTabState().selectedAccount
-    if (!selectedAccount) {
-      throw new Error('Trying to clone without a selected account')
-    }
-    return selectedAccount
-  }
-
   /**
    * Update the state for the currently selected tab. Note that
    * since the selected tab can be using either IGitHubTabState
@@ -845,11 +837,11 @@ export class CloneRepository extends React.Component<
       return { url }
     }
 
-    const login = this.getSelectedTabAccount().login
+    const { selectedAccount } = this.getSelectedTabState()
     const account = await findAccountForRemoteURL(
       url,
       this.props.accounts,
-      login
+      selectedAccount?.login ?? null
     )
     if (lastParsedIdentifier !== null && account !== null) {
       const api = API.fromAccount(account)
@@ -897,11 +889,11 @@ export class CloneRepository extends React.Component<
     }
 
     const { url, defaultBranch } = cloneInfo
-    const selectedAccount = this.getSelectedTabAccount()
+    const { selectedAccount } = this.getSelectedTabState()
 
     this.props.dispatcher.closeFoldout(FoldoutType.Repository)
     try {
-      const login = selectedAccount.login
+      const login = selectedAccount?.login ?? null
       this.cloneImpl(url.trim(), path, login, defaultBranch)
     } catch (e) {
       log.error(`CloneRepository: clone failed to complete to ${path}`, e)
@@ -913,7 +905,7 @@ export class CloneRepository extends React.Component<
   private cloneImpl(
     url: string,
     path: string,
-    login: string,
+    login: string | null,
     defaultBranch?: string
   ) {
     this.props.dispatcher.clone(url, path, login, { defaultBranch })

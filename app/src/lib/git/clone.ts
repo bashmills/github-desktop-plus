@@ -28,7 +28,7 @@ export async function clone(
   url: string,
   path: string,
   options: CloneOptions,
-  login: string,
+  login: string | null,
   progressCallback?: (progress: ICloneProgress) => void
 ): Promise<void> {
   const env = {
