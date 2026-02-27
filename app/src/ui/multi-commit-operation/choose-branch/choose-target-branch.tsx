@@ -161,7 +161,7 @@ export class ChooseTargetBranchDialog extends React.Component<
     if (selectedBranch !== null) {
       return (
         <>
-          {okButtonText} to <strong>{selectedBranch.name}</strong>…
+          <span>{okButtonText} to</span> <strong>{selectedBranch.name}</strong>…
         </>
       )
     }

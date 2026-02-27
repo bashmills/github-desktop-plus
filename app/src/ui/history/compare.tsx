@@ -53,7 +53,8 @@ interface ICompareSidebarProps {
   readonly onCompareListScrolled: (scrollTop: number) => void
   readonly onCherryPick: (
     repository: Repository,
-    commits: ReadonlyArray<CommitOneLine>
+    commits: ReadonlyArray<CommitOneLine>,
+    sourceBranch?: Branch
   ) => void
   readonly compareListScrollTop?: number
   readonly localTags: Map<string, string> | null
@@ -709,7 +710,19 @@ export class CompareSidebar extends React.Component<
   }
 
   private onCherryPick = (commits: ReadonlyArray<CommitOneLine>) => {
-    this.props.onCherryPick(this.props.repository, commits)
+    const { compareState } = this.props
+    const { formState } = compareState
+
+    let sourceBranch: Branch | undefined
+
+    if (
+      formState.kind === HistoryTabMode.Compare &&
+      formState.comparisonMode === ComparisonMode.Behind
+    ) {
+      sourceBranch = formState.comparisonBranch
+    }
+
+    this.props.onCherryPick(this.props.repository, commits, sourceBranch)
   }
 
   private onKeyboardReorder = (toReorder: ReadonlyArray<Commit>) => {

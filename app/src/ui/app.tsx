@@ -3780,7 +3780,8 @@ export class App extends React.Component<IAppProps, IAppState> {
    */
   private startCherryPickWithoutBranch = (
     repository: Repository,
-    commits: ReadonlyArray<CommitOneLine>
+    commits: ReadonlyArray<CommitOneLine>,
+    sourceBranch?: Branch
   ) => {
     const repositoryState = this.props.repositoryStateManager.get(repository)
 
@@ -3799,7 +3800,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       repository,
       {
         kind: MultiCommitOperationKind.CherryPick,
-        sourceBranch: currentBranch,
+        sourceBranch: sourceBranch ?? currentBranch,
         branchCreated: false,
         commits,
       },
@@ -3808,7 +3809,11 @@ export class App extends React.Component<IAppProps, IAppState> {
       tip.branch.tip.sha
     )
 
-    const initialStep = getMultiCommitOperationChooseBranchStep(repositoryState)
+    const initialStep = getMultiCommitOperationChooseBranchStep(
+      repositoryState,
+      null,
+      sourceBranch
+    )
 
     this.props.dispatcher.setMultiCommitOperationStep(repository, initialStep)
     this.props.dispatcher.incrementMetric('cherryPickViaContextMenuCount')

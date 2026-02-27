@@ -37,6 +37,7 @@ import { PullRequestSuggestedNextAction } from '../models/pull-request'
 import { clamp } from '../lib/clamp'
 import { Emoji } from '../lib/emoji'
 import { PopupType } from '../models/popup'
+import { Branch } from '../models/branch'
 
 interface IRepositoryViewProps {
   readonly repository: Repository
@@ -108,7 +109,8 @@ interface IRepositoryViewProps {
   readonly aheadBehindStore: AheadBehindStore
   readonly onCherryPick: (
     repository: Repository,
-    commits: ReadonlyArray<CommitOneLine>
+    commits: ReadonlyArray<CommitOneLine>,
+    sourceBranch?: Branch
   ) => void
 
   /** The user's preference of pull request suggested next action to use **/

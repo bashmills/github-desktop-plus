@@ -13,7 +13,8 @@ import { IMultiCommitOperationState, IRepositoryState } from './app-state'
  */
 export function getMultiCommitOperationChooseBranchStep(
   state: IRepositoryState,
-  initialBranch?: Branch | null
+  initialBranch?: Branch | null,
+  sourceBranch?: Branch
 ): ChooseBranchStep {
   const { defaultBranch, allBranches, recentBranches, tip } =
     state.branchesState
@@ -30,7 +31,7 @@ export function getMultiCommitOperationChooseBranchStep(
   return {
     kind: MultiCommitOperationStepKind.ChooseBranch,
     defaultBranch,
-    currentBranch,
+    currentBranch: sourceBranch ?? currentBranch,
     allBranches,
     recentBranches,
     initialBranch: initialBranch !== null ? initialBranch : undefined,
