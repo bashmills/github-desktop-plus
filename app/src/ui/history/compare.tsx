@@ -504,9 +504,11 @@ export class CompareSidebar extends React.Component<
       if (branch === null) {
         this.viewBranchList()
       } else {
+        const comparisonMode = this.getInitialComparisonMode(branch)
+
         this.props.dispatcher.executeCompare(this.props.repository, {
           kind: HistoryTabMode.Compare,
-          comparisonMode: ComparisonMode.Behind,
+          comparisonMode,
           branch,
         })
 
@@ -616,9 +618,11 @@ export class CompareSidebar extends React.Component<
   }
 
   private onBranchItemClicked = (branch: Branch) => {
+    const comparisonMode = this.getInitialComparisonMode(branch)
+
     this.props.dispatcher.executeCompare(this.props.repository, {
       kind: HistoryTabMode.Compare,
-      comparisonMode: ComparisonMode.Behind,
+      comparisonMode,
       branch,
     })
 
@@ -718,6 +722,26 @@ export class CompareSidebar extends React.Component<
         itemIndices: toReorder.map(c => allHistoryCommitSHAs.indexOf(c.sha)),
       },
     })
+  }
+
+  private getInitialComparisonMode(branch: Branch): ComparisonMode {
+    const { currentBranch, repository, aheadBehindStore } = this.props
+
+    if (currentBranch === null) {
+      return ComparisonMode.Behind
+    }
+
+    const aheadBehind = aheadBehindStore.tryGetAheadBehind(
+      repository,
+      currentBranch.tip.sha,
+      branch.tip.sha
+    )
+
+    if (aheadBehind !== undefined && aheadBehind.behind === 0 && aheadBehind.ahead > 0) {
+      return ComparisonMode.Ahead
+    }
+
+    return ComparisonMode.Behind
   }
 
   private onSquash = async (
