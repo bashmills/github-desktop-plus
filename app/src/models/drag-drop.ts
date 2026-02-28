@@ -1,6 +1,7 @@
 import { RowIndexPath } from '../ui/lib/list/list-row-index-path'
 import { Commit } from './commit'
 import { GitHubRepository } from './github-repository'
+import { Branch } from './branch'
 
 /**
  * This is a type is used in conjunction with the drag and drop manager to
@@ -14,6 +15,7 @@ export type DragData = CommitDragData
 export type CommitDragData = {
   type: DragType.Commit
   commits: ReadonlyArray<Commit>
+  sourceBranch?: Branch
 }
 
 export enum DragType {

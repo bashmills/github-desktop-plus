@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Path from 'path'
 import memoize from 'memoize-one'
 import { Commit, CommitOneLine } from '../../models/commit'
+import { Branch } from '../../models/branch'
 import { CommitListItem } from './commit-list-item'
 import { KeyboardInsertionData, List } from '../lib/list'
 import { arrayEquals } from '../../lib/equality'
@@ -193,6 +194,12 @@ interface ICommitListProps {
 
   readonly accounts: ReadonlyArray<Account>
 
+  /**
+   * The source branch for dragged commits in compare view.
+   * When in compare behind mode, this should be the comparison branch.
+   */
+  readonly dragSourceBranch?: Branch
+
   /** This will make the list semantics friendly to screen reader users in browse mode. */
   readonly isInformationalView?: boolean
 }
@@ -321,6 +328,7 @@ export class CommitList extends React.Component<
         onRemoveDragElement={this.props.onRemoveCommitDragElement}
         disableSquashing={this.props.disableSquashing}
         accounts={this.props.accounts}
+        dragSourceBranch={this.props.dragSourceBranch}
       />
     )
   }

@@ -270,6 +270,12 @@ export class CompareSidebar extends React.Component<
         )
     }
 
+    const dragSourceBranch =
+      formState.kind === HistoryTabMode.Compare &&
+      formState.comparisonMode === ComparisonMode.Behind
+        ? formState.comparisonBranch
+        : undefined
+
     return (
       <CommitList
         ref={this.commitListRef}
@@ -328,6 +334,7 @@ export class CompareSidebar extends React.Component<
         }
         keyboardReorderData={this.state.keyboardReorderData}
         accounts={this.props.accounts}
+        dragSourceBranch={dragSourceBranch}
       />
     )
   }

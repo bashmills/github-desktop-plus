@@ -6,6 +6,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 import * as React from 'react'
 import { Commit } from '../../models/commit'
+import { Branch } from '../../models/branch'
 import { GitHubRepository } from '../../models/github-repository'
 import { IAvatarUser, getAvatarUsersForCommit } from '../../models/avatar'
 import { RichText } from '../lib/rich-text'
@@ -48,6 +49,7 @@ interface ICommitProps {
   readonly disableSquashing?: boolean
   readonly unpushedIndicatorTitle?: string
   readonly accounts: ReadonlyArray<Account>
+  readonly dragSourceBranch?: Branch
 }
 
 interface ICommitListItemState {
@@ -220,6 +222,7 @@ export class CommitListItem extends React.PureComponent<
     dragAndDropManager.setDragData({
       type: DragType.Commit,
       commits: this.props.selectedCommits,
+      sourceBranch: this.props.dragSourceBranch,
     })
   }
 

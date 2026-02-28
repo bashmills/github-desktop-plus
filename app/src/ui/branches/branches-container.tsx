@@ -489,8 +489,12 @@ export class BranchesContainer extends React.Component<
   }
 
   private onDropOntoCurrentBranch = () => {
-    if (dragAndDropManager.isDragOfType(DragType.Commit)) {
-      this.props.dispatcher.incrementMetric('dragStartedAndCanceledCount')
+    const { currentBranch } = this.props
+    if (dragAndDropManager.isDragOfType(DragType.Commit) && currentBranch) {
+      this.props.dispatcher.startCherryPickWithBranch(
+        this.props.repository,
+        currentBranch
+      )
     }
   }
 

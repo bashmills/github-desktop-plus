@@ -3134,7 +3134,13 @@ export class Dispatcher {
         'Tip is not in a valid state, which is required to start the cherry-pick flow.'
       )
     }
-    const sourceBranch = tip.branch
+    const sourceBranch = dragData.sourceBranch ?? tip.branch
+    if (sourceBranch.name === targetBranch.name) {
+      log.warn('[cherryPick] Cannot cherry-pick commits onto the same branch.')
+      this.endMultiCommitOperation(repository)
+      return
+    }
+
     const { commits } = dragData
 
     this.initializeMultiCommitOperation(
