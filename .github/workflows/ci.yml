@@ -259,7 +259,7 @@ jobs:
       - name: Read release notes
         id: release_notes
         run: |
-          RELEASE_NOTES_FILE=".github/github-desktop-plus_relase_notes.md"
+          RELEASE_NOTES_FILE=".github/github-desktop-plus-release-notes.md"
           TITLE=$(head -n 1 "$RELEASE_NOTES_FILE")
           BODY=$(tail -n +3 "$RELEASE_NOTES_FILE")
           echo "title=$TITLE" >> $GITHUB_OUTPUT
